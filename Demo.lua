@@ -50,10 +50,15 @@ local ALLIANCE_RANKS = { "Private", "Corporal", "Sergeant", "Master Sergeant", "
 local ALLIANCE_RANKS_DE = { "Gefreiter", "Fußknecht", "Landsknecht", "Feldwebel", "Fähnrich", "Leutnant", "Hauptmann",
   "Kürassier", "Ritter der Allianz", "Feldkommandant", "Rittmeister", "Marschall", "Feldmarschall", "Großmarschall" }
 
+local function lang() return ns.activeLocale or (GetLocale and GetLocale()) or "enUS" end
+
 local function rankName(n)
-  local ok, name = pcall(GetPVPRankInfo, n + 4)
-  if ok and type(name) == "string" and name ~= "" then return name end
-  local de = (GetLocale and GetLocale() == "deDE")
+  -- the game's own rank names are in the client language; use them only if the addon speaks it too
+  if lang() == (GetLocale and GetLocale()) then
+    local ok, name = pcall(GetPVPRankInfo, n + 4)
+    if ok and type(name) == "string" and name ~= "" then return name end
+  end
+  local de = lang() == "deDE"
   if T.Faction() == "alliance" then return (de and ALLIANCE_RANKS_DE or ALLIANCE_RANKS)[n] end
   return (de and HORDE_RANKS_DE or HORDE_RANKS)[n]
 end
@@ -61,7 +66,7 @@ end
 local function key(name) return G.Key(name) end
 
 local function build()
-  local tx = TEXT[GetLocale and GetLocale() or "enUS"] or TEXT.enUS
+  local tx = TEXT[lang()] or TEXT.enUS
   local now = U.Now()
   -- own seeded generator: the same demo data every time (WoW has no math.randomseed)
   local seed = 20261107

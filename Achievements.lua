@@ -42,6 +42,14 @@ function A.List()
   if p == ns.Profile.DEFAULTS then return A.AllDefaults() end
   if type(p.achs) ~= "table" then p.achs = {} end
   -- add defaults not in the profile yet (new core version or newly installed module)
+  -- entries from older versions whose strings are gone (e.g. core "blade" of 0.1)
+  for i = #p.achs, 1, -1 do
+    local a = p.achs[i]
+    if not a.module and not (a.name and a.name ~= "") and a.nameKey then
+      local key = a.faction and ("H_" .. a.nameKey) or a.nameKey
+      if ns.L[key] == key then table.remove(p.achs, i) end
+    end
+  end
   local have = {}
   for _, a in ipairs(p.achs) do have[a.id] = true end
   for _, a in ipairs(A.AllDefaults()) do

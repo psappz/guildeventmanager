@@ -11,7 +11,7 @@ local V = { sort = "stot", desc = true }
 local ROW_H = 20
 -- id, label key, width (0 = rest), group, sort value
 local COLS = {
-  { id = "#", w = 26 },
+  { id = "#", w = 34 },
   { id = "name", key = "PVPK_COL_NAME", w = 0, sort = function(r) return G.Display(r.key):lower() end },
   { id = "rank", key = "PVPK_COL_RANK", w = 130, sort = function(r) return r.s.rank or 0 end },
   { id = "sow", key = "PVPK_COL_OW", w = 58, group = "PVPK_GRP_SEASON", sort = function(r) return r.sow end },

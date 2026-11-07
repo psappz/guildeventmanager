@@ -59,12 +59,14 @@ local function build(p)
   ed.PTS:ClearAllPoints(); ed.PTS:SetPoint("TOPLEFT", 130, y + 30)
   y = y + 44
   local l = W.Text(ed, 10, "muted"); l:SetPoint("TOPLEFT", 10, y); l:SetText(L.AE_SCOPE)
+  ed.lSCOPE = l
   ed.scope = W.Dropdown(ed, 258, function() return { { "season", L.SCOPE_season }, { "forever", L.SCOPE_forever } } end,
     function() return ed.f and ed.f.scope end, function(v) ed.f.scope = v end)
   ed.scope:SetPoint("TOPLEFT", 10, y - 14)
   y = y - 44
   field("HONOR")
   local l2 = W.Text(ed, 10, "muted"); l2:SetPoint("TOPLEFT", 10, y); l2:SetText(L.AE_HONORSCOPE)
+  ed.lHSCOPE = l2
   ed.hscope = W.Dropdown(ed, 258, function() return { { "season", L.SCOPE_season }, { "forever", L.SCOPE_forever } } end,
     function() return ed.f and (ed.f.honorScope or "season") end, function(v) ed.f.honorScope = v end)
   ed.hscope:SetPoint("TOPLEFT", 10, y - 14)
@@ -153,7 +155,7 @@ local function refresh(p)
   local a = V.sel and list[V.sel]
   local manager = G.IsManager()
   for _, w in ipairs({ ed.NAME, ed.N, ed.PTS, ed.HONOR, ed.scope, ed.hscope, ed.on, ed.save, ed.reset,
-    ed.lNAME, ed.lN, ed.lPTS, ed.lHONOR }) do w:SetShown(manager and a ~= nil) end
+    ed.lNAME, ed.lN, ed.lPTS, ed.lHONOR, ed.lSCOPE, ed.lHSCOPE }) do w:SetShown(manager and a ~= nil) end
   ed.reset:SetShown(manager)
   ed.readonly:SetShown(not manager)
   if not a then

@@ -1,5 +1,13 @@
 # GuildEventManager
 
+## 0.4.2
+
+### Fixed
+- Demo data follows the addon language (Settings → Personal → Language), not the client language, so screenshots can be taken in English on a German client.
+- Old achievement "H_ACH_BLADE" from 0.1 no longer shows up.
+- Achievement settings show their labels only when an achievement is selected.
+- Banner thresholds field and the rank column of PvP Kills are wide enough.
+
 ## 0.4.1
 
 ### Fixed
