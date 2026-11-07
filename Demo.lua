@@ -63,8 +63,15 @@ local function key(name) return G.Key(name) end
 local function build()
   local tx = TEXT[GetLocale and GetLocale() or "enUS"] or TEXT.enUS
   local now = U.Now()
-  local rnd = math.random
-  math.randomseed(20261107)
+  -- own seeded generator: the same demo data every time (WoW has no math.randomseed)
+  local seed = 20261107
+  local function rnd(a, b)
+    seed = (seed * 1103515245 + 12345) % 2147483648
+    local f = seed / 2147483648
+    if not a then return f end
+    if not b then return math.floor(f * a) + 1 end
+    return a + math.floor(f * (b - a + 1))
+  end
 
   -- roster
   local roster, ranks = {}, {}

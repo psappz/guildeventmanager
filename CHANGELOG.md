@@ -1,5 +1,10 @@
 # GuildEventManager
 
+## 0.4.1
+
+### Fixed
+- `/gem demo` failed with "attempt to call a nil value": the WoW client has no `math.randomseed`; the demo uses its own generator now.
+
 ## 0.4.0 (PvP module 0.3.0)
 
 ### New
