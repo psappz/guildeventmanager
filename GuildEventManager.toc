@@ -3,13 +3,14 @@
 ## Notes: Plan and run guild events in WoW Forever: event points, guild honor, guild achievements and one total score for the whole guild.
 ## Notes-deDE: Gildenevents in WoW Forever planen und durchführen: Eventpunkte, Gildenehre, Gildenerfolge und eine Gesamtpunktzahl für die ganze Gilde.
 ## Author: psappz
-## Version: 0.2.2
+## Version: 0.3.0
 ## IconTexture: Interface\AddOns\GuildEventManager\Media\GuildEventManagerIcon
 ## AddonCompartmentFunc: GuildEventManager_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: GuildEventManager_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: GuildEventManager_OnAddonCompartmentLeave
 ## SavedVariables: GuildEventManagerDB
 ## X-License: MIT
+## X-Curse-Project-ID: 1790411
 
 Libs\LibStub\LibStub.lua
 Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
@@ -34,6 +35,7 @@ UI_Events.lua
 UI_Banner.lua
 UI_Achievements.lua
 UI_Settings.lua
+Demo.lua
 UI_Minimap.lua
 API.lua
 Init.lua

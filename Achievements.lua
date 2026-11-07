@@ -176,6 +176,7 @@ end
 ---------------------------------------------------------------------------
 function A.Check()
   cache = nil
+  if ns.demo then return end
   ns.Schedule("gemAchCheck", 1, function()
     local sk = G.StoreKey()
     if not sk or not ns.char then return end

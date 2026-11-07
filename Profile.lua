@@ -23,6 +23,7 @@ P.DEFAULTS = {
 -- Per-guild storage
 ---------------------------------------------------------------------------
 function ns.Store()
+  if ns.demo then return ns.demoStore end
   local key = G.StoreKey()
   if not key or not ns.db then return nil end
   ns.db.guilds = ns.db.guilds or {}

@@ -171,7 +171,7 @@ function E.SignCount(e)
 end
 
 function E.SignUp(e, on)
-  if not C.CanSend() then U.Print(ns.L.NOT_ACTIVE); return end
+  if not C.CanSend() and not ns.demo then U.Print(ns.L.NOT_ACTIVE); return end
   e.signups = e.signups or {}
   e.signups[G.MyKey()] = { on = on and true or false, t = U.Now() }
   C.Send("SIGN", { ev = e.id, on = on and true or false })
@@ -235,7 +235,7 @@ end)
 local reminded = {}
 function E.Tick()
   ns.Schedule("gemEventTick", 30, E.Tick)
-  if not G.IsActivated() then return end
+  if ns.demo or not G.IsActivated() then return end
   local now = U.Now()
   for _, e in pairs(events()) do
     if e.status == "planned" and e.kind == "short" and not reminded[e.id] then

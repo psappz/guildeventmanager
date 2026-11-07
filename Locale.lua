@@ -6,6 +6,9 @@ local LOCALES = {}
 
 LOCALES.enUS = {
   FAMILY = "Manager family",
+  DEMO_ON = "Demo mode: sample data for screenshots, nothing is sent or saved. /gem demo off ends it.",
+  DEMO_OFF = "Demo mode ended.",
+  DEMO_RELOAD = "For the other faction look: /reload first, then /gem demo alliance (or horde) before opening the window.",
   HELP = "Commands: /gem (window) · /gem events · /gem banner · /gem ach · /gem settings · /gem plaque [horde|alliance] · /gem status · /gem sync · /gem minimap · /gem debug · /gem errors",
   NO_RIGHTS = "Only the guild master and the event manager rank can do that.",
   ONLY_GM_RANK = "Only the guild master can change the event manager rank.",
@@ -253,6 +256,9 @@ LOCALES.enUS = {
 
 LOCALES.deDE = {
   FAMILY = "Manager-Familie",
+  DEMO_ON = "Demo-Modus: Beispieldaten für Screenshots, es wird nichts gesendet oder gespeichert. /gem demo off beendet ihn.",
+  DEMO_OFF = "Demo-Modus beendet.",
+  DEMO_RELOAD = "Für das Aussehen der anderen Fraktion: erst /reload, dann /gem demo alliance (oder horde), bevor du das Fenster öffnest.",
   HELP = "Befehle: /gem (Fenster) · /gem events · /gem banner · /gem ach · /gem settings · /gem plaque [horde|alliance] · /gem status · /gem sync · /gem minimap · /gem debug · /gem errors",
   NO_RIGHTS = "Das dürfen nur der Gildenmeister und der Rang mit Event-Rechten.",
   ONLY_GM_RANK = "Den Rang mit Event-Rechten legt nur der Gildenmeister fest.",

@@ -110,12 +110,14 @@ end
 
 -- Allowed to talk? Only with guild, activated, and not switched off
 function C.CanSend()
+  if ns.demo then return false end
   return G.InGuild() and G.IsActivated() and not (ns.db and ns.db.silent)
 end
 
 -- kind: short tag ("PROF", "EVT", ...), data: table
 function C.Send(kind, data, dist, target)
   dist = dist or "GUILD"
+  if ns.demo then return false end
   if dist == "GUILD" and not C.CanSend() then return false end
   data = data or {}
   data._id = data._id or U.NewId()
@@ -136,7 +138,11 @@ function C.Send(kind, data, dist, target)
   return true
 end
 
-function C.On(kind, fn) handlers[kind] = fn end
+-- Several handlers per kind (core and modules may both listen, e.g. to HELLO)
+function C.On(kind, fn)
+  handlers[kind] = handlers[kind] or {}
+  table.insert(handlers[kind], fn)
+end
 
 ---------------------------------------------------------------------------
 -- Receiving
@@ -153,13 +159,15 @@ local function dispatch(body, senderName, dist)
   local key = G.Resolve(senderName)
   log("<-", kind, senderName, #body)
   if dist == "GUILD" and not key then return end   -- not in our roster: ignore
-  local fn = handlers[kind]
-  if fn then ns.SafeCall("comm:" .. kind, fn, data, key or G.Key(senderName), dist) end
+  for _, fn in ipairs(handlers[kind] or {}) do
+    ns.SafeCall("comm:" .. kind, fn, data, key or G.Key(senderName), dist)
+  end
 end
 
 function C.OnMessage(prefix, text, dist, senderName)
   if prefix ~= C.PREFIX or not text then return end
   if not G.IsActivated() then return end     -- guild master has not activated the addon
+  if ns.demo then return end                 -- demo data must not mix with real messages
   if (G.Resolve(senderName) or G.Key(senderName)) == G.MyKey() and dist == "GUILD" then return end -- own echo
   local t = text:sub(1, 1)
   if t == "S" then

@@ -1,0 +1,132 @@
+local ADDON, P = ...
+-- PvP statistics per guild member: honorable kills in the open world and in
+-- battlegrounds (this season and since the module counts), the game's own
+-- lifetime numbers, dishonorable kills and the PvP rank. Every client sends
+-- only its own numbers ("PVPSTAT"); all clients keep the latest of everyone.
+local core = P.core
+if not core then return end
+local U, G, C = core.U, core.Guild, core.Comm
+local L = P.L
+
+local function secret(v) return issecretvalue and issecretvalue(v) or false end
+local function num(v) if v == nil or secret(v) then return nil end return tonumber(v) end
+
+local function try(fn, ...)
+  if type(fn) ~= "function" then return nil end
+  local r = { pcall(fn, ...) }
+  if not r[1] then return nil end
+  table.remove(r, 1)
+  return unpack(r)
+end
+
+---------------------------------------------------------------------------
+-- Own counters (per character): open world / battleground, all and season
+---------------------------------------------------------------------------
+local function counters()
+  local c = P.Char()
+  c.hk = c.hk or { ow = 0, bg = 0, sow = 0, sbg = 0, season = 0 }
+  local st = core.Points.SeasonStart()
+  if c.hk.season ~= st then c.hk.season = st; c.hk.sow = 0; c.hk.sbg = 0 end
+  return c.hk
+end
+
+-- kind: instance type from IsInInstance ("none", "pvp", "arena", ...)
+function P.RecordHK(kind)
+  local h = counters()
+  if kind == "pvp" or kind == "arena" then
+    h.bg = h.bg + 1; h.sbg = h.sbg + 1
+  elseif kind == "none" or kind == nil then
+    h.ow = h.ow + 1; h.sow = h.sow + 1
+  else
+    return
+  end
+  core.Schedule("gemPvpStatSend", 60, P.SendStats)
+end
+
+-- Everything the game tells about the own PvP record (each value may be nil)
+function P.OwnStats()
+  local h = counters()
+  local s = { ow = h.ow, bg = h.bg, sow = h.sow, sbg = h.sbg }
+  local hk, dk, highest = try(GetPVPLifetimeStats)
+  s.life, s.dk = num(hk), num(dk)
+  local today = try(GetPVPSessionStats)
+  s.today = num(today)
+  local yhk = try(GetPVPYesterdayStats)
+  s.yday = num(yhk)
+  local whk = try(GetPVPThisWeekStats)
+  s.week = num(whk)
+  local lhk, _, lrank = try(GetPVPLastWeekStats)
+  s.lastweek = num(lhk)
+  local rid = try(UnitPVPRank, "player")
+  rid = num(rid)
+  if rid and rid > 0 then
+    s.rank = rid
+    s.rankName = try(GetPVPRankInfo, rid)
+  end
+  highest = num(highest)
+  if highest and highest > 0 then
+    s.high = highest
+    s.highName = try(GetPVPRankInfo, highest)
+  end
+  local prog = try(GetPVPRankProgress)
+  s.prog = num(prog) and math.floor(num(prog) * 100) or nil
+  return s
+end
+
+local function store()
+  local st = core.Store()
+  if not st then return {} end
+  st.pvpstats = st.pvpstats or {}
+  return st.pvpstats
+end
+P.StatsStore = store
+
+function P.SendStats()
+  if core.demo or not C.CanSend() then return end
+  local s = P.OwnStats()
+  s.season = counters().season
+  s.ts = U.Now()
+  store()[G.MyKey()] = s
+  C.Send("PVPSTAT", { s = s })
+  if core.UI then core.UI.Refresh() end
+end
+
+C.On("PVPSTAT", function(data, from)
+  if type(data.s) ~= "table" or not from then return end
+  local s = data.s
+  -- numbers from an older season do not count for this season
+  if tonumber(s.season) ~= core.Points.SeasonStart() then s.sow, s.sbg = 0, 0 end
+  s.ts = U.Now()
+  store()[from] = s
+  if core.UI then core.UI.Refresh() end
+end)
+
+-- Somebody logged in: everyone answers with his own numbers (spread out)
+C.On("HELLO", function()
+  core.Schedule("gemPvpStatSend", 3 + math.random() * 12, P.SendStats)
+end)
+
+-- Rows for the table: one per member with numbers
+function P.StatRows()
+  local rows = {}
+  local season = core.Points.SeasonStart()
+  for key, s in pairs(store()) do
+    if G.roster[key] or core.demo then
+      local sow, sbg = s.sow or 0, s.sbg or 0
+      if tonumber(s.season) and tonumber(s.season) ~= season then sow, sbg = 0, 0 end
+      rows[#rows + 1] = { key = key, s = s, sow = sow, sbg = sbg, stot = sow + sbg, tot = (s.ow or 0) + (s.bg or 0) }
+    end
+  end
+  return rows
+end
+
+local f = CreateFrame("Frame")
+f:RegisterEvent("PLAYER_LOGIN")
+f:SetScript("OnEvent", function(self, event)
+  if event == "PLAYER_LOGIN" then
+    pcall(self.RegisterEvent, self, "PLAYER_PVP_RANK_CHANGED")
+    core.Schedule("gemPvpStatSend", 20, P.SendStats)
+  else
+    core.Schedule("gemPvpStatSend", 10, P.SendStats)
+  end
+end)

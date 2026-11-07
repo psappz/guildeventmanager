@@ -124,6 +124,7 @@ function P.OnKill(name)
 end
 
 local function sessionHK()
+  if core.demo then return nil end
   if not GetPVPSessionStats then return nil end
   local ok, hk = pcall(GetPVPSessionStats)
   if not ok or secret(hk) then return nil end
@@ -158,6 +159,8 @@ local function checkKills()
     for i = 1, hk - lastHK do
       local line = table.remove(honorLines, 1)
       local name = line and (GetTime() - line.t < 10) and line.name or nil
+      local _, kind = IsInInstance()
+      if P.RecordHK then core.SafeCall("pvpStat", P.RecordHK, kind) end
       core.SafeCall("pvpKill", P.OnKill, name)
     end
   end

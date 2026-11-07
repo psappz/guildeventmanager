@@ -65,7 +65,7 @@ local function showDebug()
   end
 end
 
-ns.SlashExt = {}   -- modules add commands: ns.SlashExt.drum = function(rest) end
+ns.SlashExt = ns.SlashExt or {}   -- modules add commands: ns.SlashExt.drum = function(rest) end
 
 SLASH_GUILDEVENTMANAGER1, SLASH_GUILDEVENTMANAGER2 = "/guildeventmanager", "/gem"
 SlashCmdList.GUILDEVENTMANAGER = function(msg)

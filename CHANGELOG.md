@@ -1,5 +1,14 @@
 # GuildEventManager
 
+## 0.3.0 (PvP module 0.2.0)
+
+### New
+- **PvP Kills** tab: honorable kills of every member in the open world and in battlegrounds, this season and in total, plus the game's own statistics (lifetime honorable and dishonorable kills, today, this week, PvP rank with progress, highest rank). Sortable by every column. Each member sends only his own numbers.
+- **Demo mode** for screenshots: `/gem demo` fills the window with sample data for the guild Neocortex and invented names. Nothing is sent or saved; `/gem demo off` or `/reload` ends it.
+
+### Changed
+- Several modules can now listen to the same guild message.
+
 ## 0.2.2
 
 ### Fixed

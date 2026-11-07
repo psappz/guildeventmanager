@@ -42,6 +42,7 @@ T.THEMES = {
 }
 
 function T.Faction()
+  if T.forced then return T.forced end
   local f = UnitFactionGroup and UnitFactionGroup("player")
   return (f == "Alliance") and "alliance" or "horde"
 end

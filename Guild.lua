@@ -66,6 +66,7 @@ function G.UnitKey(unit)
 end
 
 function G.MyKey()
+  if ns.demo then return G.demoMe end
   local k = G.UnitKey("player")
   if k then return k end
   local n, second = UnitName("player")
@@ -76,6 +77,7 @@ end
 function G.InGuild() return IsInGuild and IsInGuild() end
 
 function G.Name()
+  if ns.demo then return ns.demoGuild end
   local n = GetGuildInfo and GetGuildInfo("player")
   return n
 end
@@ -94,6 +96,7 @@ function G.RequestRoster()
 end
 
 function G.ReadRoster()
+  if ns.demo then return 0 end
   wipe(G.roster)
   wipe(G.alias)
   local n = GetNumGuildMembers and GetNumGuildMembers() or 0
@@ -148,9 +151,15 @@ function G.Marker()
   return m or nil
 end
 
-function G.IsActivated() return G.InGuild() and G.Marker() ~= nil end
+function G.IsActivated()
+  if ns.demo then return true end
+  return G.InGuild() and G.Marker() ~= nil
+end
 
-function G.IsLeader() return IsGuildLeader and IsGuildLeader() or false end
+function G.IsLeader()
+  if ns.demo then return true end
+  return IsGuildLeader and IsGuildLeader() or false
+end
 
 function G.RankOf(key)
   local r = key and G.roster[key]

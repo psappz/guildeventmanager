@@ -5,6 +5,7 @@ local ADDON, P = ...
 local core = GuildEventManagerAPI and GuildEventManagerAPI.core
 if not core then return end
 P.core = core
+GuildEventManagerAPI.pvp = P
 P.L = core.L
 local U, G, T = core.U, core.Guild, core.Theme
 
@@ -117,6 +118,7 @@ end
 function P.Today() return date("%Y-%m-%d", U.Now()) end
 
 function P.Char()
+  if core.demo then return core.demoChar end
   local c = core.char
   if not c then return {} end
   c.pvp = c.pvp or { debts = {}, kills = {} }
