@@ -70,9 +70,11 @@ function P.OnDeath()
   if not P.OpenWorld() or not G.IsActivated() then return end
   local name
   if lastEnemy and GetTime() - lastEnemy.t < 20 then name = lastEnemy.name end
-  if not name then return end
+  if not name then core.Fire("PVP_DEATH", nil); return end
   local d = addDebt(name)
   U.Print(L.PVP_DEBT_NEW:format(T.Word("DEBT"), d.name, P.Rules().debtDays))
+  core.Fire("PVP_DEATH", name)
+  core.Fire("PVP_DEBT_NEW", d)
   lastEnemy = nil
   if core.UI then core.UI.Refresh() end
 end
@@ -89,8 +91,10 @@ end
 function P.KillsToday() return killsToday() end
 
 -- name may be nil when the client gives no honor line
-function P.OnKill(name)
-  if not P.OpenWorld() or not G.IsActivated() then return end
+function P.OnKill(name, kind)
+  if not G.IsActivated() then return end
+  core.Fire("PVP_KILL", name, kind or "none")
+  if not P.OpenWorld() then return end
   local r = P.Rules()
   local zone = GetZoneText and GetZoneText() or ""
   local victim = name or L.PVP_UNKNOWN
@@ -102,6 +106,7 @@ function P.OnKill(name)
         local cold = (U.Now() - d.t) <= (r.coldMin or 5) * 60
         Pts.AddSelf("honor", r.debt, "debt", { flag = cold and "cold" or nil, note = victim, zone = zone })
         P.Notice(L.PVP_DEBT_PAID:format(T.Word("DEBT"), victim, r.debt))
+        core.Fire("PVP_DEBT_PAID", d, cold)
         P.PlaySignal()
         break
       end
@@ -161,7 +166,7 @@ local function checkKills()
       local name = line and (GetTime() - line.t < 10) and line.name or nil
       local _, kind = IsInInstance()
       if P.RecordHK then core.SafeCall("pvpStat", P.RecordHK, kind) end
-      core.SafeCall("pvpKill", P.OnKill, name)
+      core.SafeCall("pvpKill", P.OnKill, name, kind)
     end
   end
   lastHK = hk

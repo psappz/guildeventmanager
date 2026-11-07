@@ -85,6 +85,7 @@ C.On("DRUM", function(data, from)
   P.drums[d.id] = d
   P.Notice(P.DrumText(d))
   P.PlaySignal()
+  core.Fire("PVP_DRUM", d)
   if not (core.db and core.db.pvpNoWaypoint) then P.SetWaypoint(d) end
   if core.UI then core.UI.Refresh() end
   P.TickSoon()
@@ -109,6 +110,7 @@ function P.Tick()
         local first = (d.arrivals or 0) == 0
         Pts.AddSelf("honor", r.drum, "drum", { flag = first and "first" or nil, note = d.zone })
         C.Send("DRUMARR", { id = d.id })
+        core.Fire("PVP_DRUM_ARRIVED", d, first)
         U.Print(L.PVP_DRUM_ARRIVED:format(r.drum) .. (first and (" " .. L.PVP_DRUM_FIRST) or ""))
       end
     end

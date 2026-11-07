@@ -196,6 +196,7 @@ function A.Check()
       ns.Schedule("gemPlaque" .. i, (i - 1) * 7, function()
         ns.Plaque.Show(A.Name(e.def), A.Honor(e.def) and ns.L.HONOR_PREFIX:format(A.Honor(e.def)) or A.Desc(e.def), e.pts, e.def.icon)
         U.Print(ns.L.ACH_EARNED_CHAT:format(T.Word("ACH_KIND"), A.Name(e.def)))
+        ns.Fire("ACHIEVEMENT_EARNED", e.def, e.ts)
       end)
     end
   end)

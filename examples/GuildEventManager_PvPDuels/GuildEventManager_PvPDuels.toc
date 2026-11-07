@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: GuildEventManager PvP Duels
+## Notes: Example PvP extension for GuildEventManager: guild honor for won duels against guild members, a duel tournament event type and a duel achievement.
+## Author: your name
+## Version: 1.0.0
+## Dependencies: GuildEventManager, GuildEventManager_PvP
+## X-License: MIT
+
+Duels.lua

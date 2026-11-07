@@ -62,6 +62,7 @@ function Pts.Add(who, pot, amt, why, ev, note, extra)
     ev = ev, note = note, ts = U.Now(), by = G.MyKey() }
   for k, v in pairs(extra or {}) do if e[k] == nil then e[k] = v end end
   ledger()[e.id] = e
+  ns.Fire("POINTS_ADDED", e)
   Pts.queue = Pts.queue or {}
   Pts.queue[#Pts.queue + 1] = e
   -- send in batches (an event end writes many entries at once)
@@ -84,6 +85,7 @@ function Pts.AddSelf(pot, amt, why, extra)
   local e = { id = U.NewId(), who = me, pot = pot, amt = math.min(amt, Pts.SELF_MAX), why = why, ts = U.Now(), by = me }
   for k, v in pairs(extra or {}) do if e[k] == nil then e[k] = v end end
   ledger()[e.id] = e
+  ns.Fire("POINTS_ADDED", e)
   Pts.queue = Pts.queue or {}
   Pts.queue[#Pts.queue + 1] = e
   ns.Schedule("gemLedgerFlush", 0.5, Pts.Flush)
@@ -126,6 +128,7 @@ C.On("LEDG", function(data, from)
       and (manager or selfEntryOk(e, from)) then
       e.amt = tonumber(e.amt); e.ts = tonumber(e.ts) or U.Now()
       l[e.id] = e
+      ns.Fire("POINTS_ADDED", e)
       if e.why == "revert" and e.note and l[e.note] then l[e.note].reverted = e.id end
       changed = true
     end

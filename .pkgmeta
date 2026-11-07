@@ -11,3 +11,4 @@ ignore:
   - README.md
   - .github
   - docs
+  - examples

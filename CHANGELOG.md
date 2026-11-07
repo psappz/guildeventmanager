@@ -1,5 +1,13 @@
 # GuildEventManager
 
+## 0.4.0 (PvP module 0.3.0)
+
+### New
+- **Module API v1** (`GuildEventManagerAPI`): register modules with event types, point pots, achievements, rules and strings; own and awarded points; events; callbacks (event started/ended/cancelled/updated, points added, achievement earned, activated, profile changed); guild messages with a module namespace; own tabs, widgets, commands.
+- **PvP extension API** (`GuildEventManagerAPI.PvP`): PvP modules register deeds that give guild honor (with honor value and daily cap in the honor rules), extra rules, and react to kills, deaths, blood debts and war drums.
+- Developer guide `docs/MODULES.md` and two example modules in `examples/`.
+- The honor rules form shows the rules of PvP modules.
+
 ## 0.3.0 (PvP module 0.2.0)
 
 ### New

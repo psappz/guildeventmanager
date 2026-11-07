@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: GuildEventManager Example
+## Notes: Example event module for GuildEventManager: a scavenger hunt event type with its own points, achievement and tab.
+## Author: your name
+## Version: 1.0.0
+## Dependencies: GuildEventManager
+## X-License: MIT
+
+Example.lua

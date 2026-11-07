@@ -6,6 +6,8 @@ local LOCALES = {}
 
 LOCALES.enUS = {
   FAMILY = "Manager family",
+  API_TOO_OLD = "Module %s needs GuildEventManager API %d (installed: %d). Please update GuildEventManager.",
+  API_NEEDS_PVP = "Module %s needs the PvP module (GuildEventManager_PvP).",
   DEMO_ON = "Demo mode: sample data for screenshots, nothing is sent or saved. /gem demo off ends it.",
   DEMO_OFF = "Demo mode ended.",
   DEMO_RELOAD = "For the other faction look: /reload first, then /gem demo alliance (or horde) before opening the window.",
@@ -256,6 +258,8 @@ LOCALES.enUS = {
 
 LOCALES.deDE = {
   FAMILY = "Manager-Familie",
+  API_TOO_OLD = "Modul %s braucht die GuildEventManager-API %d (installiert: %d). Bitte GuildEventManager aktualisieren.",
+  API_NEEDS_PVP = "Modul %s braucht das PvP-Modul (GuildEventManager_PvP).",
   DEMO_ON = "Demo-Modus: Beispieldaten für Screenshots, es wird nichts gesendet oder gespeichert. /gem demo off beendet ihn.",
   DEMO_OFF = "Demo-Modus beendet.",
   DEMO_RELOAD = "Für das Aussehen der anderen Fraktion: erst /reload, dann /gem demo alliance (oder horde), bevor du das Fenster öffnest.",

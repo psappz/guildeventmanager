@@ -71,7 +71,7 @@ for _, a in ipairs(tiers({ id = "war", nameKey = "PVP_ACH_WAR", stat = "evtype",
 achs[#achs + 1] = { id = "fullwar", nameKey = "PVP_ACH_FULLWAR", stat = "why", why = "participate", flag = "full", evtype = "warband",
   n = 1, pts = 25, scope = "forever", descKey = "PVP_STAT_FULLWAR", icon = I .. "INV_Misc_Note_06" }
 
-core.Modules.Register({
+GuildEventManagerAPI.RegisterModule({
   id = "pvp", nameKey = "MOD_PVP", version = 1,
   pots = { { id = "honor", nameKey = "POT_HONOR" } },
   eventTypes = {

@@ -9,11 +9,18 @@ The guild master activates it for the guild by pasting an activation code into t
 - Changes: [CHANGELOG.md](CHANGELOG.md)
 - License: [MIT](LICENSE)
 
+## Modules
+
+GuildEventManager is modular. The core and the PvP module ship together; every other module is a separate addon that depends on the core. PvP modules can extend the PvP module (own PvP event types, deeds that give guild honor, honor rules, reactions to kills, deaths and war drums).
+
+**Write your own module:** [docs/MODULES.md](docs/MODULES.md) – API reference, rules for the Forever client, testing checklist. Working examples: [examples/GuildEventManager_Example](examples/GuildEventManager_Example) (event module) and [examples/GuildEventManager_PvPDuels](examples/GuildEventManager_PvPDuels) (PvP module).
+
 ## Repository layout
 
 - Root: the core addon `GuildEventManager`
 - `GuildEventManager_PvP/`: the PvP module, moved to its own addon folder when packaged (see `.pkgmeta`)
-- `docs/`: logo and CurseForge texts, not packaged
+- `docs/`: module guide, logo and CurseForge texts, not packaged
+- `examples/`: example modules, not packaged
 
 ## Releasing
 

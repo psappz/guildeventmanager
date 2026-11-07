@@ -148,7 +148,7 @@ end
 -- Receiving
 ---------------------------------------------------------------------------
 local function dispatch(body, senderName, dist)
-  local kind, payload = body:match("^(%u+)\t(.*)$")
+  local kind, payload = body:match("^([%w_:]+)\t(.*)$")
   if not kind then return end
   local data = C.Deserialize(payload)
   if type(data) ~= "table" then return end

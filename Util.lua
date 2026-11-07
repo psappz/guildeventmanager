@@ -144,6 +144,19 @@ function U.FormatSpan(sec)
   return string.format("%d min", m)
 end
 
+---------------------------------------------------------------------------
+-- Callbacks for modules: ns.Fire("EVENT_ENDED", e, attended) -> every
+-- function registered with GuildEventManagerAPI.On("EVENT_ENDED", fn)
+---------------------------------------------------------------------------
+ns.callbacks = {}
+function ns.On(name, fn)
+  ns.callbacks[name] = ns.callbacks[name] or {}
+  table.insert(ns.callbacks[name], fn)
+end
+function ns.Fire(name, ...)
+  for _, fn in ipairs(ns.callbacks[name] or {}) do ns.SafeCall("callback:" .. name, fn, ...) end
+end
+
 function U.Copy(t)
   if type(t) ~= "table" then return t end
   local c = {}

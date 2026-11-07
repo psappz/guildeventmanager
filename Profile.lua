@@ -72,6 +72,7 @@ function P.Update(fn)
   p.by = G.MyKey()
   p.at = U.Now()
   P.Broadcast()
+  ns.Fire("PROFILE_CHANGED")
   if ns.UI and ns.UI.Refresh then ns.UI.Refresh() end
   return true
 end
@@ -99,6 +100,7 @@ C.On("PROF", function(data, from)
   if G.RankOf(from) ~= 0 and (new.managerRank ~= old.managerRank or new.managerHigher ~= old.managerHigher) then return end
   s.profile = new
   P.Get()
+  ns.Fire("PROFILE_CHANGED")
   if ns.UI and ns.UI.Refresh then ns.UI.Refresh() end
 end)
 

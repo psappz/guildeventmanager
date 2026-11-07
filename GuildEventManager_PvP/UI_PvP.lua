@@ -109,18 +109,28 @@ local function build(p)
   p.rules:SetPoint("TOPLEFT", 0, -24); p.rules:SetPoint("BOTTOMRIGHT", 0, 0)
   p.rules:Hide()
   p.ruleEdits = {}
-  for i, key in ipairs(RULES) do
+  -- built-in rules plus rules of PvP extension modules (GuildEventManagerAPI.PvP.AddRule)
+  local keys = {}
+  for _, k in ipairs(RULES) do keys[#keys + 1] = { key = k, label = L["PVP_R_" .. k] } end
+  for _, r in ipairs(P.extraRules or {}) do keys[#keys + 1] = { key = r.key, label = r.label or (r.labelKey and L[r.labelKey]) or r.key } end
+  p.ruleKeys = keys
+  p.rulesScroll = W.Scroll(p.rules)
+  p.rulesScroll:SetPoint("TOPLEFT", 0, 0); p.rulesScroll:SetPoint("BOTTOMRIGHT", 0, 40)
+  local rc = p.rulesScroll.content
+  for i, k in ipairs(keys) do
     local col, row = (i - 1) % 3, math.floor((i - 1) / 3)
-    local l = W.Text(p.rules, 10, "muted")
+    local l = W.Text(rc, 10, "muted")
     l:SetPoint("TOPLEFT", 10 + col * 136, -10 - row * 50)
     l:SetWidth(128); l:SetWordWrap(false)
-    l:SetText(L["PVP_R_" .. key])
-    local e = W.Edit(p.rules, 90, 22)
+    l:SetText(k.label)
+    local e = W.Edit(rc, 90, 22)
     e:SetPoint("TOPLEFT", l, "BOTTOMLEFT", 0, -3)
-    p.ruleEdits[key] = e
+    p.ruleEdits[k.key] = e
   end
-  p.rulesHint = W.Text(p.rules, 10, "muted")
-  p.rulesHint:SetPoint("TOPLEFT", 10, -164); p.rulesHint:SetPoint("RIGHT", -10, 0)
+  local rows = math.ceil(#keys / 3)
+  p.rulesHint = W.Text(rc, 10, "muted")
+  p.rulesHint:SetPoint("TOPLEFT", 10, -14 - rows * 50); p.rulesHint:SetPoint("RIGHT", rc, "RIGHT", -10, 0)
+  p.rulesScroll:SetContentHeight(rows * 50 + 80)
   p.rulesHint:SetSpacing(2)
   p.rulesHint:SetText(L.PVP_RULES_HINT)
   p.rulesSave = W.Button(p.rules, core.L.SAVE, true, 22)
@@ -128,9 +138,9 @@ local function build(p)
   p.rulesSave:SetScript("OnClick", function()
     core.Profile.Update(function(pr)
       pr.pvp = pr.pvp or {}
-      for _, key in ipairs(RULES) do
-        local v = tonumber((string.gsub(p.ruleEdits[key]:GetText() or "", ",", ".")))
-        if v and v >= 0 then pr.pvp[key] = v end
+      for _, k in ipairs(p.ruleKeys) do
+        local v = tonumber((string.gsub(p.ruleEdits[k.key]:GetText() or "", ",", ".")))
+        if v and v >= 0 then pr.pvp[k.key] = v end
       end
     end)
     U.Print(core.L.SAVED)
@@ -190,9 +200,9 @@ local function refresh(p)
   W.SetLabel(p.rulesBtn, showRules and L.PVP_ROLL or L.PVP_RULES)
   p.rollHead:SetText(showRules and L.PVP_RULES or L.PVP_ROLL)
   if showRules then
-    for _, key in ipairs(RULES) do
-      local e = p.ruleEdits[key]
-      if not e:HasFocus() then e:SetText(tostring(r[key] or "")) end
+    for _, k in ipairs(p.ruleKeys) do
+      local e = p.ruleEdits[k.key]
+      if not e:HasFocus() then e:SetText(tostring(r[k.key] or "")) end
       e:SetEnabled(manager)
     end
     p.rulesSave:SetShown(manager); p.rulesDefault:SetShown(manager)
@@ -206,8 +216,11 @@ local function refresh(p)
     local row = p.rollRows:Get(n)
     row.entry = e
     row:ClearAllPoints(); row:SetPoint("TOPLEFT", 0, -(n - 1) * 20); row:SetPoint("RIGHT", p.rollScroll.content, "RIGHT", 0, 0)
-    local deed = L[WHY[e.why] or "PVP_DEED_OTHER"]
-    if e.why == "debt" or e.why == "kill" then deed = deed:format(e.note or "?") end
+    local deed = P.DeedLabel and P.DeedLabel(e)
+    if not deed then
+      deed = L[WHY[e.why] or "PVP_DEED_OTHER"]
+      if e.why == "debt" or e.why == "kill" then deed = deed:format(e.note or "?") end
+    end
     if e.why == "debt" then deed = deed .. " (" .. T.Word("DEBT") .. ")" end
     local txt = G.Display(e.who) .. U.Color(T.Hex(th.muted), " · " .. deed .. ((e.zone and e.zone ~= "") and (" · " .. e.zone) or ""))
     if e.reverted then txt = U.Color("ff808080", G.Display(e.who) .. " · " .. deed .. " · " .. L.PVP_REVERTED) end

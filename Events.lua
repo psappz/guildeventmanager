@@ -85,11 +85,13 @@ function E.Start(e)
   e.status = "running"; e.started = U.Now()
   E.Save(e)
   C.Send("EVTSTART", { ev = e.id })
+  ns.Fire("EVENT_STARTED", e, true)
 end
 
 function E.Cancel(e)
   e.status = "cancelled"
   E.Save(e)
+  ns.Fire("EVENT_CANCELLED", e)
 end
 
 -- attended: { key = true }; writes participation and organiser points
@@ -113,6 +115,7 @@ function E.End(e, attended)
   end
   e.status = "done"; e.ended = U.Now()
   E.Save(e)
+  ns.Fire("EVENT_ENDED", e, e.attended)
   U.Print(ns.L.EVT_ENDED:format(e.name, n))
 end
 
@@ -202,6 +205,7 @@ C.On("EVT", function(data, from)
   end
   e.signups = mergeSignups(old and old.signups, e.signups)
   list[e.id] = e
+  ns.Fire("EVENT_UPDATED", e, old == nil)
   if not old and E.IsOpen(e) and (U.Now() - (tonumber(e.created) or 0)) < 900 and ns.db.notify ~= false then
     U.Print(ns.L.EVT_NEW:format(T.Word("GUILD"), e.name, U.FormatTime(e.start)))
     pcall(PlaySound, SOUNDKIT and SOUNDKIT.RAID_WARNING or 8959)
@@ -213,6 +217,7 @@ end)
 C.On("EVTSTART", function(data)
   local e = data.ev and E.Get(data.ev)
   if not e then return end
+  ns.Fire("EVENT_STARTED", e, false)
   local msg = ns.L.EVT_STARTS_NOW:format(e.name)
   U.Print(U.Color(U.GOLD, msg))
   if RaidNotice_AddMessage and RaidWarningFrame then

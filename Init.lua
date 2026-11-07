@@ -21,6 +21,7 @@ function ns.CheckActivation()
   local active = G.IsActivated()
   if active and not ns.wasActive then
     ns.wasActive = true
+    ns.Fire("ACTIVATED")
     if not ns.helloSent then
       ns.helloSent = true
       ns.Schedule("gemHello", 4 + math.random() * 6, function()
