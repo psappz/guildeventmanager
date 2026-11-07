@@ -1,0 +1,13 @@
+package-as: GuildEventManager
+
+move-folders:
+  GuildEventManager/GuildEventManager_PvP: GuildEventManager_PvP
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+ignore:
+  - README.md
+  - .github
+  - docs
