@@ -157,6 +157,14 @@ local function victimFromHonorLine(msg)
   return nil
 end
 
+-- name of an enemy player in this unit slot who is dead right now
+local function deadEnemyName(unit)
+  if not UnitExists(unit) or not isEnemyPlayer(unit) then return nil end
+  local ok, dead = pcall(UnitIsDeadOrGhost, unit)
+  if not ok or secret(dead) or not dead then return nil end
+  return unitName(unit)
+end
+
 local function checkKills()
   local hk = sessionHK()
   if not hk then return end
@@ -164,6 +172,8 @@ local function checkKills()
     for i = 1, hk - lastHK do
       local line = table.remove(honorLines, 1)
       local name = line and (GetTime() - line.t < 10) and line.name or nil
+      -- the honor line may not be readable on this client: then the dead enemy in the target
+      if not name then name = deadEnemyName("target") or deadEnemyName("mouseover") end
       local _, kind = IsInInstance()
       if P.RecordHK then core.SafeCall("pvpStat", P.RecordHK, kind) end
       core.SafeCall("pvpKill", P.OnKill, name, kind)
@@ -221,6 +231,12 @@ f:SetScript("OnEvent", function(self, event, arg1)
   elseif event == "PLAYER_PVP_KILLS_CHANGED" then
     core.Schedule("gemPvpHK", 0.3, checkKills)
   elseif event == "CHAT_MSG_COMBAT_HONOR_GAIN" then
+    -- diagnostics for /gem pvpcheck: what the client really delivers
+    if core.db then
+      core.db.pvpDiag = core.db.pvpDiag or {}
+      core.db.pvpDiag.honorLine = secret(arg1) and "<secret>" or tostring(arg1)
+      core.db.pvpDiag.honorLineAt = date("%Y-%m-%d %H:%M:%S")
+    end
     local name = victimFromHonorLine(arg1)
     if name then honorLines[#honorLines + 1] = { name = name, t = GetTime() } end
     core.Schedule("gemPvpHK", 0.3, checkKills)
@@ -244,4 +260,6 @@ core.SlashExt.pvpcheck = function()
   U.Print(("build=%s (%s)  secrets=%s  HK=%s  recap=%s  nameplates=%s"):format(tostring(ver), tostring(build),
     tostring(issecretvalue ~= nil), tostring(sessionHK()), tostring(C_DeathRecap ~= nil), tostring(C_NamePlate ~= nil)))
   U.Print(("honor line: %s"):format(tostring(_G.COMBATLOG_HONORGAIN)))
+  local d = core.db and core.db.pvpDiag
+  U.Print(("last honor message: %s (%s)"):format(tostring(d and d.honorLine), tostring(d and d.honorLineAt)))
 end

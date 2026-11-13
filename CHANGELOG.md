@@ -1,5 +1,11 @@
 # GuildEventManager
 
+## PvP module 0.3.1
+
+### Fixed
+- Kills now carry the victim's name when the client does not deliver a readable honor message: the dead enemy player in the target (or under the mouse) is used. Needed for the per-enemy daily limit and for redeeming blood debts.
+- `/gem pvpcheck` shows the last honor message the client delivered.
+
 ## 0.4.2
 
 ### Fixed
