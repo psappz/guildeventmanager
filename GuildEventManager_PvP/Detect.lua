@@ -103,6 +103,7 @@ function P.RedeemDebt(name, how)
       Pts.AddSelf("honor", r.debt, "debt", { flag = cold and "cold" or nil, note = d.name, how = how or "kill", after = after,
         zone = GetZoneText and GetZoneText() or "" })
       P.Notice(L.PVP_DEBT_PAID:format(T.Word("DEBT"), d.name, r.debt))
+      P.QueueGuildChat(d.name)
       core.Fire("PVP_DEBT_PAID", d, cold)
       P.PlaySignal()
       return true
@@ -311,7 +312,8 @@ local function flushRevenges()
     for _, e in ipairs(list) do names[#names + 1] = G.Display(e.who) end
     text = L.PVP_REVENGE_MANY:format(#list, T.Word("DEBTS"), table.concat(names, ", "))
   end
-  U.Print(U.Color(T.Hex(T.Current().title), "[" .. T.Word("GUILD") .. "] ") .. text)
+  local inGuildChat = tonumber(P.Rules().revengeChat) == 1 and not (core.db and core.db.pvpHideGuildChat)
+  if not inGuildChat then U.Print(U.Color(T.Hex(T.Current().title), "[" .. T.Word("GUILD") .. "] ") .. text) end
   if mode == "banner" then
     if RaidNotice_AddMessage and RaidWarningFrame then
       pcall(RaidNotice_AddMessage, RaidWarningFrame, text, { r = 1, g = 0.75, b = 0.2 })
@@ -353,5 +355,54 @@ core.SlashExt.revenge = function()
     U.Print(U.Color(T.Hex(T.Current().title), "[" .. T.Word("GUILD") .. "] ") .. text)
     if RaidNotice_AddMessage and RaidWarningFrame then pcall(RaidNotice_AddMessage, RaidWarningFrame, text, { r = 1, g = 0.75, b = 0.2 }) end
     P.PlaySignal()
+  end)
+end
+
+---------------------------------------------------------------------------
+-- Revenge in the guild chat (guild setting "revengeChat", default off).
+-- Posted by the avenger's own client, out of combat only, several revenges
+-- as one line, at most one line per revengeChatMin minutes. Every member can
+-- switch off his own posts and hide the lines of others (PvP tab).
+---------------------------------------------------------------------------
+P.CHAT_TAG = "[GEM]"
+local chatQueue = {}
+
+local function inCombat()
+  return (InCombatLockdown and InCombatLockdown()) or (UnitAffectingCombat and UnitAffectingCombat("player")) or false
+end
+
+local function flushGuildChat()
+  if #chatQueue == 0 then return end
+  if inCombat() then core.Schedule("gemPvpGuildChat", 3, flushGuildChat); return end
+  local r = P.Rules()
+  local c = P.Char()
+  local wait = (tonumber(r.revengeChatMin) or 2) * 60 - (U.Now() - (c.lastGuildChat or 0))
+  if wait > 0 then core.Schedule("gemPvpGuildChat", wait + 1, flushGuildChat); return end
+  local names = {}
+  for _, n in ipairs(chatQueue) do names[#names + 1] = n end
+  chatQueue = {}
+  local zone = GetZoneText and GetZoneText() or ""
+  local text = P.CHAT_TAG .. " " .. L.PVP_GUILDCHAT:format(table.concat(names, ", "), zone, T.Word("DEBT"))
+  c.lastGuildChat = U.Now()
+  local fn = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
+  local ok, err = pcall(fn, text, "GUILD")
+  if not ok then core.LogError("guildchat", err) end
+end
+
+function P.QueueGuildChat(name)
+  if core.demo or tonumber(P.Rules().revengeChat) ~= 1 then return end
+  if core.db and core.db.pvpNoGuildChat then return end
+  table.insert(chatQueue, name)
+  core.Schedule("gemPvpGuildChat", 8, flushGuildChat)   -- collect revenges of the next seconds
+end
+
+-- Hide the revenge lines of others in the guild chat (personal setting)
+if ChatFrame_AddMessageEventFilter then
+  ChatFrame_AddMessageEventFilter("CHAT_MSG_GUILD", function(_, _, msg)
+    if core.db and core.db.pvpHideGuildChat and type(msg) == "string" and not secret(msg)
+      and msg:sub(1, #P.CHAT_TAG) == P.CHAT_TAG then
+      return true
+    end
+    return false
   end)
 end

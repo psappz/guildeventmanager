@@ -1,5 +1,11 @@
 # GuildEventManager
 
+## PvP module 0.4.1
+
+### New
+- **Revenge in the guild chat** (guild setting, off by default): the avenger's client posts "[GEM] Revenge taken on X (zone) – blood debt settled!" so members without the addon see it too. Out of combat only, several revenges in one line, at most one post every 2 minutes per member (adjustable in the honor rules).
+- Personal options in the PvP tab: don't post my own revenges; hide these lines of others in the guild chat.
+
 ## PvP module 0.4.0
 
 ### New

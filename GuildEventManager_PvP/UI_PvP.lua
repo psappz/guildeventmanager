@@ -7,7 +7,7 @@ local U, G, T, W, UI, Pts = core.U, core.Guild, core.Theme, core.W, core.UI, cor
 local L = P.L
 local V = {}
 
-local RULES = { "kill", "perVictim", "dailyCap", "debt", "debtDays", "coldMin", "drum", "drumWindow", "drumRadius" }
+local RULES = { "kill", "perVictim", "dailyCap", "debt", "debtDays", "coldMin", "drum", "drumWindow", "drumRadius", "revengeChat", "revengeChatMin" }
 
 local function build(p)
   local th = T.Current()
@@ -55,7 +55,7 @@ local function build(p)
   p.debtHead = UI.Section(left, "")
   p.debtHead:SetPoint("TOPLEFT", p.drumList, "BOTTOMLEFT", 0, -14)
   p.debtBox = W.Box(left, 10, 10, "panel2")
-  p.debtBox:SetPoint("TOPLEFT", p.debtHead, "BOTTOMLEFT", 0, -8); p.debtBox:SetPoint("BOTTOMRIGHT", 0, 22)
+  p.debtBox:SetPoint("TOPLEFT", p.debtHead, "BOTTOMLEFT", 0, -8); p.debtBox:SetPoint("BOTTOMRIGHT", 0, 48)
   p.debtRows = W.Pool(p.debtBox, function(parent)
     local r = CreateFrame("Frame", nil, parent)
     r:SetHeight(18)
@@ -76,6 +76,10 @@ local function build(p)
   p.revengeLabel = W.Text(left, 10, "muted")
   p.revengeLabel:SetPoint("RIGHT", p.revenge, "LEFT", -6, 0)
   p.revengeLabel:SetText(L.PVP_NOTIFY_LABEL)
+  p.postOwn = W.Check(left, L.PVP_CHAT_POST, function(_, on) core.db.pvpNoGuildChat = not on end)
+  p.postOwn:SetPoint("BOTTOMLEFT", 0, 28)
+  p.hideOthers = W.Check(left, L.PVP_CHAT_HIDE, function(_, on) core.db.pvpHideGuildChat = on end)
+  p.hideOthers:SetPoint("LEFT", p.postOwn, "LEFT", 210, 0)
 
   ---------------------------------------------------------------- right: honor roll / rules
   local right = CreateFrame("Frame", nil, p)
@@ -201,6 +205,10 @@ local function refresh(p)
   local k = P.KillsToday()
   p.today:SetText(L.PVP_TODAY:format(k.honor or 0, r.dailyCap))
   p.revenge:Refresh()
+  local chatOn = tonumber(r.revengeChat) == 1
+  p.postOwn:SetChecked(not (core.db and core.db.pvpNoGuildChat))
+  p.hideOthers:SetChecked(core.db and core.db.pvpHideGuildChat)
+  p.postOwn:SetShown(chatOn); p.hideOthers:SetShown(chatOn)
 
   -- right side
   local showRules = V.showRules

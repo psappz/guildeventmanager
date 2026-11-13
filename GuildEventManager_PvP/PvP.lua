@@ -20,6 +20,8 @@ P.DEFAULTS = {
   drum = 5,          -- honor for following a war drum
   drumWindow = 10,   -- minutes to arrive
   drumRadius = 4,    -- arrival radius in % of the zone map
+  revengeChat = 0,   -- 1 = a revenge is also posted in the guild chat (seen without the addon)
+  revengeChatMin = 2, -- minutes between two such posts of one member
 }
 
 function P.Rules()
