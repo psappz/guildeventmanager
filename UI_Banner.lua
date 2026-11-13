@@ -250,8 +250,8 @@ V.ART_SIZE = 232
 -- positions on the painted images (fractions of the image): ring of the sigil,
 -- flames of the braziers; measured on the ChatGPT art
 V.ART_POS = {
-  horde = { ring = { 0.5, 0.339, 0.24 }, flames = { { 0.158, 0.575 }, { 0.845, 0.58 } } },
-  alliance = { ring = { 0.5, 0.337, 0.24 }, flames = { { 0.148, 0.53 }, { 0.852, 0.53 } } },
+  horde = { ring = { 0.5, 0.339, 0.34 }, flames = { { 0.158, 0.575 }, { 0.845, 0.58 } } },
+  alliance = { ring = { 0.5, 0.337, 0.34 }, flames = { { 0.148, 0.53 }, { 0.852, 0.53 } } },
 }
 local function artFor(level)
   local list = V.ART[T.Faction()]
