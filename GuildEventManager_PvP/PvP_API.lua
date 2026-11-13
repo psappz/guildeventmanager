@@ -74,11 +74,25 @@ end
 --   DEATH (killerName or nil)                own death in the open world
 --   DEBT_NEW (debt)  DEBT_PAID (debt, servedCold)
 --   DRUM (drum)      DRUM_ARRIVED (drum, first)
+--   MAKGORA (duel, winnerKey, loserKey)   own won duel of honor, booked
+--   MAKGORA_NEW (duel)                    a challenge arrived from the guild
+--   OATH_FULFILLED (oath)                 own oath confirmed by the witnesses
 function PvP.On(name, fn) core.On("PVP_" .. name, fn) end
 
 -- War drum / storm bell at the own position: level "help" | "rally" | "attack"
 function PvP.Drum(level, text) P.Drum(level, text) end
 function PvP.OpenDebts() return P.OpenDebts() end
+
+-- Duels of honor (Mak'gora) and oaths, both confirmed by witnesses
+function PvP.Challenge(name, stake) P.Challenge(name, stake) end
+function PvP.Swear(level, text) P.Swear(level, text) end                 -- level 1..3
+function PvP.ActiveMakgoras() return P.ActiveMakgoras() end
+function PvP.OpenOaths() return P.OpenOaths() end
+function PvP.MakgoraRecord(name) return P.MakgoraRecord(name and core.Guild.Resolve(name) or core.Guild.MyKey()) end  -- wins, losses
+
+-- Season results of guild honor: { { start, stop, total, top = { { key, honor } x3 } } }, newest first
+function PvP.SeasonResults(n) return P.SeasonResults(n) end
+function PvP.SeasonProgress() return P.SeasonProgress() end              -- honor this season, goal
 function PvP.InOpenWorld() return P.OpenWorld() end
 function PvP.PlaySignal() P.PlaySignal() end
 function PvP.Notice(msg) P.Notice(msg) end

@@ -80,7 +80,7 @@ local function build(p)
   ed.reset:SetPoint("BOTTOMLEFT", 10, 10)
   ed.reset:SetScript("OnClick", function()
     W.Dialog({ text = L.RESET_ACHS_CONFIRM, onAccept = function()
-      ns.Profile.Update(function(pr) pr.achs = U.Copy(A.AllDefaults()) end)
+      ns.Profile.Update(function(pr) pr.achs = nil; pr.achOv = nil end)
       A.Dirty()
     end })
   end)
@@ -98,10 +98,9 @@ function V.Save()
   local p = V.panel
   local ed = p.ed
   local idx = V.sel
-  if not idx then return end
-  ns.Profile.Update(function(pr)
-    local a = pr.achs[idx]
-    if not a then return end
+  local cur = idx and A.List()[idx]
+  if not cur then return end
+  A.Edit(cur.id, function(a)
     local name = ed.NAME:GetText()
     a.name = (name ~= "" and name ~= A.Name(a)) and name or a.name
     a.n = math.max(1, tonumber(ed.N:GetText()) or a.n)
@@ -141,8 +140,9 @@ local function refresh(p)
     r.bar:SetShown(not got and not secret); r.prog:SetShown(not got and not secret)
     r.prog:SetText(math.min(prog, a.n) .. " / " .. a.n)
     r.pts:SetText(a.pts or 0)
-    r.when:SetText(got and U.FormatTime(got.ts) or L.POINTS)
-    if got then mine = mine + (a.pts or 0) end
+    local times = (got and a.repeatable) and A.Count(me, a.id) or 1
+    r.when:SetText(got and (U.FormatTime(got.ts) .. (times > 1 and ("  ×" .. times) or "")) or L.POINTS)
+    if got then mine = mine + (a.pts or 0) * times end
     local sel = V.sel == i
     r:SetBackdropBorderColor(unpack(sel and th.title or (got and th.title or th.line)))
     r:SetAlpha((got or sel) and 1 or 0.85)

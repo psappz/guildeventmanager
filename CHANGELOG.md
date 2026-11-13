@@ -1,5 +1,19 @@
 # GuildEventManager
 
+## 0.5.0 (core and PvP module)
+
+### New
+- **Languages:** French, Spanish (also Mexican Spanish), Italian and Brazilian Portuguese for the core and the PvP module.
+- **Mak'gora / duel of honor** (PvP): challenge a guild member with a stake (`/gem makgora <name> [stake]` or the new tab). The challenged one accepts, a guild member watches as witness and confirms the winner; the winner gets 10 honor. Once a week per pair. If the game's duel message is readable, the witness is asked directly.
+- **Oaths** (PvP): swear a small, great or mighty oath (10 / 25 / 40 honor, `/gem oath`). Two witnesses confirm it was kept within 14 days.
+- **Season results** (PvP): Season Podium (places 1–3 of guild honor), Champion of the Clan / Order (place 1, honor name "Champion" for the next season), Unstoppable (the guild reaches 5000 honor in a season – everyone who helped earns it). Shown in the new tab with the last three seasons and the progress towards the goal.
+- New achievements: Mak'gora / Duel of Honor (bronze, silver, gold with honor name), Challenger, Unbeaten, Oathkeeper, Sword of the Clan / Order (meta achievement).
+- All new values are in the honor rules and can be changed by event managers.
+- Module API: computed, repeatable and meta achievements (`compute`, `repeatable`, `progress`, `meta`, `honorPrio`); `PvP.Challenge`, `PvP.Swear`, `PvP.SeasonResults`, new callbacks `MAKGORA`, `MAKGORA_NEW`, `OATH_FULFILLED`; `debt.how` in `DEBT_PAID`. See docs/MODULES.md.
+
+### Fixed
+- **The guild profile was sent again and again.** It held full copies of all achievements (about 5 KB), and the game drops addon messages once a client sends too fast, so parts never arrived. The profile now keeps only what event managers changed (about 0.5 KB), and all messages leave through a queue that keeps to the game's limit.
+
 ## PvP module 0.4.1
 
 ### New

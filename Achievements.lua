@@ -10,6 +10,10 @@ ns.Achievements = A
 -- event types attended), points (event + honor points),
 -- why (entries with e.why == a.why, optionally e.flag == a.flag),
 -- evtype (events of type a.evtype attended)
+-- meta = { ids }: earned with all of these achievements (n = #meta)
+-- compute = function(entries, events, a) -> { { who, ts, note } }: worked out by
+--   the module (season results, streaks, ...); repeatable = true counts every award
+-- honorPrio = n: this honor name wins over newer ones with a lower number (default 0)
 -- hidden = true: shown only once earned. Modules add their own (def.achievements).
 -- scope: "season" counts only this season, "forever" counts everything
 -- faction = true: name / honor name come from H_ / A_ locale keys
@@ -37,25 +41,63 @@ function A.AllDefaults()
   return list
 end
 
+-- The guild profile keeps only what managers changed (p.achOv[id] = { n, pts, ... });
+-- the definitions themselves come from the code. Keeps the profile small.
+A.FIELDS = { "n", "pts", "name", "honor", "scope", "honorScope", "on" }
+
+local function defaultsById()
+  local map = {}
+  for _, d in ipairs(A.AllDefaults()) do map[d.id] = d end
+  return map
+end
+
+-- Differences of an edited achievement to its default
+function A.Diff(a, d)
+  local ov = {}
+  for _, f in ipairs(A.FIELDS) do
+    if a[f] ~= d[f] then ov[f] = a[f] end
+  end
+  if d.honorKey and not a.honorKey and not a.honor then ov.noHonor = true end
+  return next(ov) and ov or nil
+end
+
 function A.List()
   local p = ns.Profile.Get()
   if p == ns.Profile.DEFAULTS then return A.AllDefaults() end
-  if type(p.achs) ~= "table" then p.achs = {} end
-  -- add defaults not in the profile yet (new core version or newly installed module)
-  -- entries from older versions whose strings are gone (e.g. core "blade" of 0.1)
-  for i = #p.achs, 1, -1 do
-    local a = p.achs[i]
-    if not a.module and not (a.name and a.name ~= "") and a.nameKey then
-      local key = a.faction and ("H_" .. a.nameKey) or a.nameKey
-      if ns.L[key] == key then table.remove(p.achs, i) end
+  local defs = defaultsById()
+  -- older versions kept full copies in p.achs: turn them into overrides once
+  if type(p.achs) == "table" then
+    p.achOv = p.achOv or {}
+    for _, a in ipairs(p.achs) do
+      local d = defs[a.id]
+      if d and not p.achOv[a.id] then p.achOv[a.id] = A.Diff(a, d) end
     end
+    p.achs = nil
   end
-  local have = {}
-  for _, a in ipairs(p.achs) do have[a.id] = true end
-  for _, a in ipairs(A.AllDefaults()) do
-    if not have[a.id] then p.achs[#p.achs + 1] = U.Copy(a) end
+  local list = {}
+  for _, d in ipairs(A.AllDefaults()) do
+    local a = U.Copy(d)
+    local ov = p.achOv and p.achOv[d.id]
+    if ov then
+      for k, v in pairs(ov) do a[k] = v end
+      if ov.noHonor then a.honorKey = nil; a.honor = nil end
+    end
+    list[#list + 1] = a
   end
-  return p.achs
+  return list
+end
+
+-- Change one achievement (managers): fn(a) edits a copy, the difference is stored
+function A.Edit(id, fn)
+  return ns.Profile.Update(function(pr)
+    local d = defaultsById()[id]
+    if not d then return end
+    local a
+    for _, x in ipairs(A.List()) do if x.id == id then a = x end end
+    fn(a)
+    pr.achOv = pr.achOv or {}
+    pr.achOv[id] = A.Diff(a, d)
+  end)
 end
 
 function A.Name(a)
@@ -119,8 +161,25 @@ local function compute()
   table.sort(entries, function(a, b) return (a.ts or 0) < (b.ts or 0) end)
 
   local res = {}
+  local metas = {}
+  local function award(who, a, ts, note)
+    res[who] = res[who] or {}
+    table.insert(res[who], { id = a.id, ts = ts or 0, pts = a.pts or 0, def = a, note = note })
+  end
   for _, a in ipairs(A.List()) do
-    if a.on ~= false then
+    if a.on ~= false and a.meta then
+      metas[#metas + 1] = a
+    elseif a.on ~= false and a.compute then
+      -- computed by the module from all entries: { { who, ts, note } }
+      local ok, awards = pcall(a.compute, entries, s.events, a)
+      if ok and type(awards) == "table" then
+        table.sort(awards, function(x, y) return (x.ts or 0) < (y.ts or 0) end)
+        local got = {}
+        for _, w in ipairs(awards) do
+          if w.who and (a.repeatable or not got[w.who]) then got[w.who] = true; award(w.who, a, w.ts, w.note) end
+        end
+      elseif not ok and ns.LogError then ns.LogError("ach " .. tostring(a.id), awards) end
+    elseif a.on ~= false then
       local count, typesSeen = {}, {}
       for _, e in ipairs(entries) do
         if a.scope ~= "season" or (e.ts or 0) >= seasonStart then
@@ -131,12 +190,26 @@ local function compute()
             local before = count[who] or 0
             count[who] = before + add
             if before < a.n and count[who] >= a.n then
-              res[who] = res[who] or {}
-              table.insert(res[who], { id = a.id, ts = e.ts, pts = a.pts or 0, def = a })
+              award(who, a, e.ts)
             end
           end
         end
       end
+    end
+  end
+  -- meta achievements: earned with all achievements in a.meta (first time each)
+  for _, a in ipairs(metas) do
+    for who, list in pairs(res) do
+      local first = {}
+      for _, e in ipairs(list) do
+        if not first[e.id] or e.ts < first[e.id] then first[e.id] = e.ts end
+      end
+      local ts, all = 0, true
+      for _, id in ipairs(a.meta) do
+        if not first[id] then all = false; break end
+        if first[id] > ts then ts = first[id] end
+      end
+      if all then award(who, a, ts) end
     end
   end
   return res
@@ -148,6 +221,12 @@ function A.Earned()
   return cache
 end
 
+function A.Count(key, id)
+  local n = 0
+  for _, e in ipairs(A.Earned()[key] or {}) do if e.id == id then n = n + 1 end end
+  return n
+end
+
 function A.Has(key, id)
   for _, e in ipairs(A.Earned()[key] or {}) do if e.id == id then return e end end
 end
@@ -156,6 +235,18 @@ end
 function A.Progress(key, a)
   local s = ns.Store()
   if not s then return 0 end
+  if a.meta then
+    local n = 0
+    for _, id in ipairs(a.meta) do if A.Has(key, id) then n = n + 1 end end
+    return n
+  end
+  if a.compute then
+    if a.progress then
+      local ok, v = pcall(a.progress, key, a)
+      if ok and tonumber(v) then return tonumber(v) end
+    end
+    return A.Has(key, a.id) and a.n or 0
+  end
   local since = (a.scope == "season") and ns.Points.SeasonStart() or 0
   local n, seen = 0, {}
   for _, e in pairs(s.ledger) do
@@ -173,7 +264,8 @@ function A.HonorName(key)
   for _, e in ipairs(A.Earned()[key] or {}) do
     local h = A.Honor(e.def)
     if h and (e.def.honorScope ~= "season" or (e.ts or 0) >= seasonStart) then
-      if not best or e.ts > best.ts then best = { name = h, ts = e.ts } end
+      local prio = tonumber(e.def.honorPrio) or 0
+      if not best or prio > best.prio or (prio == best.prio and e.ts > best.ts) then best = { name = h, ts = e.ts, prio = prio } end
     end
   end
   return best and best.name
@@ -194,7 +286,8 @@ function A.Check()
     ns.char.seenAch[sk] = seen
     local fresh = {}
     for _, e in ipairs(A.Earned()[G.MyKey()] or {}) do
-      local k = e.id .. ":" .. (e.def.scope == "season" and tostring(ns.Points.SeasonStart()) or "0")
+      local k = e.id .. ":" .. (e.def.repeatable and tostring(e.ts)
+        or (e.def.scope == "season" and tostring(ns.Points.SeasonStart()) or "0"))
       if not seen[k] then
         seen[k] = true
         if not first then fresh[#fresh + 1] = e end

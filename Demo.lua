@@ -28,6 +28,8 @@ local TEXT = {
     defense = "Verteidigung von Hammerfall", rp = "Lagerfeuer in Grom'gol", ritual = "Aufnahme der Rekruten",
     meet = "Gildentreffen in Orgrimmar", raid2 = "Kriegszug ins Eschental", raid3 = "Überfall auf Southshore",
     drum = "3 Schurken an der Mühle", defGoal = "Angriff abgewehrt",
+    stakes = { "ein Fass Donnerbräu", "50 Gold", "die erste Wache in Tarrens Mühle", "das Lagerfeuer-Lied" },
+    oaths = { "Ich besiege den Hauptmann von Southshore", "Ich halte Hammerfall eine Woche lang", "Ich bringe Aldric zu Fall" },
   },
   enUS = {
     ranks = { [0] = "Warchief", "Officer", "Veteran", "Warrior", "Recruit" },
@@ -38,6 +40,8 @@ local TEXT = {
     defense = "Defense of Hammerfall", rp = "Campfire in Grom'gol", ritual = "Welcoming the recruits",
     meet = "Guild meeting in Orgrimmar", raid2 = "Warband into Ashenvale", raid3 = "Raid on Southshore",
     drum = "3 rogues at the mill", defGoal = "Attack repelled",
+    stakes = { "a barrel of Thunderbrew", "50 gold", "the first guard at Tarren Mill", "the campfire song" },
+    oaths = { "I will defeat the captain of Southshore", "I will hold Hammerfall for a week", "I will bring Aldric down" },
   },
 }
 
@@ -189,6 +193,21 @@ local function build()
       season = ns.Points.SeasonStart(), ts = now - rnd(60, 7200),
     }
   end
+  -- last season (for the podium) and duels of honor / oaths
+  local lastSeason = ns.Points.SeasonStart() - 1
+  for i = 1, 8 do
+    local k = key(MEMBERS[i][1])
+    for j = 1, (10 - i) * 4 do entry(k, "honor", 3, "kill", lastSeason - rnd() * 20 * DAY, { note = ENEMIES[rnd(#ENEMIES)], zone = tx.zones[rnd(#tx.zones)] }) end
+  end
+  local duels = { { 2, 5 }, { 1, 3 }, { 4, 6 }, { 2, 7 }, { 3, 1 }, { 2, 8 }, { 5, 4 } }
+  for j, d in ipairs(duels) do
+    local w, l = key(MEMBERS[d[1]][1]), key(MEMBERS[d[2]][1])
+    entry(w, "honor", 10, "makgora", now - (j * 2.5 + rnd()) * DAY, { note = l, ch = (j % 2 == 0) and w or l,
+      stake = tx.stakes[(j - 1) % #tx.stakes + 1], wit = key(MEMBERS[9][1]) })
+  end
+  entry(key(MEMBERS[3][1]), "honor", 25, "oath", now - 6 * DAY, { note = tx.oaths[2], flag = "lvl2" })
+  entry(key(MEMBERS[6][1]), "honor", 10, "oath", now - 3 * DAY, { note = tx.oaths[3], flag = "lvl1" })
+
   -- a few most recent deeds, so the honor roll starts lively
   entry(me, "honor", 20, "debt", now - 300, { note = "Aldric", zone = tx.zones[1], flag = "cold" })
   entry(key("Krazja"), "honor", 5, "drum", now - 420, { note = tx.zones[1], flag = "first" })
@@ -233,6 +252,20 @@ function D.Start(faction)
     P.drums.d2 = { id = "d2", lvl = "rally", map = 1417, x = 0.46, y = 0.38, zone = tx.zones[2], sub = tx.sub[2],
       by = G.Key("Morvok"), ts = now - 420, arrivals = 5, arrived = true }
   end
+  -- duels of honor and oaths of the PvP module
+  if P and P.maks then
+    D.savedHonor = { P.maks, P.oaths }
+    local now, tx = U.Now(), data.tx
+    local function k(n) return G.Key(n) end
+    P.maks = {
+      m1 = { id = "m1", a = k("Krazja"), b = data.me, stake = tx.stakes[1], ts = now - 120, state = "open", wit = {} },
+      m2 = { id = "m2", a = k("Morvok"), b = k("Telanis"), stake = tx.stakes[2], ts = now - 600, acc = now - 500, state = "fight", wit = {} },
+    }
+    P.oaths = {
+      o1 = { id = "o1", by = data.me, text = tx.oaths[1], lvl = 3, ts = now - 2 * 86400, state = "open", wit = { [k("Krazja")] = true } },
+      o2 = { id = "o2", by = k("Morvok"), text = tx.oaths[3], lvl = 2, ts = now - 86400, state = "open", wit = {} },
+    }
+  end
   U.Print(ns.L.DEMO_ON)
   if ns.UI then ns.UI.Show("pvp") end
 end
@@ -246,6 +279,7 @@ function D.Stop()
   ns.demoStore, ns.demoChar, G.demoMe = nil, nil, nil
   local P = GuildEventManagerAPI.pvp
   if P and D.savedDrums then P.drums = D.savedDrums end
+  if P and D.savedHonor then P.maks, P.oaths = D.savedHonor[1], D.savedHonor[2]; D.savedHonor = nil end
   ns.Achievements.Dirty()
   G.RequestRoster()
   U.Print(ns.L.DEMO_OFF)

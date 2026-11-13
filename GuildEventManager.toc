@@ -2,8 +2,13 @@
 ## Title: |cffd4af37GuildEventManager|r
 ## Notes: Plan and run guild events in WoW Forever: event points, guild honor, guild achievements and one total score for the whole guild.
 ## Notes-deDE: Gildenevents in WoW Forever planen und durchführen: Eventpunkte, Gildenehre, Gildenerfolge und eine Gesamtpunktzahl für die ganze Gilde.
+## Notes-frFR: Planifier et mener des événements de guilde dans WoW Forever : points d'événement, honneur de guilde, hauts faits de guilde et un score total pour toute la guilde.
+## Notes-esES: Planifica y organiza eventos de hermandad en WoW Forever: puntos de evento, honor de hermandad, logros de hermandad y una puntuación total para toda la hermandad.
+## Notes-esMX: Planifica y organiza eventos de hermandad en WoW Forever: puntos de evento, honor de hermandad, logros de hermandad y una puntuación total para toda la hermandad.
+## Notes-itIT: Pianifica e gestisci gli eventi di gilda in WoW Forever: punti evento, onore di gilda, imprese di gilda e un punteggio totale per tutta la gilda.
+## Notes-ptBR: Planeje e conduza eventos da guilda no WoW Forever: pontos de evento, honra da guilda, conquistas da guilda e uma pontuação total para a guilda inteira.
 ## Author: psappz
-## Version: 0.4.2
+## Version: 0.5.0
 ## IconTexture: Interface\AddOns\GuildEventManager\Media\GuildEventManagerIcon
 ## AddonCompartmentFunc: GuildEventManager_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: GuildEventManager_OnAddonCompartmentEnter
@@ -18,6 +23,10 @@ Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
 Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
 
 Locale.lua
+Locales\frFR.lua
+Locales\esES.lua
+Locales\itIT.lua
+Locales\ptBR.lua
 Util.lua
 Family.lua
 Theme.lua

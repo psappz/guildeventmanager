@@ -510,8 +510,11 @@ LOCALES.enGB = LOCALES.enUS
 
 ns.L = {}
 
+local ALIAS = { enGB = "enUS", esMX = "esES", ptPT = "ptBR" }
+
 function ns.ApplyLocale(code)
   if not code or code == "auto" then code = (GetLocale and GetLocale()) or "enUS" end
+  code = ALIAS[code] or code
   local active = LOCALES[code] or LOCALES.enUS
   ns.activeLocale = code
   setmetatable(ns.L, { __index = function(_, k) return active[k] or LOCALES.enUS[k] or k end })

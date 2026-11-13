@@ -97,7 +97,7 @@ function P.RedeemDebt(name, how)
   local r = P.Rules()
   for _, d in ipairs(P.OpenDebts()) do
     if key(d.name) == key(name) then
-      d.state = "paid"; d.paid = U.Now()
+      d.state = "paid"; d.paid = U.Now(); d.how = how or "kill"
       local after = U.Now() - d.t
       local cold = after <= (r.coldMin or 5) * 60
       Pts.AddSelf("honor", r.debt, "debt", { flag = cold and "cold" or nil, note = d.name, how = how or "kill", after = after,

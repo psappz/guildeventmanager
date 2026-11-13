@@ -1,19 +1,31 @@
 ## Interface: 16001
 ## Title: |cffd4af37GuildEventManager|r PvP
-## Notes: PvP module for GuildEventManager: guild honor for open world kills, blood debts, war drums and warbands.
-## Notes-deDE: PvP-Modul für GuildEventManager: Gildenehre für Siege im offenen Gelände, Blutschuld, Kriegstrommeln und Kriegszüge.
+## Notes: PvP module for GuildEventManager: guild honor for open world kills, blood debts, war drums, warbands, duels of honor, oaths and season results.
+## Notes-deDE: PvP-Modul für GuildEventManager: Gildenehre für Siege im offenen Gelände, Blutschuld, Kriegstrommeln, Kriegszüge, Ehrenduelle, Schwüre und Season-Wertung.
+## Notes-frFR: Module JcJ pour GuildEventManager : honneur de guilde pour les victoires en monde ouvert, dettes de sang, tambours de guerre, expéditions, duels d'honneur, serments et classement de saison.
+## Notes-esES: Módulo JcJ para GuildEventManager: honor de hermandad por victorias en el mundo abierto, deudas de sangre, tambores de guerra, expediciones, duelos de honor, juramentos y clasificación de temporada.
+## Notes-esMX: Módulo JcJ para GuildEventManager: honor de hermandad por victorias en el mundo abierto, deudas de sangre, tambores de guerra, expediciones, duelos de honor, juramentos y clasificación de temporada.
+## Notes-itIT: Modulo PvP per GuildEventManager: onore di gilda per le uccisioni nel mondo aperto, debiti di sangue, tamburi di guerra, spedizioni, duelli d'onore, giuramenti e classifica di stagione.
+## Notes-ptBR: Módulo JxJ para o GuildEventManager: honra da guilda por vitórias no mundo aberto, dívidas de sangue, tambores de guerra, expedições, duelos de honra, juramentos e classificação da temporada.
 ## Author: psappz
-## Version: 0.4.1
+## Version: 0.5.0
 ## Dependencies: GuildEventManager
 ## IconTexture: Interface\AddOns\GuildEventManager\Media\GuildEventManagerIcon
 ## X-License: MIT
 ## X-Curse-Project-ID: 1790411
 
 Locale.lua
+Locales\frFR.lua
+Locales\esES.lua
+Locales\itIT.lua
+Locales\ptBR.lua
 PvP.lua
 Detect.lua
 Stats.lua
 Drums.lua
+Honor.lua
+Season.lua
 UI_PvP.lua
 UI_Kills.lua
+UI_Honor.lua
 PvP_API.lua

@@ -91,16 +91,40 @@ end
 ---------------------------------------------------------------------------
 local sender = CreateFrame("Frame")
 sender:Hide()
-local nextAt = 0
+-- The client lets an addon send about 10 messages at once and then about one
+-- per second; everything above is dropped silently. So: a bucket of 8, one
+-- new message per 1.1 s, and a message the client refuses is sent again later.
+local nextAt, tokens, lastFill = 0, 8, 0
+local MAX_TOKENS, REFILL = 8, 1.1
 sender:SetScript("OnUpdate", function(self)
-  if GetTime() < nextAt then return end
-  local m = table.remove(queue, 1)
+  local now = GetTime()
+  if lastFill == 0 then lastFill = now end
+  if now - lastFill >= REFILL then
+    local add = math.floor((now - lastFill) / REFILL)
+    tokens = math.min(MAX_TOKENS, tokens + add)
+    lastFill = lastFill + add * REFILL
+  end
+  if now < nextAt or tokens < 1 then return end
+  local m = queue[1]
   if not m then self:Hide(); return end
   local fn = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
-  local ok, err = pcall(fn, C.PREFIX, m.text, m.dist, m.target)
-  if not ok then ns.LogError("comm", err) end
-  nextAt = GetTime() + 0.25
+  local ok, res = pcall(fn, C.PREFIX, m.text, m.dist, m.target)
+  if not ok then
+    ns.LogError("comm", res)
+    table.remove(queue, 1)
+  elseif type(res) == "number" and res ~= 0 then
+    -- refused (throttled, channel busy ...): keep it and wait
+    nextAt = now + 2
+    tokens = 0
+    return
+  else
+    table.remove(queue, 1)
+  end
+  tokens = tokens - 1
+  nextAt = now + 0.1
 end)
+
+function C.QueueLength() return #queue end
 
 local midCounter = 0
 local function enqueue(text, dist, target)

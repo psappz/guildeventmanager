@@ -23,6 +23,7 @@ GuildEventManager lets your guild plan and run its own events, rewards everyone 
 | **Points** | Event points for taking part, organising and reaching goals. Pots are weighted and add up to one guild score |
 | **Clan / order banner** | Four banner levels from the guild's points of the last four weeks, member ranking by week, season or all time |
 | **Achievements** | Guild achievements with thresholds, points, honor names and their duration (season or forever) – all adjustable. Hidden and bronze/silver/gold achievements |
+| **Languages** | English, Deutsch, Français, Español, Italiano, Português – the addon language can differ from the client language |
 | **Faction look** | Horde: clan, Orgrimmar colours, war drum. Alliance: order, Stormwind colours, storm bell. Same mechanics for both |
 
 ## PvP module (included)
@@ -32,6 +33,10 @@ GuildEventManager lets your guild plan and run its own events, rewards everyone 
 - **War drums / storm bells:** call the guild to your position (help, rally, attack) with a map waypoint; whoever arrives in time gets honor
 - **Warband and defense** event types with goals
 - **Honor roll** of the guild; event managers can strike a deed
+- **Mak'gora / duel of honor:** challenge a guild member with a stake; a witness confirms the winner, once a week per pair
+- **Oaths:** swear a small, great or mighty oath – two witnesses confirm it was kept
+- **Season results:** podium of guild honor, the season champion carries the honor name "Champion", and the whole guild earns *Unstoppable* when it reaches the season goal
+- **PvP Kills tab:** honorable kills of every member (season and total, open world and battlegrounds), PvP rank and the game's own statistics
 
 All values are defaults and can be changed in the settings.
 
@@ -41,6 +46,8 @@ All values are defaults and can be changed in the settings.
 
 - `/gem` – main window
 - `/gem drum help|rally|attack [text]` – war drum / storm bell
+- `/gem makgora <name> [stake]`, `/gem witness <winner>` – duel of honor
+- `/gem oath [1|2|3] <text>` – swear an oath
 - `/gem status`, `/gem minimap`, `/gem errors`
 
 Part of the Manager family with ConfigManager, LegacyManager, RecipeManager and DungeonManager.

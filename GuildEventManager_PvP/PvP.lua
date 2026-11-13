@@ -22,6 +22,12 @@ P.DEFAULTS = {
   drumRadius = 4,    -- arrival radius in % of the zone map
   revengeChat = 0,   -- 1 = a revenge is also posted in the guild chat (seen without the addon)
   revengeChatMin = 2, -- minutes between two such posts of one member
+  makgora = 10,      -- honor for a won Mak'gora (formal duel with witness)
+  makgoraWitnesses = 1, -- witnesses needed for a Mak'gora
+  oath1 = 10, oath2 = 25, oath3 = 40, -- honor for a fulfilled oath: small, great, mighty
+  oathDays = 14,     -- an oath must be fulfilled within n days
+  oathWitnesses = 2, -- witnesses needed for a fulfilled oath
+  seasonGoal = 5000, -- guild honor in one season for "Unstoppable"
 }
 
 function P.Rules()
@@ -72,6 +78,32 @@ for _, a in ipairs(tiers({ id = "war", nameKey = "PVP_ACH_WAR", stat = "evtype",
   { n = 1, pts = 10, tier = "BRONZE" }, { n = 10, pts = 25, tier = "SILVER" }, { n = 25, pts = 50, tier = "GOLD" } })) do achs[#achs + 1] = a end
 achs[#achs + 1] = { id = "fullwar", nameKey = "PVP_ACH_FULLWAR", stat = "why", why = "participate", flag = "full", evtype = "warband",
   n = 1, pts = 25, scope = "forever", descKey = "PVP_STAT_FULLWAR", icon = I .. "INV_Misc_Note_06" }
+
+-- Mak'gora, oaths and season results (Honor.lua, Season.lua)
+for _, a in ipairs(tiers({ id = "makgora", nameKey = "PVP_ACH_MAKGORA", faction = true, stat = "why", why = "makgora", scope = "forever",
+  descKey = "PVP_STAT_MAKGORA", icon = I .. "Ability_Warrior_Challange" }, {
+  { n = 1, pts = 10, tier = "BRONZE" }, { n = 10, pts = 25, tier = "SILVER" },
+  { n = 25, pts = 50, tier = "GOLD", honorKey = "HONOR_MAKGORA", honorScope = "forever" } })) do achs[#achs + 1] = a end
+achs[#achs + 1] = { id = "challenger", nameKey = "PVP_ACH_CHALLENGER", n = 5, pts = 25, scope = "forever",
+  descKey = "PVP_STAT_CHALLENGER", icon = I .. "Ability_Warrior_BattleShout",
+  compute = function(...) return P.AchChallenger(...) end, progress = function(...) return P.ProgChallenger(...) end }
+achs[#achs + 1] = { id = "unbeaten", nameKey = "PVP_ACH_UNBEATEN", n = 5, pts = 50, scope = "forever",
+  descKey = "PVP_STAT_UNBEATEN", icon = I .. "Ability_Warrior_DefensiveStance",
+  compute = function(...) return P.AchUnbeaten(...) end, progress = function(...) return P.ProgUnbeaten(...) end }
+for _, a in ipairs(tiers({ id = "oath", nameKey = "PVP_ACH_OATH", stat = "why", why = "oath", scope = "forever",
+  descKey = "PVP_STAT_OATH", icon = I .. "INV_Misc_Book_09" }, {
+  { n = 1, pts = 10, tier = "BRONZE" }, { n = 5, pts = 25, tier = "SILVER" },
+  { n = 15, pts = 50, tier = "GOLD", honorKey = "HONOR_OATH", honorScope = "forever" } })) do achs[#achs + 1] = a end
+achs[#achs + 1] = { id = "podium", nameKey = "PVP_ACH_PODIUM", n = 1, pts = 25, scope = "forever", repeatable = true,
+  descKey = "PVP_STAT_PODIUM", icon = I .. "INV_Misc_Trophy_Argent", compute = function(...) return P.AchPodium(...) end }
+achs[#achs + 1] = { id = "champion", nameKey = "PVP_ACH_CHAMPION", faction = true, n = 1, pts = 50, scope = "forever", repeatable = true,
+  honorKey = "HONOR_CHAMPION", honorScope = "season", honorPrio = 10,
+  descKey = "PVP_STAT_CHAMPION", icon = I .. "INV_Crown_01", compute = function(...) return P.AchChampion(...) end }
+achs[#achs + 1] = { id = "unstoppable", nameKey = "PVP_ACH_UNSTOPPABLE", n = 1, pts = 50, scope = "forever", repeatable = true,
+  descKey = "PVP_STAT_UNSTOPPABLE", icon = I .. "Spell_Nature_BloodLust", compute = function(...) return P.AchUnstoppable(...) end }
+P.SWORD_META = { "firstblood", "debt1", "drum1", "war1", "makgora1", "oath1", "podium" }
+achs[#achs + 1] = { id = "sword", nameKey = "PVP_ACH_SWORD", faction = true, meta = P.SWORD_META, n = #P.SWORD_META, pts = 50,
+  scope = "forever", descKey = "PVP_STAT_SWORD", icon = I .. "INV_Sword_39" }
 
 GuildEventManagerAPI.RegisterModule({
   id = "pvp", nameKey = "MOD_PVP", version = 1,
@@ -142,5 +174,5 @@ function P.Notice(msg)
   end
 end
 
-core.HelpExt = (core.HelpExt or "") .. " · /gem pvp · /gem drum help|rally|attack [text]"
+core.HelpExt = (core.HelpExt or "") .. " · /gem pvp · /gem drum help|rally|attack [text] · /gem makgora <name> [stake] · /gem oath [1-3] <text>"
 core.SlashExt.pvp = function() core.UI.Show("pvp") end

@@ -5,7 +5,8 @@ Plan and run guild events in WoW Forever: event points, guild honor, guild achie
 The guild master activates it for the guild by pasting an activation code into the guild info. Until then the addon sends nothing. Event rights go to the guild master and a rank he chooses.
 
 - Slash command: `/gem`
-- Modules: `GuildEventManager_PvP` (guild honor, blood debts, war drums, warbands) ships in the same package as its own folder
+- Modules: `GuildEventManager_PvP` (guild honor, blood debts, war drums, warbands, duels of honor, oaths, season results) ships in the same package as its own folder
+- Languages: English, Deutsch, Français, Español, Italiano, Português
 - Changes: [CHANGELOG.md](CHANGELOG.md)
 - License: [MIT](LICENSE)
 

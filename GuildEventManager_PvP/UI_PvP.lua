@@ -7,7 +7,8 @@ local U, G, T, W, UI, Pts = core.U, core.Guild, core.Theme, core.W, core.UI, cor
 local L = P.L
 local V = {}
 
-local RULES = { "kill", "perVictim", "dailyCap", "debt", "debtDays", "coldMin", "drum", "drumWindow", "drumRadius", "revengeChat", "revengeChatMin" }
+local RULES = { "kill", "perVictim", "dailyCap", "debt", "debtDays", "coldMin", "drum", "drumWindow", "drumRadius", "revengeChat", "revengeChatMin",
+  "makgora", "makgoraWitnesses", "oath1", "oath2", "oath3", "oathDays", "oathWitnesses", "seasonGoal" }
 
 local function build(p)
   local th = T.Current()
@@ -164,7 +165,8 @@ local function build(p)
   end)
 end
 
-local WHY = { kill = "PVP_DEED_KILL", debt = "PVP_DEED_DEBT", drum = "PVP_DEED_DRUM", revert = "PVP_DEED_REVERT" }
+local WHY = { kill = "PVP_DEED_KILL", debt = "PVP_DEED_DEBT", drum = "PVP_DEED_DRUM", revert = "PVP_DEED_REVERT",
+  makgora = "PVP_DEED_MAKGORA", oath = "PVP_DEED_OATH" }
 
 local function refresh(p)
   local th = T.Current()
@@ -236,7 +238,8 @@ local function refresh(p)
     local deed = P.DeedLabel and P.DeedLabel(e)
     if not deed then
       deed = L[WHY[e.why] or "PVP_DEED_OTHER"]
-      if e.why == "debt" or e.why == "kill" then deed = deed:format(e.note or "?") end
+      if e.why == "makgora" then deed = deed:format(e.note and G.Display(e.note) or "?")
+      elseif deed:find("%%s") then deed = deed:format(e.note or "?") end
     end
     if e.why == "debt" then deed = deed .. " (" .. T.Word("DEBT") .. ")" end
     local txt = G.Display(e.who) .. U.Color(T.Hex(th.muted), " · " .. deed .. ((e.zone and e.zone ~= "") and (" · " .. e.zone) or ""))

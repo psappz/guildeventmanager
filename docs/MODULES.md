@@ -72,7 +72,11 @@ Name the folder `GuildEventManager_<Name>` so it is sorted next to the core in t
 - Some functions are blocked in combat. Example: `GetGuildInfoText` – the core reads it out of combat only.
 - An addon may create only 500 timer objects. Use `API.Schedule(name, delay, fn)`; a job with the same name replaces the pending one.
 
-**Strings.** Every visible text comes from the locale (`locales` in `RegisterModule`, at least `enUS`). Faction words use `H_`/`A_` keys and `API.Word(key)`: the Horde says *clan*, the Alliance *order*.
+**Strings.** Every visible text comes from the locale (`locales` in `RegisterModule`, at least `enUS`). Faction words use `H_`/`A_` keys and `API.Word(key)`: the Horde says *clan*, the Alliance *order*. The core and the PvP module speak `enUS`, `deDE`, `frFR`, `esES` (also for `esMX`), `itIT` and `ptBR`; missing keys fall back to `enUS`. The player can choose the addon language in *Settings → Personal*, so do not compare against `GetLocale()` for texts.
+
+**Message budget.** The game drops addon messages silently once a client sends faster than about 10 at once and 1 per second after that. The core sends through one queue (8 at once, then one every 1.1 s) shared by all modules. Keep messages small, send on change rather than on a timer, and spread answers to `HELLO` with a random delay (`API.Schedule(name, 3 + math.random() * 10, fn)`).
+
+**Deeds the addon cannot see** (a duel, an oath, something that happened outside the game's events): let other guild members confirm them as witnesses, as the duel of honor and the oaths of the PvP module do. The witness sends a confirmation; the doer's client books its own entry once enough confirmations arrived. Keep the confirmations and send them again when the doer comes online.
 
 **Errors.** Wrap event handlers in `API.SafeCall("where", fn, ...)`: errors go to `/gem errors` instead of interrupting the game.
 
@@ -129,6 +133,11 @@ API.RegisterModule({
 | `tier` | `"BRONZE"`, `"SILVER"`, `"GOLD"` (added to the name) |
 | `hidden` | shown only once earned |
 | `faction` | `nameKey` / `honorKey` are faction words (`H_`/`A_`) |
+| `honorPrio` | this honor name wins over newer ones with a lower number (default 0; the season champion uses 10) |
+| `compute` | `function(entries, events, a) return { { who = key, ts = time, note = ... } } end` – worked out by your module from all ledger entries (sorted by time, struck ones removed). For season results, streaks, anything `stat` cannot express. `a.n` is the (editable) threshold. |
+| `repeatable` | with `compute`: every award counts (points each time, `×n` in the list), e.g. once per season |
+| `progress` | with `compute`: `function(memberKey, a) return number end` for the progress bar |
+| `meta` | `{ "achId", ... }`: earned with all of these; set `n = #meta` |
 
 Guild event managers can change threshold, points, name, honor name and duration of every achievement in the window.
 
@@ -216,13 +225,20 @@ Available when `GuildEventManager_PvP` is loaded (`API.PvP.version` is `1`). Dec
 | `PvP.ReportDeed(id, extra)` | own deed: honor as set in the rules, respecting the daily cap. `extra = { note, zone, flag }`. Use `why = id` in achievements. |
 | `PvP.AddRule(key, default, label, labelKey)` | an extra rule in the honor rules form |
 | `PvP.GetRules()`, `PvP.SetRules(fn)` | all honor rules (built-in and from modules) |
-| `PvP.On(name, fn)` | `KILL (victimName, instanceType)` – own honorable kill, `"none"` = open world, `"pvp"` = battleground · `DEATH (killerName)` · `DEBT_NEW (debt)` · `DEBT_PAID (debt, servedCold)` · `DRUM (drum)` · `DRUM_ARRIVED (drum, first)` |
+| `PvP.On(name, fn)` | `KILL (victimName, instanceType)` – own honorable kill, `"none"` = open world, `"pvp"` = battleground · `DEATH (killerName)` · `DEBT_NEW (debt)` · `DEBT_PAID (debt, servedCold)` – `debt.how` is `"kill"`, `"target"` or `"near"` (nameplate) · `DRUM (drum)` · `DRUM_ARRIVED (drum, first)` · `MAKGORA (duel, winnerKey, loserKey)` – own won duel of honor · `MAKGORA_NEW (duel)` · `OATH_FULFILLED (oath)` |
 | `PvP.Drum(level, text)` | war drum / storm bell at the own position: `"help"`, `"rally"`, `"attack"` |
+| `PvP.Challenge(name, stake)`, `PvP.Swear(level, text)` | start a duel of honor (Mak'gora) / swear an oath (level 1–3), as the player would in the tab |
+| `PvP.ActiveMakgoras()`, `PvP.OpenOaths()`, `PvP.MakgoraRecord(name)` | running challenges, open oaths, `wins, losses` of a member |
+| `PvP.SeasonResults(n)`, `PvP.SeasonProgress()` | finished seasons of guild honor (`{ start, stop, total, top = { {key, honor} ×3 } }`, newest first); honor of the running season and the goal |
 | `PvP.OpenDebts()`, `PvP.InOpenWorld()`, `PvP.PlaySignal()`, `PvP.Notice(msg)` | |
 
 PvP event types and achievements are registered with `API.RegisterModule` like any other. Achievements on your deeds use `stat = "why", why = "<deed id>"`; achievements on guild honor use `stat = "points"`.
 
-Built-in deeds (`entry.why`): `kill`, `debt` (flag `cold`), `drum` (flag `first`). Built-in PvP event types: `warband`, `defense`.
+Built-in deeds (`entry.why`): `kill`, `debt` (flag `cold`), `drum` (flag `first`), `makgora` (`note` = loser, `ch` = challenger, `wit` = witnesses, `stake`), `oath` (`note` = the oath, flag `lvl1`–`lvl3`). Built-in PvP event types: `warband`, `defense`.
+
+Built-in honor rules (`PvP.GetRules()`): `kill, perVictim, dailyCap, debt, debtDays, coldMin, drum, drumWindow, drumRadius, revengeChat, revengeChatMin, makgora, makgoraWitnesses, oath1, oath2, oath3, oathDays, oathWitnesses, seasonGoal`.
+
+**Season results** come from the ledger, no messages: places 1–3 of guild honor in a finished season earn *Season Podium*, place 1 *Champion of the Clan/Order* with the honor name "Champion" for the next season, and when the guild reaches `seasonGoal` honor in a season everyone who added honor earns *Unstoppable*. These use `compute` + `repeatable` (see achievements); copy the pattern from `GuildEventManager_PvP/Season.lua` for your own rankings.
 
 ---
 
@@ -233,7 +249,8 @@ Built-in deeds (`entry.why`): `kill`, `debt` (flag `cold`), `drum` (flag `first`
 - Not activated guild: nothing is sent (`/gem debug` shows the message log).
 - Combat, battlegrounds, dungeons: no blocked-addon dialogs.
 - Both factions: `/reload`, then `/gem demo alliance` before opening the window.
-- `enUS` and your own language.
+- `enUS` and your own language (switch the addon language in Settings → Personal, then `/reload`).
+- Many messages at once (e.g. 20 members logging in): nothing gets lost (`/gem debug`).
 
 ---
 
