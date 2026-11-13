@@ -233,7 +233,8 @@ f:RegisterEvent("PLAYER_LOGIN")
 f:SetScript("OnEvent", function(self, event, arg1)
   if event == "PLAYER_LOGIN" then
     for _, e in ipairs({ "PLAYER_PVP_KILLS_CHANGED", "CHAT_MSG_COMBAT_HONOR_GAIN", "PLAYER_DEAD",
-      "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED", "PLAYER_REGEN_ENABLED" }) do
+      "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED", "PLAYER_REGEN_ENABLED",
+      "PLAYER_ALIVE", "PLAYER_UNGHOST" }) do
       pcall(self.RegisterEvent, self, e)
     end
     -- all units: player (who hits us), target and nameplates (a debtor dying near us)
@@ -253,8 +254,14 @@ f:SetScript("OnEvent", function(self, event, arg1)
     core.Schedule("gemPvpHK", 0.3, checkKills)
   elseif event == "PLAYER_REGEN_ENABLED" then
     P.lastCombat = GetTime()
+    if P.recapPending then core.Schedule("gemPvpRecap", 2, function() P.TryRecap("after combat") end) end
   elseif event == "PLAYER_DEAD" then
     core.SafeCall("pvpDeath", P.OnDeath)
+    P.recapPending = true
+    core.Schedule("gemPvpRecap", 3, function() P.TryRecap("3s after death") end)
+    core.Schedule("gemPvpRecap2", 15, function() P.TryRecap("15s after death") end)
+  elseif event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST" then
+    core.Schedule("gemPvpRecap", 2, function() P.TryRecap("alive again") end)
   elseif event == "PLAYER_TARGET_CHANGED" then
     core.SafeCall("pvpSee", seeUnit, "target")
   elseif event == "UPDATE_MOUSEOVER_UNIT" then
@@ -274,6 +281,122 @@ f:SetScript("OnEvent", function(self, event, arg1)
   end
 end)
 
+---------------------------------------------------------------------------
+-- Death recap test (/gem recap): does the game's own death recap name the
+-- enemy who killed us? Details! reads it the same way: the server-side damage
+-- meter (C_DamageMeter, type "Deaths") lists the dead with a deathRecapID,
+-- C_DeathRecap gives the last hits with sourceName - readable after combat only.
+-- Diagnostics only for now; the result is kept in core.db.pvpDiag.recap.
+---------------------------------------------------------------------------
+local function sv(v)
+  if secret(v) then return "<secret>" end
+  if v == nil then return "nil" end
+  return tostring(v)
+end
+
+local function apiNames(t)
+  local n = {}
+  for k, v in pairs(t or {}) do if type(v) == "function" then n[#n + 1] = k end end
+  table.sort(n)
+  return table.concat(n, ",")
+end
+
+-- deathRecapIDs of the local player from the damage meter, newest session first
+local function myRecapIDs(out)
+  local DM = C_DamageMeter
+  local deaths = Enum and Enum.DamageMeterType and Enum.DamageMeterType.Deaths
+  if not DM or not deaths then out[#out + 1] = "damage meter: " .. (DM and "no Deaths type" or "missing"); return {} end
+  local ids, seen = {}, {}
+  local me, myGUID = UnitName("player"), UnitGUID("player")
+  local function scan(session, label)
+    if type(session) ~= "table" then return end
+    local src = session.combatSources
+    if secret(src) then out[#out + 1] = label .. ": sources <secret>"; return end
+    out[#out + 1] = ("%s: %d dead"):format(label, type(src) == "table" and #src or 0)
+    for _, s in ipairs(type(src) == "table" and src or {}) do
+      local mine = (not secret(s.isLocalPlayer) and s.isLocalPlayer)
+        or (not secret(s.sourceGUID) and s.sourceGUID == myGUID)
+        or (not secret(s.name) and s.name == me)
+      out[#out + 1] = ("  %s recap=%s mine=%s"):format(sv(s.name), sv(s.deathRecapID), tostring(mine and true or false))
+      local id = s.deathRecapID
+      if mine and id and not secret(id) and not seen[id] then seen[id] = true; ids[#ids + 1] = id end
+    end
+  end
+  local ok, sessions = pcall(DM.GetAvailableCombatSessions)
+  if ok and type(sessions) == "table" then
+    for i = #sessions, math.max(1, #sessions - 2), -1 do
+      local sid = sessions[i] and sessions[i].sessionID
+      if sid and not secret(sid) then
+        local ok2, sess = pcall(DM.GetCombatSessionFromID, sid, deaths)
+        if ok2 then scan(sess, "session " .. sid) else out[#out + 1] = "session " .. sid .. ": " .. tostring(sess) end
+      end
+    end
+  else
+    out[#out + 1] = "sessions: " .. tostring(sessions)
+  end
+  for st = 1, 0, -1 do
+    local ok3, sess = pcall(DM.GetCombatSessionFromType, st, deaths)
+    if ok3 then scan(sess, st == 1 and "current" or "overall") end
+  end
+  return ids
+end
+
+function P.ReadDeathRecap(reason)
+  local out = { ("%s · %s · in combat=%s"):format(date("%H:%M:%S"), reason or "manual", tostring(InCombatLockdown and InCombatLockdown() or false)) }
+  local result = { at = date("%Y-%m-%d %H:%M:%S"), reason = reason }
+  local DR = C_DeathRecap
+  out[#out + 1] = "C_DeathRecap: " .. (DR and apiNames(DR) or "missing")
+  if C_DamageMeter then out[#out + 1] = "C_DamageMeter: " .. apiNames(C_DamageMeter) end
+  local ids = myRecapIDs(out)
+  if #ids == 0 then out[#out + 1] = "no deathRecapID of mine found" end
+  for _, id in ipairs(ids) do
+    local okH, has = pcall(DR.HasRecapEvents, id)
+    local okE, events = pcall(DR.GetRecapEvents, id)
+    out[#out + 1] = ("recap %s: has=%s events=%s"):format(tostring(id), okH and sv(has) or "error", okE and (secret(events) and "<secret>" or (type(events) == "table" and #events or sv(events))) or tostring(events))
+    if okE and type(events) == "table" and not secret(events) then
+      for i = 1, math.min(#events, 5) do
+        local e = events[i]
+        if type(e) == "table" then
+          out[#out + 1] = ("  #%d %s spell=%s amount=%s overkill=%s guid=%s"):format(i, sv(e.sourceName), sv(e.spellId),
+            sv(e.amount), sv(e.overkill), sv(e.sourceGUID))
+          if not result.killer and not secret(e.sourceName) and e.sourceName then
+            result.killer, result.spell, result.overkill = e.sourceName, e.spellId, e.overkill
+          end
+        end
+      end
+    end
+  end
+  result.lines = out
+  if core.db then
+    core.db.pvpDiag = core.db.pvpDiag or {}
+    local list = core.db.pvpDiag.recap or {}
+    table.insert(list, 1, result)
+    while #list > 5 do table.remove(list) end
+    core.db.pvpDiag.recap = list
+  end
+  return result
+end
+
+-- after an own death: read the recap once combat is over (tries a few times)
+function P.TryRecap(reason)
+  if not P.recapPending then return end
+  if InCombatLockdown and InCombatLockdown() then return end
+  P.recapPending = nil
+  core.SafeCall("pvpRecap", P.ReadDeathRecap, reason)
+end
+
+core.SlashExt.recap = function(rest)
+  if rest and rest:find("last") then
+    local list = core.db and core.db.pvpDiag and core.db.pvpDiag.recap
+    if not list or not list[1] then U.Print("no death recap stored yet"); return end
+    for _, l in ipairs(list[1].lines or {}) do U.Print(l) end
+    return
+  end
+  local r = P.ReadDeathRecap("manual")
+  for _, l in ipairs(r.lines) do U.Print(l) end
+  U.Print(r.killer and ("killer: " .. tostring(r.killer)) or "killer: -")
+end
+
 -- /gem pvpcheck: what this client lets the module read
 core.SlashExt.pvpcheck = function()
   local ver, build = GetBuildInfo and GetBuildInfo()
@@ -282,6 +405,8 @@ core.SlashExt.pvpcheck = function()
   U.Print(("honor line: %s"):format(tostring(_G.COMBATLOG_HONORGAIN)))
   local d = core.db and core.db.pvpDiag
   U.Print(("last honor message: %s (%s)"):format(tostring(d and d.honorLine), tostring(d and d.honorLineAt)))
+  local r = d and d.recap and d.recap[1]
+  U.Print(("last death recap: %s · killer %s (/gem recap last)"):format(tostring(r and r.at), tostring(r and r.killer)))
 end
 
 ---------------------------------------------------------------------------
