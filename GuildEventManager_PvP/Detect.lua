@@ -183,26 +183,72 @@ local function victimFromHonorLine(msg)
 end
 
 -- name of an enemy player in this unit slot who is dead right now
+-- name of the current target, remembered while it was readable (in combat the
+-- game may hide it); cleared when the target changes
+local targetName
+
 local function deadEnemyName(unit)
   if not UnitExists(unit) or not isEnemyPlayer(unit) then return nil end
   local ok, dead = pcall(UnitIsDeadOrGhost, unit)
   if not ok or secret(dead) or not dead then return nil end
-  return unitName(unit)
+  return unitName(unit) or (unit == "target" and targetName) or nil
+end
+
+-- Enemy players we saw die (target or nameplate), oldest first. The game's kill
+-- counter is sometimes unreadable during a fight and is counted afterwards; by
+-- then the target is gone, so the kills take the names from this list.
+local deadSeen = {}
+local function noteDead(unit)
+  local name = deadEnemyName(unit)
+  if not name then return end
+  local now = GetTime()
+  for _, d in ipairs(deadSeen) do if d.name == name and now - d.t < 30 then return end end
+  deadSeen[#deadSeen + 1] = { name = name, t = now }
+  while #deadSeen > 20 do table.remove(deadSeen, 1) end
+end
+local function takeDead()
+  local now = GetTime()
+  while deadSeen[1] and now - deadSeen[1].t > 180 do table.remove(deadSeen, 1) end
+  local d = table.remove(deadSeen, 1)
+  return d and d.name
+end
+
+-- what the module saw at the last kills (for /gem pvpcheck and /gem export)
+P.killDiag = {}
+local function diagKill(source, name)
+  local t = UnitExists("target")
+  local ok, dead = pcall(UnitIsDeadOrGhost, "target")
+  local n
+  if t then n = UnitName("target") end
+  table.insert(P.killDiag, 1, {
+    at = date("%H:%M:%S"), source = source, name = name,
+    target = t and true or false, player = t and UnitIsPlayer("target") or false,
+    dead = (ok and secret(dead)) and "<secret>" or (ok and dead) or false,
+    nameSecret = secret(n), cached = targetName, seen = #deadSeen,
+  })
+  while #P.killDiag > 8 do table.remove(P.killDiag) end
 end
 
 function P.KillCounterState() return lastHK, sessionHK() end
 
 local function checkKills()
   local hk = sessionHK()
-  if not hk then return end
+  if not hk then
+    if GetPVPSessionStats then P.hkSecretAt = date("%H:%M:%S") end
+    return
+  end
   -- the game restarted its session counter (new session after a disconnect)
   if lastHK and hk < lastHK then lastHK = 0 end
   if lastHK and hk > lastHK then
     for i = 1, hk - lastHK do
       local line = table.remove(honorLines, 1)
       local name = line and (GetTime() - line.t < 10) and line.name or nil
-      -- the honor line may not be readable on this client: then the dead enemy in the target
-      if not name then name = deadEnemyName("target") or deadEnemyName("mouseover") end
+      local source = name and "honor line"
+      -- the honor line may not be readable on this client: then the enemy we saw
+      -- die (target / nameplate), then the dead enemy in the target right now
+      if not name then name = takeDead(); source = name and "seen dying" end
+      if not name then name = deadEnemyName("target") or deadEnemyName("mouseover"); source = name and "dead target" end
+      diagKill(source or "none", name)
       local _, kind = IsInInstance()
       if P.RecordHK then core.SafeCall("pvpStat", P.RecordHK, kind) end
       core.SafeCall("pvpKill", P.OnKill, name, kind)
@@ -290,12 +336,15 @@ f:SetScript("OnEvent", function(self, event, arg1)
   elseif event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST" then
     core.Schedule("gemPvpRecap", 2, function() P.TryRecap("alive again") end)
   elseif event == "PLAYER_TARGET_CHANGED" then
+    targetName = isEnemyPlayer("target") and unitName("target") or nil
     core.SafeCall("pvpSee", seeUnit, "target")
   elseif event == "UPDATE_MOUSEOVER_UNIT" then
     core.SafeCall("pvpSee", seeUnit, "mouseover")
   elseif event == "NAME_PLATE_UNIT_ADDED" then
     core.SafeCall("pvpSee", seeUnit, arg1)
   elseif event == "UNIT_HEALTH" and (arg1 == "target" or (type(arg1) == "string" and arg1:find("^nameplate"))) then
+    if arg1 == "target" and not targetName and isEnemyPlayer("target") then targetName = unitName("target") end
+    core.SafeCall("pvpDeadSeen", noteDead, arg1)
     -- a debtor dies in our target or near us (nameplate) while we fight: revenge taken
     local fighting = (UnitAffectingCombat and UnitAffectingCombat("player")) or (GetTime() - (P.lastCombat or 0) < 10)
     if fighting and #P.OpenDebts() > 0 then
@@ -432,6 +481,12 @@ core.SlashExt.pvpcheck = function()
   U.Print(("honor line: %s"):format(tostring(_G.COMBATLOG_HONORGAIN)))
   local d = core.db and core.db.pvpDiag
   U.Print(("last honor message: %s (%s)"):format(tostring(d and d.honorLine), tostring(d and d.honorLineAt)))
+  U.Print(("kill counter unreadable last at: %s"):format(tostring(P.hkSecretAt or "-")))
+  for i, k in ipairs(P.killDiag) do
+    if i > 4 then break end
+    U.Print(("kill %s: name=%s via %s · target=%s player=%s dead=%s nameSecret=%s cached=%s seen=%d"):format(k.at,
+      tostring(k.name), k.source, tostring(k.target), tostring(k.player), tostring(k.dead), tostring(k.nameSecret), tostring(k.cached), k.seen))
+  end
   local r = d and d.recap and d.recap[1]
   U.Print(("last death recap: %s · killer %s (/gem recap last)"):format(tostring(r and r.at), tostring(r and r.killer)))
 end

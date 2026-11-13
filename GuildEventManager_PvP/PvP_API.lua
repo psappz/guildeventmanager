@@ -123,6 +123,8 @@ GuildEventManagerAPI.AddExport("PvP", function(full)
   add("kill counter (last seen / game now)", { last = last, now = now })
   add("kills today", P.KillsToday())
   add("pending kills", #(P.pendingKills or {}))
+  add("kill counter unreadable last at", P.hkSecretAt or "-")
+  for _, k in ipairs(P.killDiag or {}) do out[#out + 1] = "  kill " .. X.Val(k) end
   add("game stats", P.OwnStats())
   local stored = P.StatsStore()[core.Guild.MyKey()]
   add("stats the guild has of me", stored)

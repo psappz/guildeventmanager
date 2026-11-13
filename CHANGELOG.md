@@ -1,5 +1,10 @@
 # GuildEventManager
 
+## Unreleased
+
+### Fixed
+- **Victim names missing although the enemy was in the target.** During a fight the game's kill counter is often unreadable, so the kill is counted after the fight – when the target is long gone. The PvP module now remembers every enemy player it sees die (target and nameplates, also when the name was only readable before the fight) and gives those names to the kills counted later. `/gem pvpcheck` and `/gem export` show what was seen at the last kills.
+
 ## 0.6.0 (beta)
 
 ### Changed
