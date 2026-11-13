@@ -50,8 +50,10 @@ end
 ---------------------------------------------------------------------------
 -- Duel of honor
 ---------------------------------------------------------------------------
-P.MAK_OPEN = 30 * 60     -- a challenge waits 30 minutes for an answer
-P.MAK_FIGHT = 2 * HOUR   -- an accepted duel waits 2 hours for its witnesses
+-- Challenge, answer and the duel itself can be far apart: the opponent answers
+-- within a day, then both meet the witness within makgoraDays (rule).
+P.MAK_OPEN = DAY         -- a challenge waits a day for an answer
+function P.MakFightTime() return math.max(1, tonumber(P.Rules().makgoraDays) or 3) * DAY end
 
 local function pairKey(a, b) if a < b then return a .. "|" .. b end return b .. "|" .. a end
 
@@ -71,7 +73,7 @@ end
 function P.MakState(m)
   local now = U.Now()
   if m.state == "open" and now - m.ts > P.MAK_OPEN then return "off" end
-  if m.state == "fight" and now - (m.acc or m.ts) > P.MAK_FIGHT then return "off" end
+  if m.state == "fight" and now - (m.acc or m.ts) > P.MakFightTime() then return "off" end
   return m.state
 end
 
@@ -183,7 +185,7 @@ function P.Answer(id, ok)
   m.acc = U.Now()
   remember("maks", m)
   C.Send("MAKGANS", { id = m.id, ok = ok and 1 or 0 })
-  if ok then U.Print(L.PVP_MAK_ACCEPTED_ME:format(G.Display(m.a))) end
+  if ok then U.Print(L.PVP_MAK_ACCEPTED_ME:format(G.Display(m.a), G.Display(m.w), math.floor(P.MakFightTime() / DAY))) end
   if core.UI then core.UI.Refresh() end
 end
 
@@ -274,6 +276,28 @@ function P.Witness(id, winner)
   if core.UI then core.UI.Refresh() end
 end
 
+-- The witness opens the addon after the duel and is asked who won.
+-- Two steps: pick the winner, then confirm. "Later" if it hasn't been fought yet.
+function P.AskWitness()
+  local me = G.MyKey()
+  for _, m in ipairs(P.ActiveMakgoras()) do
+    if P.MakState(m) == "fight" and m.w == me and not (m.wit and m.wit[me]) then
+      local function confirm(winner)
+        local loser = (winner == m.a) and m.b or m.a
+        W.Dialog({ text = L.PVP_MAK_CONFIRM_Q:format(G.Display(winner), G.Display(loser)),
+          accept = L.PVP_MAK_CONFIRM, onAccept = function() P.Witness(m.id, winner) end })
+      end
+      W.Dialog({ text = L.PVP_MAK_ASK:format(G.Display(m.a), G.Display(m.b))
+          .. (m.stake and ("\n" .. L.PVP_MAK_STAKE:format(m.stake)) or ""),
+        accept = L.PVP_MAK_WINS:format(G.Display(m.a)), onAccept = function() confirm(m.a) end,
+        alt = L.PVP_MAK_WINS:format(G.Display(m.b)), onAlt = function() confirm(m.b) end,
+        cancel = L.PVP_MAK_LATER })
+      return true
+    end
+  end
+end
+core.On("WINDOW_OPENED", function() if W and W.Dialog then P.AskWitness() end end)
+
 C.On("MAKG", function(data, from)
   local d = data.m
   if type(d) ~= "table" or not d.id or not d.b or d.a ~= from then return end
@@ -281,6 +305,10 @@ C.On("MAKG", function(data, from)
   local m = P.maks[d.id]
   if m and m.state == "off" then return end
   local fresh = not m
+  if m and m.state == "open" and d.state == "fight" then
+    -- accepted while I missed the answer (offline): take it over
+    m.state = "fight"; m.acc = tonumber(d.acc) or m.acc
+  end
   if not m then
     local wk = type(d.w) == "string" and d.w or nil
     if wk and (wk == from or wk == d.b) then wk = nil end
@@ -291,12 +319,14 @@ C.On("MAKG", function(data, from)
     P.maks[m.id] = m
   end
   local me = G.MyKey()
+  if m.w == me then remember("maks", m) end
   if fresh and P.MakState(m) == "open" then
     if m.b == me then
       P.PlaySignal()
       P.Notice(L.PVP_MAK_CHALLENGED:format(G.Display(m.a)) .. (m.stake and (" " .. L.PVP_MAK_STAKE:format(m.stake)) or ""))
       if W and W.Dialog then
-        W.Dialog({ text = L.PVP_MAK_DIALOG:format(G.Display(m.a), m.stake or L.PVP_MAK_NOSTAKE) .. "\n\n" .. L.PVP_MAK_SAFE,
+        W.Dialog({ text = L.PVP_MAK_DIALOG:format(G.Display(m.a), m.stake or L.PVP_MAK_NOSTAKE)
+            .. (m.w and ("\n" .. L.PVP_MAK_WITNESS_LINE:format(G.Display(m.w))) or "") .. "\n\n" .. L.PVP_MAK_SAFE,
           accept = L.PVP_MAK_ACCEPT, cancel = L.PVP_MAK_DECLINE, onAccept = function() P.Answer(m.id, true) end })
       end
     elseif m.w and m.w == me then
@@ -325,8 +355,10 @@ C.On("MAKGANS", function(data, from)
   m.acc = U.Now()
   if m.a == G.MyKey() then
     remember("maks", m)
-    U.Print(m.state == "fight" and L.PVP_MAK_ACCEPTED:format(G.Display(m.b)) or L.PVP_MAK_DECLINED:format(G.Display(m.b)))
+    U.Print(m.state == "fight" and L.PVP_MAK_ACCEPTED:format(G.Display(m.b), G.Display(m.w), math.floor(P.MakFightTime() / DAY))
+      or L.PVP_MAK_DECLINED:format(G.Display(m.b)))
   elseif m.state == "fight" and m.w == G.MyKey() then
+    remember("maks", m)   -- the duel may be fought days later: keep it over relogs
     P.PlaySignal()
     P.Notice(L.PVP_MAK_WITNESS_CALL:format(G.Display(m.a), G.Display(m.b)))
   end
@@ -571,7 +603,14 @@ local function duelCmd(rest)
 end
 core.SlashExt.duel = duelCmd
 core.SlashExt.duell = duelCmd
-core.SlashExt.witness = function(rest) P.Witness(nil, (rest or ""):match("^%s*(%S+)")) end
+core.SlashExt.witness = function(rest)
+  rest = (rest or ""):match("^%s*(.-)%s*$")
+  if rest == "" then
+    if not P.AskWitness() then U.Print(L.PVP_MAK_NONE) end
+  else
+    P.Witness(nil, rest)
+  end
+end
 core.SlashExt.zeuge = core.SlashExt.witness
 -- /gem oath [1|2|3] <text>
 core.SlashExt.oath = function(rest)

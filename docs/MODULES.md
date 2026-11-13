@@ -190,6 +190,7 @@ Guild event managers can change threshold, points, name, honor name and duration
 | `POINTS_ADDED` | `entry` (own and received) |
 | `ACHIEVEMENT_EARNED` | `def, time` (own character) |
 | `ACTIVATED`, `PROFILE_CHANGED` | |
+| `WINDOW_OPENED` | the player opens the GuildEventManager window (not on tab changes). API 4 |
 
 ### Guild messages
 
@@ -270,7 +271,10 @@ Every change to `GuildEventManagerAPI` and `GuildEventManagerAPI.PvP`, newest fi
 - Ledger entries, achievement ids and message kinds of a released module are never reused with another meaning: old entries in the guild ledger stay readable.
 - Before 1.0 (0.x betas) the same rules apply as far as possible; breaking changes, if unavoidable, are listed here with a migration note.
 
-### PvP API 4 – unreleased
+### API 4 · PvP API 4 – unreleased
+
+Core (`api = 4`):
+- Callback `WINDOW_OPENED` when the player opens the window.
 
 PvP (`pvp = 4`):
 - **Breaking:** `PvP.Challenge(name, witness, stake)` – a duel of honor needs a named witness, a guild member other than the two duelists. Only that witness can confirm the winner; votes of anyone else are ignored, and the system-chat prompt after the duel appears only for them. Migration: pass the witness as the second argument; the old call `PvP.Challenge(name, stake)` now treats the stake as the witness name and fails with a message to the player.

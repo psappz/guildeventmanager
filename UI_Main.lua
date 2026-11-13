@@ -114,8 +114,10 @@ function UI.Show(id)
     b.label:SetTextColor(unpack(active and { 1, 0.95, 0.85 } or th.text))
   end
   for vid, p in pairs(win.panels) do p:SetShown(vid == id) end
+  local opened = not win:IsShown()
   win:Show()
   UI.Refresh()
+  if opened then ns.Fire("WINDOW_OPENED") end
 end
 
 function UI.Toggle(id)

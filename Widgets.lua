@@ -245,7 +245,7 @@ function W.Dropdown(parent, width, getOptions, getValue, onSelect)
 end
 
 ---------------------------------------------------------------------------
--- Own dialog: W.Dialog{ text, edit = true, editText, accept, cancel, onAccept = function(text) end, noCancel }
+-- Own dialog: W.Dialog{ text, edit = true, editText, accept, cancel, onAccept = function(text) end, noCancel, alt, onAlt }
 ---------------------------------------------------------------------------
 local dialog
 local function buildDialog()
@@ -279,6 +279,12 @@ local function buildDialog()
   d.ok = W.Button(d, OKAY or "OK", true, 24)
   d.cancel = W.Button(d, CANCEL or "Cancel", false, 24)
   d.cancel:SetScript("OnClick", function() d:Hide() end)
+  d.alt = W.Button(d, "", true, 24)
+  d.alt:SetScript("OnClick", function()
+    local fn = d.onAlt
+    d:Hide()
+    if fn then fn() end
+  end)
   d.ok:SetScript("OnClick", function()
     local fn, txt = d.onAccept, d.edit:IsShown() and d.edit:GetText() or nil
     d:Hide()
@@ -291,6 +297,7 @@ function W.Dialog(opts)
   dialog = dialog or buildDialog()
   local d = dialog
   d.onAccept = opts.onAccept
+  d.onAlt = opts.onAlt
   d.text:SetText(opts.text or "")
   W.SetLabel(d.ok, opts.accept or OKAY or "OK")
   W.SetLabel(d.cancel, opts.cancel or CANCEL or "Cancel")
@@ -309,6 +316,15 @@ function W.Dialog(opts)
   d.ok:ClearAllPoints(); d.cancel:ClearAllPoints()
   d.cancel:SetPoint("BOTTOMRIGHT", -16, 14)
   if opts.noCancel then d.ok:SetPoint("BOTTOMRIGHT", -16, 14) else d.ok:SetPoint("RIGHT", d.cancel, "LEFT", -8, 0) end
+  -- optional second choice (alt, onAlt) left of the accept button
+  d.alt:ClearAllPoints()
+  if opts.alt then
+    W.SetLabel(d.alt, opts.alt)
+    d.alt:SetPoint("RIGHT", d.ok, "LEFT", -8, 0)
+    d.alt:Show()
+  else
+    d.alt:Hide()
+  end
   d:SetHeight(h + 24 + 28)
   d:Show()
   if opts.edit then d.edit:SetFocus(); d.edit:HighlightText() end
