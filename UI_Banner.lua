@@ -5,7 +5,6 @@ local U, G, T, W, UI = ns.U, ns.Guild, ns.Theme, ns.W, ns.UI
 local Pts = ns.Points
 local L = ns.L
 local V = { period = "season" }
-ns.BannerView = V
 
 local ROW_H = 22
 
@@ -227,30 +226,6 @@ local function layoutCells(owner, list, cells, size, color)
   for i = #list + 1, #cells do cells[i]:Hide() end
 end
 
--- The guild's own emblem (tabard) if the game gives it, otherwise nil.
--- Modern clients: C_GuildInfo.GetGuildTabardInfo; older ones: GetGuildTabardFiles.
-function V.GuildEmblem()
-  if ns.demo then return nil end
-  local info
-  if C_GuildInfo and C_GuildInfo.GetGuildTabardInfo then
-    local ok, t = pcall(C_GuildInfo.GetGuildTabardInfo, "player")
-    if ok and type(t) == "table" and t.emblemFileID and t.emblemFileID ~= 0 then
-      local c = t.emblemColor
-      local r, g, b = 1, 1, 1
-      if c and c.GetRGB then r, g, b = c:GetRGB() elseif type(c) == "table" then r, g, b = c.r or 1, c.g or 1, c.b or 1 end
-      info = { file = t.emblemFileID, r = r, g = g, b = b, style = t.emblemStyle, via = "GetGuildTabardInfo" }
-    end
-  end
-  if not info and GetGuildTabardFiles then
-    local ok, _, _, emblemUpper = pcall(GetGuildTabardFiles)
-    if ok and emblemUpper and emblemUpper ~= 0 and emblemUpper ~= "" then
-      info = { file = emblemUpper, r = 1, g = 1, b = 1, via = "GetGuildTabardFiles", half = true }
-    end
-  end
-  if info and issecretvalue and issecretvalue(info.file) then return nil end
-  return info
-end
-
 local function refresh(p)
   local th = T.Current()
   local b = Pts.Banner()
@@ -266,16 +241,7 @@ local function refresh(p)
   end
   local bg = th.panel2
   sc.notch:SetVertexColor(bg[1], bg[2], bg[3])
-  -- sigil: the guild's own emblem if it has a tabard, else the faction crest
-  local em = V.GuildEmblem()
-  if em then
-    sc.sigil:SetTexture(em.file)
-    sc.sigil:SetVertexColor(em.r, em.g, em.b)
-    if em.half then sc.sigil:SetTexCoord(0, 1, 0, 1) end
-  else
-    sc.sigil:SetTexture(th.crest)
-    sc.sigil:SetVertexColor(1, 1, 1)
-  end
+  sc.sigil:SetTexture(th.crest)
   local show = { cloth = lvl >= 1, sigil = lvl >= 2, trophies = lvl >= 3, flames = lvl >= 4 }
   for _, x in ipairs({ sc.cloth, sc.edgeL, sc.edgeR, sc.notch }) do x:SetShown(show.cloth) end
   sc.sigil:SetShown(show.sigil)
