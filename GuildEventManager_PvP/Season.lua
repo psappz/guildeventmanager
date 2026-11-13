@@ -4,7 +4,7 @@ local ADDON, P = ...
 -- * champion: place 1, honor name for the following season
 -- * unstoppable: the guild collects seasonGoal honor in one season; everyone
 --   who added honor in that season earns it
--- Plus the Mak'gora streak achievements (challenger, unbeaten).
+-- Plus the duel-of-honor streak achievements (challenger, unbeaten).
 local core = P.core
 if not core then return end
 local Pts = core.Points
@@ -120,7 +120,7 @@ function P.AchUnstoppable(entries)
 end
 
 ---------------------------------------------------------------------------
--- Mak'gora streaks. A won Mak'gora: who = winner, note = loser, ch = challenger.
+-- Duel-of-honor streaks. A won duel (why = "makgora"): who = winner, note = loser, ch = challenger.
 ---------------------------------------------------------------------------
 local function maks(entries)
   local list = {}
@@ -128,7 +128,7 @@ local function maks(entries)
   return list
 end
 
--- Mak'goras fought as the challenger (won or lost)
+-- Duels of honor fought as the challenger (won or lost)
 function P.AchChallenger(entries, _, a)
   local count, out = {}, {}
   for _, e in ipairs(maks(entries)) do
@@ -141,7 +141,7 @@ function P.AchChallenger(entries, _, a)
   return out
 end
 
--- n won Mak'goras in a row without a loss
+-- n won duels of honor in a row without a loss
 function P.AchUnbeaten(entries, _, a)
   local streak, out = {}, {}
   for _, e in ipairs(maks(entries)) do
@@ -172,7 +172,7 @@ function P.ProgUnbeaten(key)
   return n
 end
 
--- Results of the Mak'goras of a member: wins, losses
+-- Results of the duels of honor of a member: wins, losses
 function P.MakgoraRecord(key)
   local w, l = 0, 0
   for _, e in ipairs(sortedMaks()) do

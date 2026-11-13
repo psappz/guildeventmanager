@@ -22,8 +22,8 @@ P.DEFAULTS = {
   drumRadius = 4,    -- arrival radius in % of the zone map
   revengeChat = 0,   -- 1 = a revenge is also posted in the guild chat (seen without the addon)
   revengeChatMin = 2, -- minutes between two such posts of one member
-  makgora = 10,      -- honor for a won Mak'gora (formal duel with witness)
-  makgoraWitnesses = 1, -- witnesses needed for a Mak'gora
+  makgora = 10,      -- honor for a won duel of honor (with witness)
+  makgoraWitnesses = 1, -- witnesses needed for a duel of honor
   oath1 = 10, oath2 = 25, oath3 = 40, -- honor for a fulfilled oath: small, great, mighty
   oathDays = 14,     -- an oath must be fulfilled within n days
   oathWitnesses = 2, -- witnesses needed for a fulfilled oath
@@ -79,7 +79,7 @@ for _, a in ipairs(tiers({ id = "war", nameKey = "PVP_ACH_WAR", stat = "evtype",
 achs[#achs + 1] = { id = "fullwar", nameKey = "PVP_ACH_FULLWAR", stat = "why", why = "participate", flag = "full", evtype = "warband",
   n = 1, pts = 25, scope = "forever", descKey = "PVP_STAT_FULLWAR", icon = I .. "INV_Misc_Note_06" }
 
--- Mak'gora, oaths and season results (Honor.lua, Season.lua)
+-- Duels of honor, oaths and season results (Honor.lua, Season.lua)
 for _, a in ipairs(tiers({ id = "makgora", nameKey = "PVP_ACH_MAKGORA", faction = true, stat = "why", why = "makgora", scope = "forever",
   descKey = "PVP_STAT_MAKGORA", icon = I .. "Ability_Warrior_Challange" }, {
   { n = 1, pts = 10, tier = "BRONZE" }, { n = 10, pts = 25, tier = "SILVER" },
@@ -174,5 +174,5 @@ function P.Notice(msg)
   end
 end
 
-core.HelpExt = (core.HelpExt or "") .. " · /gem pvp · /gem drum help|rally|attack [text] · /gem makgora <name> [stake] · /gem oath [1-3] <text>"
+core.HelpExt = (core.HelpExt or "") .. " · /gem pvp · /gem drum help|rally|attack [text] · /gem duel <name> [stake] · /gem oath [1-3] <text>"
 core.SlashExt.pvp = function() core.UI.Show("pvp") end

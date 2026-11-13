@@ -1,5 +1,21 @@
 # GuildEventManager
 
+## 0.6.0 (not released yet)
+
+### Changed
+- **"Mak'gora" is now "Duel of Honor" everywhere** (both factions, all languages). In WoW Hardcore, Mak'gora means a duel to the death; ours is a normal duel. The challenge dialog and the tab now say so: nobody dies, no character is lost. The command is `/gem duel` (German `/gem duell`); `/gem makgora` is gone. The tab is called "Duels & Oaths". Existing duels and achievements are kept.
+- **New event editor** in four steps on one page:
+  - *What?* – event types as tiles with icon and description.
+  - *When?* – today, tomorrow and the next weekdays as buttons (or any date), time from lists in 15-minute steps, duration as buttons (1 h, 2 h, 3 h, open end, days, weeks, season). Start and end are worked out from that – no date format to learn.
+  - *Who?* – group size as buttons (everyone, group, raid 10/25/40, teams) that fill in min./max. players; the points field shows the default.
+  - *Goals* – a list with "+ Add goal" and a delete button per goal; the defaults of the event type are filled in.
+  - A live preview shows the event as members will see it. Errors (date in the past, min. above max.) appear before anything is sent.
+- **"Use as template"** on every event: copies it as a new event on the same weekday and time, the next date ahead.
+
+### Module API
+- Deprecated: callbacks `MAKGORA`, `MAKGORA_NEW` → `HONORDUEL`, `HONORDUEL_NEW`; `PvP.ActiveMakgoras()`, `PvP.MakgoraRecord()` → `PvP.ActiveDuels()`, `PvP.DuelRecord()`. The old names still work (removed in 1.2 at the earliest).
+- Event types: `gmin`/`gmax` defaults are used by the editor; `icon` and `descKey` are shown on the type tiles.
+
 ## 0.5.0 (core and PvP module)
 
 ### New

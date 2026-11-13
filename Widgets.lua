@@ -82,6 +82,43 @@ function W.Button(parent, text, primary, h)
   return b
 end
 
+-- Choice chip: a small button that can be selected (one of several options)
+function W.Chip(parent, text, w, h)
+  local th = W.C()
+  local b = CreateFrame("Button", nil, parent, "BackdropTemplate")
+  b:SetSize(w or 60, h or 22)
+  paint(b, th.panel2, th.line)
+  local fs = b:CreateFontString(nil, "OVERLAY")
+  fs:SetFont("Fonts\\FRIZQT__.TTF", 10, "")
+  fs:SetPoint("LEFT", 4, 0); fs:SetPoint("RIGHT", -4, 0)
+  fs:SetWordWrap(false)
+  fs:SetText(text or "")
+  b.label = fs
+  function b:SetSelected(on)
+    self.selected = on and true or false
+    local bg = self.selected and th.accent or th.panel2
+    local bd = self.selected and th.border or th.line
+    self:SetBackdropColor(bg[1], bg[2], bg[3], bg[4] or 1)
+    self:SetBackdropBorderColor(bd[1], bd[2], bd[3], bd[4] or 1)
+    local tc = self.selected and { 1, 0.95, 0.85 } or th.text
+    fs:SetTextColor(tc[1], tc[2], tc[3])
+  end
+  b:SetScript("OnEnter", function(self)
+    self:SetBackdropBorderColor(th.title[1], th.title[2], th.title[3], 1)
+    if self.tip then
+      GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+      GameTooltip:SetText(self.tip[1], 1, 0.82, 0)
+      if self.tip[2] then GameTooltip:AddLine(self.tip[2], 1, 1, 1, true) end
+      GameTooltip:Show()
+    end
+  end)
+  b:SetScript("OnLeave", function(self) self:SetSelected(self.selected); GameTooltip:Hide() end)
+  b:SetScript("OnDisable", function(self) self:SetAlpha(0.45) end)
+  b:SetScript("OnEnable", function(self) self:SetAlpha(1) end)
+  b:SetSelected(false)
+  return b
+end
+
 function W.SetLabel(b, text)
   b.label:SetText(text or "")
   b:SetWidth(math.max(40, b.label:GetStringWidth() + 22))

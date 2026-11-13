@@ -1,8 +1,10 @@
 local ADDON, P = ...
--- Mak'gora and oaths: deeds that the addon cannot see itself, so other guild
+-- Duels of honor and oaths: deeds that the addon cannot see itself, so other guild
 -- members confirm them as witnesses.
 --
--- Mak'gora: a formal duel between two guild members with a stake. The
+-- Duel of honor: a formal, normal duel between two guild members with a stake
+-- (not the Hardcore "Mak'gora": nobody dies, the name avoids that on purpose;
+-- internal ids still say makgora so existing ledger entries stay valid). The
 -- challenged one accepts, they duel, a witness (not one of the two) confirms
 -- the winner. The winner's client books the honor. Once a week per pair.
 --
@@ -25,7 +27,7 @@ local function store()
   local c = P.Char()
   c.maks = c.maks or {}
   c.oaths = c.oaths or {}
-  c.wit = c.wit or {}      -- my confirmations: id -> winner key (Mak'gora) or true (oath)
+  c.wit = c.wit or {}      -- my confirmations: id -> winner key (duel of honor) or true (oath)
   return c
 end
 
@@ -46,14 +48,14 @@ local function prune()
 end
 
 ---------------------------------------------------------------------------
--- Mak'gora
+-- Duel of honor
 ---------------------------------------------------------------------------
 P.MAK_OPEN = 30 * 60     -- a challenge waits 30 minutes for an answer
-P.MAK_FIGHT = 2 * HOUR   -- an accepted Mak'gora waits 2 hours for its witnesses
+P.MAK_FIGHT = 2 * HOUR   -- an accepted duel waits 2 hours for its witnesses
 
 local function pairKey(a, b) if a < b then return a .. "|" .. b end return b .. "|" .. a end
 
--- Already a Mak'gora of these two in the last 7 days?
+-- Already a duel of honor of these two in the last 7 days?
 function P.MakgoraThisWeek(a, b)
   local key, since = pairKey(a, b), U.Now() - 7 * DAY
   for _, e in ipairs(Pts.Entries(function(e) return e.why == "makgora" and not e.reverted and (e.ts or 0) >= since end)) do
@@ -73,7 +75,7 @@ function P.MakState(m)
   return m.state
 end
 
--- Mak'goras that are still open or being fought, newest first
+-- Duels that are still open or being fought, newest first
 function P.ActiveMakgoras()
   local list = {}
   for _, m in pairs(P.maks) do
@@ -147,7 +149,8 @@ local function checkMakWin(m)
   C.Send("MAKGDONE", { id = m.id, w = me })
   if e then
     P.Notice(L.PVP_MAK_WON:format(G.Display(loser), e.amt))
-    core.Fire("PVP_MAKGORA", m, me, loser)
+    core.Fire("PVP_HONORDUEL", m, me, loser)
+    core.Fire("PVP_MAKGORA", m, me, loser)   -- deprecated name, removed in 1.2 at the earliest
   end
   if core.UI then core.UI.Refresh() end
 end
@@ -157,7 +160,7 @@ function P.Witness(id, winner)
   local me = G.MyKey()
   local m = id and P.maks[id]
   if not m then
-    -- /gem witness <name>: the one running Mak'gora that this name fights in
+    -- /gem witness <name>: the one running duel that this name fights in
     local key = winner and G.Resolve(winner)
     for _, x in ipairs(P.ActiveMakgoras()) do
       if key and P.MakState(x) == "fight" and (x.a == key or x.b == key) then m = x end
@@ -194,7 +197,7 @@ C.On("MAKG", function(data, from)
       P.PlaySignal()
       P.Notice(L.PVP_MAK_CHALLENGED:format(G.Display(m.a)) .. (m.stake and (" " .. L.PVP_MAK_STAKE:format(m.stake)) or ""))
       if W and W.Dialog then
-        W.Dialog({ text = L.PVP_MAK_DIALOG:format(G.Display(m.a), m.stake or L.PVP_MAK_NOSTAKE),
+        W.Dialog({ text = L.PVP_MAK_DIALOG:format(G.Display(m.a), m.stake or L.PVP_MAK_NOSTAKE) .. "\n\n" .. L.PVP_MAK_SAFE,
           accept = L.PVP_MAK_ACCEPT, cancel = L.PVP_MAK_DECLINE, onAccept = function() P.Answer(m.id, true) end })
       end
     else
@@ -206,7 +209,8 @@ C.On("MAKG", function(data, from)
   if mine and me ~= m.a and me ~= m.b then
     core.Schedule("gemMakWit" .. m.id, 2 + math.random() * 4, function() C.Send("MAKGWIT", { id = m.id, w = mine }) end)
   end
-  core.Fire("PVP_MAKGORA_NEW", m)
+  core.Fire("PVP_HONORDUEL_NEW", m)
+  core.Fire("PVP_MAKGORA_NEW", m)          -- deprecated name
   if core.UI then core.UI.Refresh() end
 end)
 
@@ -435,8 +439,8 @@ end)
 ---------------------------------------------------------------------------
 -- Slash commands
 ---------------------------------------------------------------------------
--- /gem makgora <name> [stake] · /gem makgora accept|decline · /gem witness <winner>
-core.SlashExt.makgora = function(rest)
+-- /gem duel <name> [stake] · /gem duel accept|decline · /gem witness <winner>
+local function duelCmd(rest)
   local a, b = (rest or ""):match("^(%S*)%s*(.-)$")
   local w = (a or ""):lower()
   if w == "accept" or w == "annehmen" or w == "ja" or w == "yes" then P.Answer(nil, true)
@@ -444,7 +448,8 @@ core.SlashExt.makgora = function(rest)
   elseif a and a ~= "" then P.Challenge(a, b)
   else U.Print(L.PVP_MAK_USAGE) end
 end
-core.SlashExt["mak'gora"] = core.SlashExt.makgora
+core.SlashExt.duel = duelCmd
+core.SlashExt.duell = duelCmd
 core.SlashExt.witness = function(rest) P.Witness(nil, (rest or ""):match("^%s*(%S+)")) end
 core.SlashExt.zeuge = core.SlashExt.witness
 -- /gem oath [1|2|3] <text>

@@ -1,5 +1,5 @@
 local ADDON, P = ...
--- "Mak'gora" tab: challenges with witnesses, oaths, and the season results
+-- "Duels & Oaths" tab: duels of honor with witnesses, oaths, and the season results
 -- (podium of the last seasons, progress of the guild towards "Unstoppable").
 local core = P.core
 if not core then return end
@@ -10,7 +10,7 @@ local V = { lvl = 1 }
 local ROW = 24
 
 local function build(p)
-  ---------------------------------------------------------------- left: Mak'gora
+  ---------------------------------------------------------------- left: duels of honor
   local left = CreateFrame("Frame", nil, p)
   left:SetPoint("TOPLEFT", 0, 0); left:SetPoint("BOTTOMRIGHT", p, "BOTTOM", -12, 0)
   p.makHead = UI.Section(left, "")
@@ -133,9 +133,9 @@ local function refresh(p)
   local me = G.MyKey()
   local r = P.Rules()
 
-  -- Mak'gora
+  -- duels of honor
   p.makHead:SetText(T.Word("MAKGORA"))
-  p.makHint:SetText(L.PVP_MAK_HINT:format(r.makgora, r.makgoraWitnesses))
+  p.makHint:SetText(L.PVP_MAK_SAFE .. "\n" .. L.PVP_MAK_HINT:format(r.makgora, r.makgoraWitnesses))
   local list = P.ActiveMakgoras()
   for i, m in ipairs(list) do
     if i > 4 then break end
@@ -238,7 +238,7 @@ local function refresh(p)
 end
 
 UI.AddTab("pvphonor", {
-  label = function() return L.TAB_PVPHONOR:format(T.Word("MAKGORA")) end,
+  label = function() return L.TAB_PVPHONOR end,
   build = build,
   refresh = refresh,
 })

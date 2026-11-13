@@ -33,7 +33,7 @@ GuildEventManager lets your guild plan and run its own events, rewards everyone 
 - **War drums / storm bells:** call the guild to your position (help, rally, attack) with a map waypoint; whoever arrives in time gets honor
 - **Warband and defense** event types with goals
 - **Honor roll** of the guild; event managers can strike a deed
-- **Mak'gora / duel of honor:** challenge a guild member with a stake; a witness confirms the winner, once a week per pair
+- **Duel of honor:** challenge a guild member with a stake; a witness confirms the winner, once a week per pair. A normal duel – nobody dies
 - **Oaths:** swear a small, great or mighty oath – two witnesses confirm it was kept
 - **Season results:** podium of guild honor, the season champion carries the honor name "Champion", and the whole guild earns *Unstoppable* when it reaches the season goal
 - **PvP Kills tab:** honorable kills of every member (season and total, open world and battlegrounds), PvP rank and the game's own statistics
@@ -46,7 +46,7 @@ All values are defaults and can be changed in the settings.
 
 - `/gem` – main window
 - `/gem drum help|rally|attack [text]` – war drum / storm bell
-- `/gem makgora <name> [stake]`, `/gem witness <winner>` – duel of honor
+- `/gem duel <name> [stake]`, `/gem witness <winner>` – duel of honor
 - `/gem oath [1|2|3] <text>` – swear an oath
 - `/gem status`, `/gem minimap`, `/gem errors`
 

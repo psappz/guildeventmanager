@@ -8,7 +8,7 @@
 ## Notes-itIT: Pianifica e gestisci gli eventi di gilda in WoW Forever: punti evento, onore di gilda, imprese di gilda e un punteggio totale per tutta la gilda.
 ## Notes-ptBR: Planeje e conduza eventos da guilda no WoW Forever: pontos de evento, honra da guilda, conquistas da guilda e uma pontuação total para a guilda inteira.
 ## Author: psappz
-## Version: 0.5.0
+## Version: 0.6.0
 ## IconTexture: Interface\AddOns\GuildEventManager\Media\GuildEventManagerIcon
 ## AddonCompartmentFunc: GuildEventManager_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: GuildEventManager_OnAddonCompartmentEnter
