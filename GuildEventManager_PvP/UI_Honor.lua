@@ -15,18 +15,31 @@ local function build(p)
   left:SetPoint("TOPLEFT", 0, 0); left:SetPoint("BOTTOMRIGHT", p, "BOTTOM", -12, 0)
   p.makHead = UI.Section(left, "")
   p.makHead:SetPoint("TOPLEFT", 0, 0)
-  p.makName = W.Edit(left, 130, 22)
-  p.makName:SetPoint("TOPLEFT", 0, -24)
+  -- three labelled fields: opponent, witness, stake
+  p.makName = W.Edit(left, 110, 22)
+  p.makName:SetPoint("TOPLEFT", 0, -38)
   p.makName:SetMaxLetters(40)
+  p.makWit = W.Edit(left, 110, 22)
+  p.makWit:SetPoint("LEFT", p.makName, "RIGHT", 6, 0)
+  p.makWit:SetMaxLetters(40)
   p.makStake = W.Edit(left, 10, 22)
-  p.makStake:SetPoint("LEFT", p.makName, "RIGHT", 6, 0)
+  p.makStake:SetPoint("LEFT", p.makWit, "RIGHT", 6, 0)
   p.makStake:SetMaxLetters(60)
   p.makBtn = W.Button(left, L.PVP_MAK_CHALLENGE, true, 22)
-  p.makBtn:SetPoint("TOPRIGHT", 0, -24)
+  p.makBtn:SetPoint("TOPRIGHT", 0, -38)
   p.makStake:SetPoint("RIGHT", p.makBtn, "LEFT", -6, 0)
+  local function label(edit, text)
+    local t = W.Text(left, 9, "muted")
+    t:SetPoint("BOTTOMLEFT", edit, "TOPLEFT", 2, 2)
+    t:SetText(text)
+    return t
+  end
+  p.makLOpp = label(p.makName, L.PVP_MAK_L_OPP)
+  p.makLWit = label(p.makWit, L.PVP_MAK_L_WIT)
+  p.makLStake = label(p.makStake, L.PVP_MAK_L_STAKE)
   p.makBtn:SetScript("OnClick", function()
-    P.Challenge(p.makName:GetText(), p.makStake:GetText())
-    p.makName:ClearFocus(); p.makStake:ClearFocus(); p.makStake:SetText("")
+    P.Challenge(p.makName:GetText(), p.makWit:GetText(), p.makStake:GetText())
+    p.makName:ClearFocus(); p.makWit:ClearFocus(); p.makStake:ClearFocus(); p.makStake:SetText("")
   end)
   p.makHint = W.Text(left, 10, "muted")
   p.makHint:SetPoint("TOPLEFT", p.makName, "BOTTOMLEFT", 0, -4); p.makHint:SetPoint("RIGHT", 0, 0)
@@ -135,16 +148,24 @@ local function refresh(p)
 
   -- duels of honor
   p.makHead:SetText(T.Word("MAKGORA"))
-  p.makHint:SetText(L.PVP_MAK_SAFE .. "\n" .. L.PVP_MAK_HINT:format(r.makgora, r.makgoraWitnesses))
+  local function lim(n, max) max = tonumber(max) or 0; return max > 0 and (n .. "/" .. max) or tostring(n) end
+  p.makHint:SetText(L.PVP_MAK_SAFE .. "\n" .. L.PVP_MAK_HINT:format(r.makgora) .. "\n"
+    .. L.PVP_MAK_TODAY:format(lim(P.DuelsToday(nil), r.makgoraPerDay), lim(P.DuelsToday(me), r.makgoraPerMember)))
   local list = P.ActiveMakgoras()
   for i, m in ipairs(list) do
     if i > 4 then break end
     local row = p.makRows:Get(i)
     row:ClearAllPoints(); row:SetPoint("TOPLEFT", 0, -5 - (i - 1) * ROW); row:SetPoint("RIGHT", p.makBox, "RIGHT", 0, 0)
     local st = P.MakState(m)
-    local votes = 0
-    for _ in pairs(m.wit or {}) do votes = votes + 1 end
-    local info = (st == "open") and L.PVP_MAK_ST_OPEN or L.PVP_MAK_ST_FIGHT:format(votes, r.makgoraWitnesses)
+    local info
+    if st == "open" then info = L.PVP_MAK_ST_OPEN
+    elseif m.w then info = L.PVP_MAK_ST_WAIT
+    else
+      local votes = 0
+      for _ in pairs(m.wit or {}) do votes = votes + 1 end
+      info = L.PVP_MAK_ST_FIGHT:format(votes, r.makgoraWitnesses)
+    end
+    if m.w then info = L.PVP_MAK_WITNESS_LINE:format(G.Display(m.w)) .. " · " .. info end
     row.text:SetText(L.PVP_MAK_VS:format(G.Display(m.a), G.Display(m.b))
       .. (m.stake and U.Color(muted, " · " .. m.stake) or "") .. U.Color(muted, " · " .. info))
     row.b1:Hide(); row.b2:Hide()
@@ -155,12 +176,18 @@ local function refresh(p)
     elseif m.a == me or m.b == me then
       -- own challenge (sent, or accepted and waiting for witnesses): take it back
       W.SetLabel(row.b2, L.PVP_MAK_CANCEL); row.b2:SetScript("OnClick", function() P.CancelChallenge(m.id) end); row.b2:Show()
-    elseif st == "fight" and m.a ~= me and m.b ~= me then
+    elseif st == "fight" and m.w == me then
+      -- only the named witness decides, after a confirmation
       local mine = m.wit and m.wit[me]
+      local function confirm(winner)
+        local loser = (winner == m.a) and m.b or m.a
+        W.Dialog({ text = L.PVP_MAK_CONFIRM_Q:format(G.Display(winner), G.Display(loser)),
+          accept = L.PVP_MAK_CONFIRM, onAccept = function() P.Witness(m.id, winner) end })
+      end
       W.SetLabel(row.b1, L.PVP_MAK_WINS:format(G.Display(m.a)))
-      row.b1:SetScript("OnClick", function() P.Witness(m.id, m.a) end); row.b1:Show(); row.b1:SetEnabled(mine ~= m.a)
+      row.b1:SetScript("OnClick", function() confirm(m.a) end); row.b1:Show(); row.b1:SetEnabled(mine ~= m.a)
       W.SetLabel(row.b2, L.PVP_MAK_WINS:format(G.Display(m.b)))
-      row.b2:SetScript("OnClick", function() P.Witness(m.id, m.b) end); row.b2:Show(); row.b2:SetEnabled(mine ~= m.b)
+      row.b2:SetScript("OnClick", function() confirm(m.b) end); row.b2:Show(); row.b2:SetEnabled(mine ~= m.b)
     end
   end
   p.makRows:HideFrom(math.min(#list, 4) + 1)

@@ -13,7 +13,7 @@ local L = P.L
 
 local PvP = {}
 GuildEventManagerAPI.PvP = PvP
-PvP.version = 3   -- see docs/MODULES.md, section 6 (API changes)
+PvP.version = 4   -- see docs/MODULES.md, section 6 (API changes)
 
 P.deeds = {}       -- id -> { label, labelKey, honor, dailyCap, module }
 P.extraRules = {}  -- { { key, label, labelKey } } shown after the built-in rules
@@ -85,7 +85,8 @@ function PvP.Drum(level, text) P.Drum(level, text) end
 function PvP.OpenDebts() return P.OpenDebts() end
 
 -- Duels of honor and oaths, both confirmed by witnesses
-function PvP.Challenge(name, stake) P.Challenge(name, stake) end
+-- witness: the guild member who alone confirms the winner (PvP API 4)
+function PvP.Challenge(name, witness, stake) P.Challenge(name, witness, stake) end
 function PvP.Swear(level, text) P.Swear(level, text) end                 -- level 1..3
 function PvP.ActiveDuels() return P.ActiveMakgoras() end
 function PvP.ActiveMakgoras() return P.ActiveMakgoras() end   -- deprecated name

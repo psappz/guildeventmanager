@@ -231,7 +231,7 @@ Available when `GuildEventManager_PvP` is loaded (`API.PvP.version` is `3`). Dec
 | `PvP.GetRules()`, `PvP.SetRules(fn)` | all honor rules (built-in and from modules) |
 | `PvP.On(name, fn)` | `KILL (victimName, instanceType)` – own honorable kill, `"none"` = open world, `"pvp"` = battleground · `DEATH (killerName)` · `DEBT_NEW (debt)` · `DEBT_PAID (debt, servedCold)` – `debt.how` is `"kill"`, `"target"` or `"near"` (nameplate) · `DRUM (drum)` · `DRUM_ARRIVED (drum, first)` · `HONORDUEL (duel, winnerKey, loserKey)` – own won duel of honor · `HONORDUEL_NEW (duel)` · `OATH_FULFILLED (oath)` |
 | `PvP.Drum(level, text)` | war drum / storm bell at the own position: `"help"`, `"rally"`, `"attack"` |
-| `PvP.Challenge(name, stake)`, `PvP.Swear(level, text)` | start a duel of honor / swear an oath (level 1–3), as the player would in the tab |
+| `PvP.Challenge(name, witness, stake)`, `PvP.Swear(level, text)` | start a duel of honor (the named witness alone confirms the winner; PvP API 4) / swear an oath (level 1–3), as the player would in the tab |
 | `PvP.ActiveDuels()`, `PvP.OpenOaths()`, `PvP.DuelRecord(name)` | running challenges, open oaths, `wins, losses` of a member |
 | `PvP.SeasonResults(n)`, `PvP.SeasonProgress()` | finished seasons of guild honor (`{ start, stop, total, top = { {key, honor} ×3 } }`, newest first); honor of the running season and the goal |
 | `PvP.OpenDebts()`, `PvP.InOpenWorld()`, `PvP.PlaySignal()`, `PvP.Notice(msg)` | |
@@ -269,6 +269,13 @@ Every change to `GuildEventManagerAPI` and `GuildEventManagerAPI.PvP`, newest fi
 - Something that has to go is marked **deprecated** here first and keeps working for at least one more minor release of the core (e.g. 1.1 → removed in 1.2 at the earliest).
 - Ledger entries, achievement ids and message kinds of a released module are never reused with another meaning: old entries in the guild ledger stay readable.
 - Before 1.0 (0.x betas) the same rules apply as far as possible; breaking changes, if unavoidable, are listed here with a migration note.
+
+### PvP API 4 – unreleased
+
+PvP (`pvp = 4`):
+- **Breaking:** `PvP.Challenge(name, witness, stake)` – a duel of honor needs a named witness, a guild member other than the two duelists. Only that witness can confirm the winner; votes of anyone else are ignored, and the system-chat prompt after the duel appears only for them. Migration: pass the witness as the second argument; the old call `PvP.Challenge(name, stake)` now treats the stake as the witness name and fails with a message to the player.
+- Duel records (`PvP.ActiveDuels()`) carry `w`, the witness key. Duels sent by 0.6.0 clients have no `w`; for them the old rule (`makgoraWitnesses` votes from anyone) still applies, but newer clients offer no witness buttons for them.
+- The `MAKG` message carries `w`.
 
 ### API 3 · PvP API 3 – GuildEventManager 0.6.0
 

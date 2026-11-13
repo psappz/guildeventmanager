@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Changed
+- **Duels of honor need a named witness.** The challenger names the opponent, a witness (a guild member who does not fight) and an optional stake – three labelled fields in the tab, or `/gem duel <opponent> <witness> [stake]`. Only that witness can confirm the winner, after a confirmation dialog; buttons, the prompt after the duel and votes of anyone else are gone or ignored. The witness is told when they are named and when the duel starts. Duels sent by 0.6.0 clients have no named witness and can no longer be confirmed from this version – take them back and challenge again. The rule "Witnesses (duel)" is no longer shown. PvP API 4: `PvP.Challenge(name, witness, stake)`.
+- **Daily limits for duels of honor,** so duels cannot make up for missing world PvP: new rules "Duels of honor per day" for the whole guild (default 5) and "per member and day" (default 1, 0 = no limit), set by the guild master and event managers like the honor per duel. A day ends at the game's daily reset. Open, fought and booked duels count; declined and taken-back ones don't. The tab shows today's count.
 - **Painted clan / order banner:** hand-painted art for all four stages of both factions (cloth, sigil with an own emblem per faction, trophies, braziers with flickering flames), a leather (Horde) or parchment (Alliance) card background, and the stages as small pictures below the banner.
 
 ### Fixed

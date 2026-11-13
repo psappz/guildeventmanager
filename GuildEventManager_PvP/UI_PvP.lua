@@ -8,7 +8,7 @@ local L = P.L
 local V = {}
 
 local RULES = { "kill", "perVictim", "dailyCap", "debt", "debtDays", "coldMin", "drum", "drumWindow", "drumRadius", "revengeChat", "revengeChatMin",
-  "makgora", "makgoraWitnesses", "oath1", "oath2", "oath3", "oathDays", "oathWitnesses", "seasonGoal" }
+  "makgora", "makgoraPerDay", "makgoraPerMember", "oath1", "oath2", "oath3", "oathDays", "oathWitnesses", "seasonGoal" }
 
 local function build(p)
   local th = T.Current()

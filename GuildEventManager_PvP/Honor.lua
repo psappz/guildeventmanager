@@ -75,6 +75,52 @@ function P.MakState(m)
   return m.state
 end
 
+-- Start of the game's day (daily reset); local midnight if the client can't tell
+function P.DayStart()
+  local f = C_DateAndTime and C_DateAndTime.GetSecondsUntilDailyReset
+  local ok, left = false, nil
+  if f then ok, left = pcall(f) end
+  if ok and type(left) == "number" and not (issecretvalue and issecretvalue(left)) and left > 0 and left <= DAY then
+    return U.Now() + math.floor(left) - DAY
+  end
+  local t = date("*t", U.Now())
+  t.hour, t.min, t.sec = 0, 0, 0
+  return time(t)
+end
+
+-- Duels of honor today: booked ones from the ledger plus challenges that are
+-- open, being fought or done (declined and taken-back ones don't count).
+-- key = nil counts the whole guild, otherwise the duels this member is part of.
+function P.DuelsToday(key, skipId)
+  local since, seen, n = P.DayStart(), {}, 0
+  for _, e in ipairs(Pts.Entries(function(e) return e.why == "makgora" and not e.reverted and (e.ts or 0) >= since end)) do
+    if not key or e.who == key or e.note == key then
+      if e.mk then seen[e.mk] = true end
+      if e.mk ~= skipId then n = n + 1 end
+    end
+  end
+  for id, m in pairs(P.maks) do
+    local st = P.MakState(m)
+    if id ~= skipId and not seen[id] and (st == "open" or st == "fight" or st == "done") and (m.ts or 0) >= since
+      and (not key or m.a == key or m.b == key) then n = n + 1 end
+  end
+  return n
+end
+
+-- nil if allowed, otherwise the message why not
+function P.DuelLimit(a, b, skipId)
+  local r = P.Rules()
+  local guild, member = tonumber(r.makgoraPerDay) or 0, tonumber(r.makgoraPerMember) or 0
+  if guild > 0 and P.DuelsToday(nil, skipId) >= guild then return L.PVP_MAK_LIMIT_GUILD:format(guild) end
+  if member > 0 then
+    for _, k in ipairs({ a, b }) do
+      if k and P.DuelsToday(k, skipId) >= member then
+        return k == G.MyKey() and L.PVP_MAK_LIMIT_ME:format(member) or L.PVP_MAK_LIMIT_MEMBER:format(G.Display(k), member)
+      end
+    end
+  end
+end
+
 -- Duels that are still open or being fought, newest first
 function P.ActiveMakgoras()
   local list = {}
@@ -87,25 +133,34 @@ function P.ActiveMakgoras()
 end
 
 local function sendMak(m)
-  C.Send("MAKG", { m = { id = m.id, a = m.a, b = m.b, stake = m.stake, ts = m.ts, state = m.state, acc = m.acc } })
+  C.Send("MAKG", { m = { id = m.id, a = m.a, b = m.b, w = m.w, stake = m.stake, ts = m.ts, state = m.state, acc = m.acc } })
 end
 
-function P.Challenge(name, stake)
+-- Only the witness named by the challenger can decide the winner.
+function P.Challenge(name, witness, stake)
   if not C.CanSend() then U.Print(core.L.NOT_ACTIVE); return end
   local me = G.MyKey()
-  local b = name and G.Resolve(name)
-  if not b then U.Print(L.PVP_MAK_NOMEMBER:format(name or "?")); return end
+  name = tostring(name or ""):match("^%s*(.-)%s*$")
+  witness = tostring(witness or ""):match("^%s*(.-)%s*$")
+  local b = name ~= "" and G.Resolve(name)
+  if not b then U.Print(L.PVP_MAK_NOMEMBER:format(name ~= "" and name or "?")); return end
   if b == me then U.Print(L.PVP_MAK_SELF); return end
+  if witness == "" then U.Print(L.PVP_MAK_NEEDWITNESS); return end
+  local w = G.Resolve(witness)
+  if not w then U.Print(L.PVP_MAK_NOMEMBER:format(witness)); return end
+  if w == me or w == b then U.Print(L.PVP_MAK_NOWITNESS); return end
   for _, m in ipairs(P.ActiveMakgoras()) do
     if m.a == me or m.b == me then U.Print(L.PVP_MAK_BUSY); return end
   end
   if P.MakgoraThisWeek(me, b) then U.Print(L.PVP_MAK_WEEK:format(G.Display(b))); return end
-  local m = { id = U.NewId(), a = me, b = b, stake = (stake and stake ~= "") and stake:sub(1, 60) or nil,
+  local why = P.DuelLimit(me, b)
+  if why then U.Print(why); return end
+  local m = { id = U.NewId(), a = me, b = b, w = w, stake = (stake and stake ~= "") and stake:sub(1, 60) or nil,
     ts = U.Now(), state = "open", wit = {} }
   P.maks[m.id] = m
   remember("maks", m)
   sendMak(m)
-  U.Print(L.PVP_MAK_SENT:format(G.Display(b)))
+  U.Print(L.PVP_MAK_SENT:format(G.Display(b)) .. " " .. L.PVP_MAK_WITNESS_LINE:format(G.Display(w)))
   if core.UI then core.UI.Refresh() end
 end
 
@@ -120,6 +175,10 @@ function P.Answer(id, ok)
   local m = id and P.maks[id] or myOpenChallenge()
   if not m or m.b ~= G.MyKey() or P.MakState(m) ~= "open" then U.Print(L.PVP_MAK_NONE); return end
   if ok and P.MakgoraThisWeek(m.a, m.b) then ok = false; U.Print(L.PVP_MAK_WEEK:format(G.Display(m.a))) end
+  if ok then
+    local why = P.DuelLimit(m.a, m.b, m.id)
+    if why then ok = false; U.Print(why) end
+  end
   m.state = ok and "fight" or "off"
   m.acc = U.Now()
   remember("maks", m)
@@ -133,12 +192,19 @@ local function checkMakWin(m)
   if m.booked or P.MakState(m) ~= "fight" then return end
   local me = G.MyKey()
   if m.a ~= me and m.b ~= me then return end
-  local need = math.max(1, tonumber(P.Rules().makgoraWitnesses) or 1)
-  local votes, names = 0, {}
-  for wkey, winner in pairs(m.wit or {}) do
-    if winner == me and wkey ~= m.a and wkey ~= m.b then votes = votes + 1; names[#names + 1] = wkey end
+  local names = {}
+  if m.w then
+    -- named witness: only that vote counts
+    if not (m.wit and m.wit[m.w] == me) then return end
+    names[1] = m.w
+  else
+    -- duels sent by 0.6.0 clients have no named witness: old rule
+    local need = math.max(1, tonumber(P.Rules().makgoraWitnesses) or 1)
+    for wkey, winner in pairs(m.wit or {}) do
+      if winner == me and wkey ~= m.a and wkey ~= m.b then names[#names + 1] = wkey end
+    end
+    if #names < need then return end
   end
-  if votes < need then return end
   m.booked = true
   m.state = "done"
   m.winner = me
@@ -192,12 +258,13 @@ function P.Witness(id, winner)
     -- /gem witness <name>: the one running duel that this name fights in
     local key = winner and G.Resolve(winner)
     for _, x in ipairs(P.ActiveMakgoras()) do
-      if key and P.MakState(x) == "fight" and (x.a == key or x.b == key) then m = x end
+      if key and P.MakState(x) == "fight" and (x.a == key or x.b == key) and (not m or x.w == me) then m = x end
     end
     winner = key
   end
   if not m or P.MakState(m) ~= "fight" then U.Print(L.PVP_MAK_NONE); return end
   if me == m.a or me == m.b then U.Print(L.PVP_MAK_OWN); return end
+  if m.w ~= me then U.Print(m.w and L.PVP_MAK_NOTWITNESS:format(G.Display(m.w)) or L.PVP_MAK_NOWITNESS_OLD); return end
   if winner ~= m.a and winner ~= m.b then U.Print(L.PVP_MAK_NONE); return end
   m.wit = m.wit or {}
   m.wit[me] = winner
@@ -215,7 +282,9 @@ C.On("MAKG", function(data, from)
   if m and m.state == "off" then return end
   local fresh = not m
   if not m then
-    m = { id = d.id, a = from, b = d.b, stake = type(d.stake) == "string" and d.stake:sub(1, 60) or nil,
+    local wk = type(d.w) == "string" and d.w or nil
+    if wk and (wk == from or wk == d.b) then wk = nil end
+    m = { id = d.id, a = from, b = d.b, w = wk, stake = type(d.stake) == "string" and d.stake:sub(1, 60) or nil,
       ts = math.min(U.Now(), tonumber(d.ts) or U.Now()), wit = {} }
     m.state = d.state == "fight" and "fight" or "open"
     m.acc = tonumber(d.acc)
@@ -230,13 +299,18 @@ C.On("MAKG", function(data, from)
         W.Dialog({ text = L.PVP_MAK_DIALOG:format(G.Display(m.a), m.stake or L.PVP_MAK_NOSTAKE) .. "\n\n" .. L.PVP_MAK_SAFE,
           accept = L.PVP_MAK_ACCEPT, cancel = L.PVP_MAK_DECLINE, onAccept = function() P.Answer(m.id, true) end })
       end
+    elseif m.w and m.w == me then
+      P.PlaySignal()
+      P.Notice(L.PVP_MAK_NAMED:format(G.Display(m.a), G.Display(m.b)))
     else
-      U.Print(L.PVP_MAK_ANNOUNCE:format(G.Display(m.a), G.Display(m.b)) .. (m.stake and (" " .. L.PVP_MAK_STAKE:format(m.stake)) or ""))
+      U.Print(L.PVP_MAK_ANNOUNCE:format(G.Display(m.a), G.Display(m.b))
+        .. (m.w and (" " .. L.PVP_MAK_WITNESS_LINE:format(G.Display(m.w))) or "")
+        .. (m.stake and (" " .. L.PVP_MAK_STAKE:format(m.stake)) or ""))
     end
   end
   -- I confirmed this one before (the duelist was offline): send it again
   local mine = store().wit[m.id]
-  if mine and me ~= m.a and me ~= m.b then
+  if mine and me ~= m.a and me ~= m.b and m.w == me then
     core.Schedule("gemMakWit" .. m.id, 2 + math.random() * 4, function() C.Send("MAKGWIT", { id = m.id, w = mine }) end)
   end
   core.Fire("PVP_HONORDUEL_NEW", m)
@@ -252,8 +326,9 @@ C.On("MAKGANS", function(data, from)
   if m.a == G.MyKey() then
     remember("maks", m)
     U.Print(m.state == "fight" and L.PVP_MAK_ACCEPTED:format(G.Display(m.b)) or L.PVP_MAK_DECLINED:format(G.Display(m.b)))
-  elseif m.state == "fight" then
-    U.Print(L.PVP_MAK_WITNESS_CALL:format(G.Display(m.a), G.Display(m.b)))
+  elseif m.state == "fight" and m.w == G.MyKey() then
+    P.PlaySignal()
+    P.Notice(L.PVP_MAK_WITNESS_CALL:format(G.Display(m.a), G.Display(m.b)))
   end
   if core.UI then core.UI.Refresh() end
 end)
@@ -261,6 +336,7 @@ end)
 C.On("MAKGWIT", function(data, from)
   local m = data.id and P.maks[data.id]
   if not m or from == m.a or from == m.b then return end
+  if m.w and from ~= m.w then return end   -- only the named witness decides
   if data.w ~= m.a and data.w ~= m.b then return end
   m.wit = m.wit or {}
   m.wit[from] = data.w
@@ -309,7 +385,7 @@ local function onSystem(msg)
       local me = G.MyKey()
       for _, m in ipairs(P.ActiveMakgoras()) do
         if P.MakState(m) == "fight" and winner and loser and pairKey(m.a, m.b) == pairKey(winner, loser)
-          and me ~= m.a and me ~= m.b and not (m.wit and m.wit[me]) then
+          and m.w == me and not (m.wit and m.wit[me]) then
           W.Dialog({ text = L.PVP_MAK_SEEN:format(G.Display(winner), G.Display(loser)), accept = L.PVP_MAK_CONFIRM,
             onAccept = function() P.Witness(m.id, winner) end })
         end
@@ -476,7 +552,21 @@ local function duelCmd(rest)
   if w == "accept" or w == "annehmen" or w == "ja" or w == "yes" then P.Answer(nil, true)
   elseif w == "decline" or w == "ablehnen" or w == "nein" or w == "no" then P.Answer(nil, false)
   elseif w == "cancel" or w == "zurück" or w == "zurueck" or w == "abbrechen" then P.CancelChallenge(nil)
-  elseif a and a ~= "" then P.Challenge(a, b)
+  elseif a and a ~= "" then
+    -- /gem duel <opponent> <witness> [stake]; names may have two words
+    local t = {}
+    for x in (rest or ""):gmatch("%S+") do t[#t + 1] = x end
+    local function take(i)
+      for n = 1, math.min(3, #t - i + 1) do
+        local nm = table.concat(t, " ", i, i + n - 1)
+        if G.Resolve(nm) then return nm, i + n end
+      end
+      return t[i], i + 1
+    end
+    local opp, i = take(1)
+    local wit, j = nil, i
+    if t[i] then wit, j = take(i) end
+    P.Challenge(opp, wit, (j <= #t) and table.concat(t, " ", j) or nil)
   else U.Print(L.PVP_MAK_USAGE) end
 end
 core.SlashExt.duel = duelCmd

@@ -24,6 +24,8 @@ P.DEFAULTS = {
   revengeChatMin = 2, -- minutes between two such posts of one member
   makgora = 10,      -- honor for a won duel of honor (with witness)
   makgoraWitnesses = 1, -- witnesses needed for a duel of honor
+  makgoraPerDay = 5,    -- duels of honor in the whole guild per game day (0 = no limit)
+  makgoraPerMember = 1, -- duels of honor per member and game day (0 = no limit)
   oath1 = 10, oath2 = 25, oath3 = 40, -- honor for a fulfilled oath: small, great, mighty
   oathDays = 14,     -- an oath must be fulfilled within n days
   oathWitnesses = 2, -- witnesses needed for a fulfilled oath
