@@ -33,15 +33,21 @@ local function build(p)
   p.card = card
   -- the banner itself grows with the level: 1 cloth, 2 sigil, 3 trophies, 4 flames
   local scene = CreateFrame("Frame", nil, card)
-  scene:SetSize(240, 160); scene:SetPoint("TOP", 0, -8)
+  scene:SetSize(240, 210); scene:SetPoint("TOP", 0, -4)
   card.scene = scene
+  -- painted banner (Media\\banner_<faction>_<stage>.tga) where it exists for this faction
+  scene.art = scene:CreateTexture(nil, "ARTWORK", nil, 2)
+  scene.art:SetSize(210, 210); scene.art:SetPoint("TOP", 0, 0)
+  -- the round empty field of the painted sigil stage (centre 50 % / 32.7 %, ring about 31 %)
+  scene.artSigil = scene:CreateTexture(nil, "ARTWORK", nil, 4)
+  scene.artSigil:SetSize(52, 52); scene.artSigil:SetPoint("CENTER", scene.art, "TOPLEFT", 105, -69)
   local gold = { 0.83, 0.66, 0.30 }
   local function tex(layer, sub)
     local t = scene:CreateTexture(nil, layer, nil, sub or 0)
     t:SetTexture("Interface\\Buttons\\WHITE8X8")
     return t
   end
-  scene.pole = tex("BACKGROUND", 1); scene.pole:SetSize(5, 150); scene.pole:SetPoint("TOP", 0, -8)
+  scene.pole = tex("BACKGROUND", 1); scene.pole:SetSize(5, 170); scene.pole:SetPoint("TOP", 0, -10)
   scene.pole:SetVertexColor(0.42, 0.28, 0.16)
   scene.bar = tex("BORDER", 1); scene.bar:SetSize(108, 5); scene.bar:SetPoint("TOP", 0, -14)
   scene.bar:SetVertexColor(gold[1], gold[2], gold[3])
@@ -69,17 +75,17 @@ local function build(p)
     return t
   end
   scene.trophyL = roundIcon("Interface\\Icons\\INV_Misc_Head_Dragon_01", 34)
-  scene.trophyL:SetPoint("BOTTOMRIGHT", scene, "BOTTOM", -10, 0)
+  scene.trophyL:SetPoint("BOTTOMRIGHT", scene, "BOTTOM", -10, 4)
   scene.trophyR = roundIcon("Interface\\Icons\\INV_Misc_Head_Dragon_01", 34)
-  scene.trophyR:SetPoint("BOTTOMLEFT", scene, "BOTTOM", 10, 0)
+  scene.trophyR:SetPoint("BOTTOMLEFT", scene, "BOTTOM", 10, 4)
   scene.trophyR:SetTexCoord(1, 0, 0, 1)
   -- 4: flames left and right of the banner, flickering (own frame, so only they flicker)
   scene.flames = CreateFrame("Frame", nil, scene)
   scene.flames:SetAllPoints()
   scene.flameL = roundIcon("Interface\\Icons\\Spell_Fire_Fire", 40, "OVERLAY", scene.flames)
-  scene.flameL:SetPoint("RIGHT", scene.cloth, "LEFT", -14, -6)
+  scene.flameL:SetPoint("CENTER", scene, "TOPLEFT", 26, -100)
   scene.flameR = roundIcon("Interface\\Icons\\Spell_Fire_Fire", 40, "OVERLAY", scene.flames)
-  scene.flameR:SetPoint("LEFT", scene.cloth, "RIGHT", 14, -6)
+  scene.flameR:SetPoint("CENTER", scene, "TOPRIGHT", -26, -100)
   scene.flameR:SetTexCoord(1, 0, 0, 1)
   for _, fl in ipairs({ scene.flameL, scene.flameR }) do fl:SetBlendMode("ADD") end
   local ag = scene.flames:CreateAnimationGroup()
@@ -102,7 +108,7 @@ local function build(p)
   for i = 1, 4 do
     local t = CreateFrame("Button", nil, card)
     t:SetSize(56, 62)
-    t:SetPoint("TOPLEFT", card, "TOPLEFT", 14 + (i - 1) * 64, -222)
+    t:SetPoint("TOPLEFT", card, "TOPLEFT", 14 + (i - 1) * 64, -268)
     t.icon = t:CreateTexture(nil, "ARTWORK")
     t.icon:SetPoint("TOP"); t.icon:SetSize(38, 38)
     if TIER_ICON[i] then
@@ -134,7 +140,7 @@ local function build(p)
     card.tiers[i] = t
   end
   card.bar = W.Bar(card, 8)
-  card.bar:SetPoint("TOPLEFT", 16, -300); card.bar:SetPoint("RIGHT", -16, 0)
+  card.bar:SetPoint("TOPLEFT", 16, -342); card.bar:SetPoint("RIGHT", -16, 0)
   card.next = W.Text(card, 10, "muted")
   card.next:SetPoint("TOPLEFT", card.bar, "BOTTOMLEFT", 0, -6); card.next:SetPoint("RIGHT", card, "RIGHT", -16, 0)
   card.next:SetJustifyH("CENTER")
@@ -226,6 +232,17 @@ local function layoutCells(owner, list, cells, size, color)
   for i = #list + 1, #cells do cells[i]:Hide() end
 end
 
+-- painted stages per faction (files in Media); missing stages use the highest
+-- painted one plus the drawn trophies / flames, a faction without art the drawn banner
+V.ART = { horde = { 1, 2 } }
+local function artFor(level)
+  local list = V.ART[T.Faction()]
+  if not list then return nil end
+  local best
+  for _, n in ipairs(list) do if n <= level then best = n end end
+  return best and ("Interface\\AddOns\\GuildEventManager\\Media\\banner_" .. T.Faction() .. "_" .. best), best
+end
+
 local function refresh(p)
   local th = T.Current()
   local b = Pts.Banner()
@@ -243,8 +260,15 @@ local function refresh(p)
   sc.notch:SetVertexColor(bg[1], bg[2], bg[3])
   sc.sigil:SetTexture(th.crest)
   local show = { cloth = lvl >= 1, sigil = lvl >= 2, trophies = lvl >= 3, flames = lvl >= 4 }
-  for _, x in ipairs({ sc.cloth, sc.edgeL, sc.edgeR, sc.notch }) do x:SetShown(show.cloth) end
-  sc.sigil:SetShown(show.sigil)
+  local art, artStage = artFor(lvl)
+  sc.art:SetShown(art ~= nil)
+  if art then sc.art:SetTexture(art) end
+  local drawn = art == nil
+  for _, x in ipairs({ sc.pole, sc.bar, sc.tip }) do x:SetShown(drawn) end
+  for _, x in ipairs({ sc.cloth, sc.edgeL, sc.edgeR, sc.notch }) do x:SetShown(drawn and show.cloth) end
+  sc.sigil:SetShown(drawn and show.sigil)
+  sc.artSigil:SetTexture(th.crest)
+  sc.artSigil:SetShown(art ~= nil and show.sigil and artStage >= 2)
   sc.trophyL:SetShown(show.trophies); sc.trophyR:SetShown(show.trophies)
   sc.flames:SetShown(show.flames)
   if show.flames then if not sc.flicker:IsPlaying() then sc.flicker:Play() end else sc.flicker:Stop() end
