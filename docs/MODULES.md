@@ -84,7 +84,7 @@ Name the folder `GuildEventManager_<Name>` so it is sorted next to the core in t
 
 ## 3. API reference
 
-`GuildEventManagerAPI` (short: `API`). `API.version` is `1`. New functions raise the version; existing functions keep their behaviour. Check it with `requires = { api = 1 }`.
+`GuildEventManagerAPI` (short: `API`). `API.version` is `2`. New functions raise the version; existing functions keep their behaviour. Check it with `requires = { api = 2 }` if you use something from version 2 (see [section 6](#6-api-changes)), otherwise `api = 1` keeps your module working with older cores.
 
 ### Modules
 
@@ -217,7 +217,7 @@ Only in an activated guild, throttled, split when long, dropped from senders out
 
 ## 4. PvP modules – `GuildEventManagerAPI.PvP`
 
-Available when `GuildEventManager_PvP` is loaded (`API.PvP.version` is `1`). Declare `requires = { api = 1, pvp = 1 }`.
+Available when `GuildEventManager_PvP` is loaded (`API.PvP.version` is `2`). Declare `requires = { api = 1, pvp = 1 }`, or `pvp = 2` if you use duels of honor, oaths or season results.
 
 | Function | |
 |---|---|
@@ -251,6 +251,46 @@ Built-in honor rules (`PvP.GetRules()`): `kill, perVictim, dailyCap, debt, debtD
 - Both factions: `/reload`, then `/gem demo alliance` before opening the window.
 - `enUS` and your own language (switch the addon language in Settings → Personal, then `/reload`).
 - Many messages at once (e.g. 20 members logging in): nothing gets lost (`/gem debug`).
+
+---
+
+## 6. API changes
+
+Every change to `GuildEventManagerAPI` and `GuildEventManagerAPI.PvP`, newest first. Declare the version you need in `requires`; a core or PvP module that is too old refuses your module with a message to the player instead of an error.
+
+**Compatibility promise.** From GuildEventManager 1.0 on:
+- Within one API version nothing changes behaviour. New things raise the version (`api = 3`, `pvp = 3`, ...); nothing is removed or renamed in place.
+- Something that has to go is marked **deprecated** here first and keeps working for at least one more minor release of the core (e.g. 1.1 → removed in 1.2 at the earliest).
+- Ledger entries, achievement ids and message kinds of a released module are never reused with another meaning: old entries in the guild ledger stay readable.
+- Before 1.0 (0.x betas) the same rules apply as far as possible; breaking changes, if unavoidable, are listed here with a migration note.
+
+### API 2 · PvP API 2 – GuildEventManager 0.5.0 (2026-11-13)
+
+Core (`api = 2`):
+- Achievements can be worked out by the module: `compute = function(entries, events, a)`, with `repeatable`, `progress` (see the achievement table in section 3).
+- Meta achievements: `meta = { ids }`, `n = #meta`.
+- `honorPrio` decides between several honor names of one member.
+- Locales `frFR`, `esES` (also used for `esMX`), `itIT`, `ptBR` in the core; `API.AddLocale` accepts them. `ptPT` falls back to `ptBR`, `enGB` to `enUS`.
+- Behaviour, not interface: all guild messages leave through one throttled queue (8 at once, then one every 1.1 s). Modules that sent many messages at once now see them arrive with a delay instead of getting lost.
+- Behaviour, not interface: the guild profile stores only changes of achievements (`achOv`). Modules never read the profile directly, so nothing changes for them; use `API.GetRules` / `API.SetRules` as before.
+
+PvP (`pvp = 2`):
+- `PvP.Challenge(name, stake)`, `PvP.Swear(level, text)`, `PvP.ActiveMakgoras()`, `PvP.OpenOaths()`, `PvP.MakgoraRecord(name)`.
+- `PvP.SeasonResults(n)`, `PvP.SeasonProgress()`.
+- Callbacks `MAKGORA (duel, winnerKey, loserKey)`, `MAKGORA_NEW (duel)`, `OATH_FULFILLED (oath)`.
+- `DEBT_PAID`: the debt now carries `debt.how` (`"kill"`, `"target"`, `"near"`).
+- New built-in deeds `makgora` and `oath`, new honor rules `makgora, makgoraWitnesses, oath1, oath2, oath3, oathDays, oathWitnesses, seasonGoal`.
+- New built-in achievements (ids): `makgora1`–`makgora3`, `challenger`, `unbeaten`, `oath1`–`oath3`, `podium`, `champion`, `unstoppable`, `sword`.
+
+### API 1 · PvP API 1 – GuildEventManager 0.4.0 (2026-11-07)
+
+First public module interface.
+- Core: `RegisterModule` (event types, pots, achievements, rules, locales, `requires`), guild and player functions, `GetRules`/`SetRules`, `ReportOwn`, `AwardPoints`, `GetTotals`, `GetEntries`, events, callbacks (`EVENT_*`, `POINTS_ADDED`, `ACHIEVEMENT_EARNED`, `ACTIVATED`, `PROFILE_CHANGED`), `Send`/`Listen`/`CanSend`, UI (`AddTab`, `Widgets`, `Section`, `Pill`, `ShowPlaque`, `AddCommand`), helpers.
+- PvP: `RegisterDeed`, `ReportDeed`, `AddRule`, `GetRules`/`SetRules`, callbacks `KILL`, `DEATH`, `DEBT_NEW`, `DEBT_PAID`, `DRUM`, `DRUM_ARRIVED`, `Drum`, `OpenDebts`, `InOpenWorld`, `PlaySignal`, `Notice`.
+
+### Deprecated
+
+Nothing yet.
 
 ---
 

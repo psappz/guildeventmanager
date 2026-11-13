@@ -13,7 +13,7 @@ local L = P.L
 
 local PvP = {}
 GuildEventManagerAPI.PvP = PvP
-PvP.version = 1
+PvP.version = 2   -- see docs/MODULES.md, section 6 (API changes)
 
 P.deeds = {}       -- id -> { label, labelKey, honor, dailyCap, module }
 P.extraRules = {}  -- { { key, label, labelKey } } shown after the built-in rules

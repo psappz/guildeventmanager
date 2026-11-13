@@ -9,7 +9,7 @@
 - **Season results** (PvP): Season Podium (places 1–3 of guild honor), Champion of the Clan / Order (place 1, honor name "Champion" for the next season), Unstoppable (the guild reaches 5000 honor in a season – everyone who helped earns it). Shown in the new tab with the last three seasons and the progress towards the goal.
 - New achievements: Mak'gora / Duel of Honor (bronze, silver, gold with honor name), Challenger, Unbeaten, Oathkeeper, Sword of the Clan / Order (meta achievement).
 - All new values are in the honor rules and can be changed by event managers.
-- Module API: computed, repeatable and meta achievements (`compute`, `repeatable`, `progress`, `meta`, `honorPrio`); `PvP.Challenge`, `PvP.Swear`, `PvP.SeasonResults`, new callbacks `MAKGORA`, `MAKGORA_NEW`, `OATH_FULFILLED`; `debt.how` in `DEBT_PAID`. See docs/MODULES.md.
+- Module API 2 / PvP API 2 (both still accept modules written for version 1): computed, repeatable and meta achievements (`compute`, `repeatable`, `progress`, `meta`, `honorPrio`); `PvP.Challenge`, `PvP.Swear`, `PvP.SeasonResults`, new callbacks `MAKGORA`, `MAKGORA_NEW`, `OATH_FULFILLED`; `debt.how` in `DEBT_PAID`. See docs/MODULES.md, section 6 (API changes), which also states the compatibility promise for 1.0.
 
 ### Fixed
 - **The guild profile was sent again and again.** It held full copies of all achievements (about 5 KB), and the game drops addon messages once a client sends too fast, so parts never arrived. The profile now keeps only what event managers changed (about 0.5 KB), and all messages leave through a queue that keeps to the game's limit.
