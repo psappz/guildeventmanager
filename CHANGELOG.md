@@ -12,6 +12,7 @@
   - A live preview shows the event as members will see it. Errors (date in the past, min. above max.) appear before anything is sent.
 - **Take back a challenge:** a duel of honor that was sent or accepted can be taken back by either duelist (button in the tab, `/gem duel cancel`) as long as no winner is booked.
 - **The clan / order banner now grows with its level:** cloth in the guild colours (1), the faction sigil on it (2), trophies at its foot (3), flickering flames beside it (4). Click a stage below the banner to preview it.
+- **Data export for support:** `/gem export` shows everything the addon knows on this client – character, guild state, own points and the last entries, PvP counts, game statistics, last death recap and error messages – as text to copy and send (`/gem export full` with all entries). No passwords or account data.
 - **"Use as template"** on every event: copies it as a new event on the same weekday and time, the next date ahead.
 
 ### Fixed
@@ -21,6 +22,7 @@
 - **PvP Kills counters dropped after a crash or disconnect.** The game saves addon data only on logout or /reload, so a disconnect loses the counts of that session. Other members now give a member back what the guild knew of him when he logs in, and their copies never go down.
 
 ### Module API
+- API 3 / PvP API 3: `API.AddExport(id, fn)` for an own section in the export.
 - Deprecated: callbacks `MAKGORA`, `MAKGORA_NEW` → `HONORDUEL`, `HONORDUEL_NEW`; `PvP.ActiveMakgoras()`, `PvP.MakgoraRecord()` → `PvP.ActiveDuels()`, `PvP.DuelRecord()`. The old names still work (removed in 1.2 at the earliest).
 - Event types: `gmin`/`gmax` defaults are used by the editor; `icon` and `descKey` are shown on the type tiles.
 

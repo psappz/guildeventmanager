@@ -190,6 +190,8 @@ local function deadEnemyName(unit)
   return unitName(unit)
 end
 
+function P.KillCounterState() return lastHK, sessionHK() end
+
 local function checkKills()
   local hk = sessionHK()
   if not hk then return end

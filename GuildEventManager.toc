@@ -45,6 +45,7 @@ UI_Banner.lua
 UI_Achievements.lua
 UI_Settings.lua
 Demo.lua
+Export.lua
 UI_Minimap.lua
 API.lua
 Init.lua

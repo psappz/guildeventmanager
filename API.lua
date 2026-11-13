@@ -9,7 +9,7 @@ local U, G, T = ns.U, ns.Guild, ns.Theme
 local API = {}
 GuildEventManagerAPI = API
 
-API.version = 2   -- see docs/MODULES.md, section 6 (API changes)
+API.version = 3   -- see docs/MODULES.md, section 6 (API changes)
 API.coreVersion = ns.VERSION
 
 local function moduleId(id)
@@ -155,6 +155,8 @@ function API.ShowPlaque(name, sub, points, icon) ns.Plaque.Show(name, sub, point
 function API.Print(msg) U.Print(msg) end
 -- /gem <command> [args]
 function API.AddCommand(cmd, fn) ns.SlashExt[cmd:lower()] = fn end
+-- Own section in the support export (/gem export): fn(full) returns a list of text lines
+function API.AddExport(id, fn) ns.Export.Add(id, fn) end
 
 ---------------------------------------------------------------------------
 -- Helpers

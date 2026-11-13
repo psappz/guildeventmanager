@@ -13,7 +13,7 @@ local L = P.L
 
 local PvP = {}
 GuildEventManagerAPI.PvP = PvP
-PvP.version = 2   -- see docs/MODULES.md, section 6 (API changes)
+PvP.version = 3   -- see docs/MODULES.md, section 6 (API changes)
 
 P.deeds = {}       -- id -> { label, labelKey, honor, dailyCap, module }
 P.extraRules = {}  -- { { key, label, labelKey } } shown after the built-in rules
@@ -108,3 +108,42 @@ function P.DeedLabel(e)
   if text:find("%%s") then text = text:format(e.note or "?") end
   return text
 end
+
+---------------------------------------------------------------------------
+-- Section of the support export (/gem export)
+---------------------------------------------------------------------------
+GuildEventManagerAPI.AddExport("PvP", function(full)
+  local X = core.Export
+  local out = {}
+  local function add(k, v) out[#out + 1] = k .. ": " .. X.Val(v) end
+  local c = P.Char()
+  add("module version", PvP.version)
+  add("counters (mine)", c.hk)
+  local last, now = P.KillCounterState()
+  add("kill counter (last seen / game now)", { last = last, now = now })
+  add("kills today", P.KillsToday())
+  add("pending kills", #(P.pendingKills or {}))
+  add("game stats", P.OwnStats())
+  local stored = P.StatsStore()[core.Guild.MyKey()]
+  add("stats the guild has of me", stored)
+  add("open world now", P.OpenWorld())
+  add("rules", P.Rules())
+  local debts = P.OpenDebts()
+  add("open debts", #debts)
+  for i = 1, math.min(#debts, full and #debts or 10) do
+    local d = debts[i]
+    out[#out + 1] = ("  debt %s since %s"):format(X.Val(d.name), d.ts and date("%Y-%m-%d %H:%M", d.ts) or "-")
+  end
+  add("active duels", #P.ActiveMakgoras())
+  add("open oaths", #P.OpenOaths())
+  local diag = core.db and core.db.pvpDiag or {}
+  add("last honor line", { text = diag.honorLine, at = diag.honorLineAt })
+  local r = diag.recap and diag.recap[1]
+  if r then
+    add("last death recap", { at = r.at, reason = r.reason, killer = r.killer })
+    for _, l in ipairs(r.lines or {}) do out[#out + 1] = "  " .. X.Val(l) end
+  else
+    add("last death recap", "-")
+  end
+  return out
+end)
