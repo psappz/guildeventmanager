@@ -68,6 +68,14 @@ local function build(p)
   p.debtEmpty:SetSpacing(2)
   p.today = W.Text(left, 10, "muted")
   p.today:SetPoint("BOTTOMLEFT", 0, 4)
+  -- personal: how revenges of guild members are shown
+  p.revenge = W.Dropdown(left, 110, function()
+    return { { "chat", L.PVP_NOTIFY_chat }, { "banner", L.PVP_NOTIFY_banner }, { "off", L.PVP_NOTIFY_off } }
+  end, function() return (core.db and core.db.pvpRevenge) or "chat" end, function(v) core.db.pvpRevenge = v end)
+  p.revenge:SetPoint("BOTTOMRIGHT", left, "BOTTOMRIGHT", 0, 0)
+  p.revengeLabel = W.Text(left, 10, "muted")
+  p.revengeLabel:SetPoint("RIGHT", p.revenge, "LEFT", -6, 0)
+  p.revengeLabel:SetText(L.PVP_NOTIFY_LABEL)
 
   ---------------------------------------------------------------- right: honor roll / rules
   local right = CreateFrame("Frame", nil, p)
@@ -192,6 +200,7 @@ local function refresh(p)
   p.debtEmpty:SetText(L.PVP_DEBT_NONE:format(T.Word("DEBT"), r.debtDays, r.debt))
   local k = P.KillsToday()
   p.today:SetText(L.PVP_TODAY:format(k.honor or 0, r.dailyCap))
+  p.revenge:Refresh()
 
   -- right side
   local showRules = V.showRules

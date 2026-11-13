@@ -1,5 +1,12 @@
 # GuildEventManager
 
+## PvP module 0.4.0
+
+### New
+- **Revenge near you:** a debtor who dies near you (visible nameplate) while you fight settles the blood debt, as in your target.
+- **Guild message:** every member sees when someone takes revenge ("Monaco Stenz took revenge on X · zone · +20 honor", "Served cold! ..."). Several revenges within seconds become one line. Personal choice in the PvP tab: chat, chat + banner, off.
+- `/gem revenge` shows all blood-debt messages once with sample names.
+
 ## PvP module 0.3.2
 
 ### Fixed

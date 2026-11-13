@@ -91,14 +91,17 @@ end
 function P.KillsToday() return killsToday() end
 
 -- Redeem an open debt against this enemy (from a kill or from his death in our target)
-function P.RedeemDebt(name)
+-- how: "kill" (honorable kill), "target" (died in our target), "near" (died near us, nameplate)
+function P.RedeemDebt(name, how)
   if not name or not P.OpenWorld() or not G.IsActivated() then return false end
   local r = P.Rules()
   for _, d in ipairs(P.OpenDebts()) do
     if key(d.name) == key(name) then
       d.state = "paid"; d.paid = U.Now()
-      local cold = (U.Now() - d.t) <= (r.coldMin or 5) * 60
-      Pts.AddSelf("honor", r.debt, "debt", { flag = cold and "cold" or nil, note = d.name, zone = GetZoneText and GetZoneText() or "" })
+      local after = U.Now() - d.t
+      local cold = after <= (r.coldMin or 5) * 60
+      Pts.AddSelf("honor", r.debt, "debt", { flag = cold and "cold" or nil, note = d.name, how = how or "kill", after = after,
+        zone = GetZoneText and GetZoneText() or "" })
       P.Notice(L.PVP_DEBT_PAID:format(T.Word("DEBT"), d.name, r.debt))
       core.Fire("PVP_DEBT_PAID", d, cold)
       P.PlaySignal()
@@ -117,7 +120,7 @@ function P.OnKill(name, kind)
   local zone = GetZoneText and GetZoneText() or ""
   local victim = name or L.PVP_UNKNOWN
 
-  if name then P.RedeemDebt(name) end
+  if name then P.RedeemDebt(name, "kill") end
 
   local k = killsToday()
   if name then
@@ -232,7 +235,8 @@ f:SetScript("OnEvent", function(self, event, arg1)
       "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED", "PLAYER_REGEN_ENABLED" }) do
       pcall(self.RegisterEvent, self, e)
     end
-    if self.RegisterUnitEvent then pcall(self.RegisterUnitEvent, self, "UNIT_HEALTH", "player", "target") end
+    -- all units: player (who hits us), target and nameplates (a debtor dying near us)
+    pcall(self.RegisterEvent, self, "UNIT_HEALTH")
     lastHK = sessionHK()
   elseif event == "PLAYER_PVP_KILLS_CHANGED" then
     core.Schedule("gemPvpHK", 0.3, checkKills)
@@ -256,10 +260,13 @@ f:SetScript("OnEvent", function(self, event, arg1)
     core.SafeCall("pvpSee", seeUnit, "mouseover")
   elseif event == "NAME_PLATE_UNIT_ADDED" then
     core.SafeCall("pvpSee", seeUnit, arg1)
-  elseif event == "UNIT_HEALTH" and arg1 == "target" then
-    local name = deadEnemyName("target")
+  elseif event == "UNIT_HEALTH" and (arg1 == "target" or (type(arg1) == "string" and arg1:find("^nameplate"))) then
+    -- a debtor dies in our target or near us (nameplate) while we fight: revenge taken
     local fighting = (UnitAffectingCombat and UnitAffectingCombat("player")) or (GetTime() - (P.lastCombat or 0) < 10)
-    if name and fighting then core.SafeCall("pvpDebtTarget", P.RedeemDebt, name) end
+    if fighting and #P.OpenDebts() > 0 then
+      local name = deadEnemyName(arg1)
+      if name then core.SafeCall("pvpDebtNear", P.RedeemDebt, name, arg1 == "target" and "target" or "near") end
+    end
   elseif event == "UNIT_HEALTH" and arg1 == "player" then
     -- we take damage: note which enemy player is on us
     core.Schedule("gemPvpScan", 0.2, scanAttackers)
@@ -274,4 +281,77 @@ core.SlashExt.pvpcheck = function()
   U.Print(("honor line: %s"):format(tostring(_G.COMBATLOG_HONORGAIN)))
   local d = core.db and core.db.pvpDiag
   U.Print(("last honor message: %s (%s)"):format(tostring(d and d.honorLine), tostring(d and d.honorLineAt)))
+end
+
+---------------------------------------------------------------------------
+-- Revenge of a guild member: message for everyone (chat / banner / off).
+-- The debt entry reaches every client through the ledger anyway; several
+-- revenges within a few seconds (warband) are shown as one line.
+---------------------------------------------------------------------------
+local revenges = {}
+
+function P.RevengeText(e)
+  local who, victim = G.Display(e.who), e.note or L.PVP_UNKNOWN
+  if e.flag == "cold" and tonumber(e.after) then
+    return L.PVP_REVENGE_COLD:format(who, math.max(1, math.floor(tonumber(e.after) / 60)), victim)
+  end
+  return L.PVP_REVENGE:format(who, victim, (e.zone and e.zone ~= "") and e.zone or "?", tonumber(e.amt) or 0)
+end
+
+local function flushRevenges()
+  local list = revenges
+  revenges = {}
+  if #list == 0 then return end
+  local mode = (core.db and core.db.pvpRevenge) or "chat"
+  local text
+  if #list == 1 then
+    text = P.RevengeText(list[1])
+  else
+    local names = {}
+    for _, e in ipairs(list) do names[#names + 1] = G.Display(e.who) end
+    text = L.PVP_REVENGE_MANY:format(#list, T.Word("DEBTS"), table.concat(names, ", "))
+  end
+  U.Print(U.Color(T.Hex(T.Current().title), "[" .. T.Word("GUILD") .. "] ") .. text)
+  if mode == "banner" then
+    if RaidNotice_AddMessage and RaidWarningFrame then
+      pcall(RaidNotice_AddMessage, RaidWarningFrame, text, { r = 1, g = 0.75, b = 0.2 })
+    end
+    P.PlaySignal()
+  end
+end
+
+core.On("POINTS_ADDED", function(e)
+  if e.why ~= "debt" or (tonumber(e.amt) or 0) <= 0 then return end
+  if core.demo or e.who == G.MyKey() then return end          -- own revenge: shown at once
+  if U.Now() - (tonumber(e.ts) or 0) > 300 then return end    -- old entries from the login sync
+  if ((core.db and core.db.pvpRevenge) or "chat") == "off" then return end
+  revenges[#revenges + 1] = e
+  core.Schedule("gemPvpRevenge", 3, flushRevenges)
+end)
+
+-- /gem revenge: shows every blood-debt message once with sample names (nothing is saved or sent)
+core.SlashExt.revenge = function()
+  local r = P.Rules()
+  local word = T.Word("DEBT")
+  U.Print(L.PVP_DEBT_NEW:format(word, "Daizon Morathir", r.debtDays))
+  core.Schedule("gemRevengeDemo1", 2.5, function()
+    P.Notice(L.PVP_DEBTOR_SEEN:format(word, "Daizon Morathir")); P.PlaySignal()
+  end)
+  core.Schedule("gemRevengeDemo2", 5.5, function()
+    P.Notice(L.PVP_DEBT_PAID:format(word, "Daizon Morathir", r.debt)); P.PlaySignal()
+  end)
+  core.Schedule("gemRevengeDemo3", 9, function()
+    local e = { who = G.MyKey(), note = "Shanghai Nights", zone = GetZoneText and GetZoneText() or "?", amt = r.debt }
+    local text = P.RevengeText(e)
+    U.Print(U.Color(T.Hex(T.Current().title), "[" .. T.Word("GUILD") .. "] ") .. text)
+    if RaidNotice_AddMessage and RaidWarningFrame then pcall(RaidNotice_AddMessage, RaidWarningFrame, text, { r = 1, g = 0.75, b = 0.2 }) end
+    P.PlaySignal()
+  end)
+  core.Schedule("gemRevengeDemo4", 12.5, function()
+    local e = { who = G.MyKey(), note = "Lazy Shiv", flag = "cold", after = 180, amt = r.debt }
+    local text = P.RevengeText(e)
+    U.Print(U.Color(T.Hex(T.Current().title), "[" .. T.Word("GUILD") .. "] ") .. text)
+    if RaidNotice_AddMessage and RaidWarningFrame then pcall(RaidNotice_AddMessage, RaidWarningFrame, text, { r = 1, g = 0.75, b = 0.2 }) end
+    P.PlaySignal()
+  end)
 end
