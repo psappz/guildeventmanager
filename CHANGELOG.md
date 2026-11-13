@@ -1,6 +1,6 @@
 # GuildEventManager
 
-## 0.6.0 (not released yet)
+## 0.6.0 (beta)
 
 ### Changed
 - **"Mak'gora" is now "Duel of Honor" everywhere** (both factions, all languages). In WoW Hardcore, Mak'gora means a duel to the death; ours is a normal duel. The challenge dialog and the tab now say so: nobody dies, no character is lost. The command is `/gem duel` (German `/gem duell`); `/gem makgora` is gone. The tab is called "Duels & Oaths". Existing duels and achievements are kept.
