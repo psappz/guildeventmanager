@@ -155,6 +155,35 @@ local function checkMakWin(m)
   if core.UI then core.UI.Refresh() end
 end
 
+-- A challenge can be taken back by either duelist (or an event manager) as long
+-- as no winner is booked: open, accepted or waiting for witnesses.
+function P.CancelChallenge(id)
+  local me = G.MyKey()
+  local m = id and P.maks[id]
+  if not m then
+    for _, x in ipairs(P.ActiveMakgoras()) do if x.a == me or x.b == me then m = x end end
+  end
+  if not m or m.booked or m.state == "done" or m.state == "off" then U.Print(L.PVP_MAK_NONE); return end
+  if me ~= m.a and me ~= m.b and not G.IsManager() then U.Print(L.PVP_MAK_NONE); return end
+  m.state = "off"; m.cancelled = me
+  remember("maks", m)
+  C.Send("MAKGDEL", { id = m.id })
+  U.Print(L.PVP_MAK_CANCELLED_ME)
+  if core.UI then core.UI.Refresh() end
+end
+
+C.On("MAKGDEL", function(data, from)
+  local m = data.id and P.maks[data.id]
+  if not m or m.state == "done" or m.booked then return end
+  if from ~= m.a and from ~= m.b and not G.IsManager(from) then return end
+  m.state = "off"; m.cancelled = from
+  if m.a == G.MyKey() or m.b == G.MyKey() then
+    remember("maks", m)
+    U.Print(L.PVP_MAK_CANCELLED:format(G.Display(from)))
+  end
+  if core.UI then core.UI.Refresh() end
+end)
+
 -- A witness confirms the winner
 function P.Witness(id, winner)
   local me = G.MyKey()
@@ -183,6 +212,7 @@ C.On("MAKG", function(data, from)
   if type(d) ~= "table" or not d.id or not d.b or d.a ~= from then return end
   if not G.Resolve(d.b) and not core.demo then return end
   local m = P.maks[d.id]
+  if m and m.state == "off" then return end
   local fresh = not m
   if not m then
     m = { id = d.id, a = from, b = d.b, stake = type(d.stake) == "string" and d.stake:sub(1, 60) or nil,
@@ -445,6 +475,7 @@ local function duelCmd(rest)
   local w = (a or ""):lower()
   if w == "accept" or w == "annehmen" or w == "ja" or w == "yes" then P.Answer(nil, true)
   elseif w == "decline" or w == "ablehnen" or w == "nein" or w == "no" then P.Answer(nil, false)
+  elseif w == "cancel" or w == "zurück" or w == "zurueck" or w == "abbrechen" then P.CancelChallenge(nil)
   elseif a and a ~= "" then P.Challenge(a, b)
   else U.Print(L.PVP_MAK_USAGE) end
 end

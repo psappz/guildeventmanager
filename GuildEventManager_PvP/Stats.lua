@@ -30,9 +30,48 @@ local function counters()
   return c.hk
 end
 
+-- The game's day (it ends at the daily reset, not at midnight); nil if unknown
+local function gameDay()
+  local f = C_DateAndTime and C_DateAndTime.GetSecondsUntilDailyReset
+  local left = f and try(f)
+  left = num(left)
+  if not left then return nil end
+  return math.floor((U.Now() + left) / 86400)
+end
+
+local function today(h)
+  local d = gameDay()
+  if not d then return nil end
+  if h.day == nil then
+    -- first day with this counter: what the game shows so far counts as counted
+    h.day = d; h.todayCount = num(try(GetPVPSessionStats)) or 0
+  elseif h.day ~= d then
+    h.day = d; h.todayCount = 0
+  end
+  return d
+end
+
+-- The game counts every honorable kill of the day (GetPVPSessionStats). Kills the
+-- module missed (old version, reconnect, crash before saving) show up there:
+-- add the difference, so "Today" and the module's own counts fit together.
+function P.ReconcileHK()
+  if core.demo then return end
+  local h = counters()
+  if not today(h) then return end
+  local game = num(try(GetPVPSessionStats))
+  if not game then return end
+  local missing = game - (h.todayCount or 0)
+  if missing <= 0 then return end
+  local _, kind = IsInInstance()
+  if kind == "pvp" or kind == "arena" then h.bg = h.bg + missing; h.sbg = h.sbg + missing
+  else h.ow = h.ow + missing; h.sow = h.sow + missing end
+  h.todayCount = game
+end
+
 -- kind: instance type from IsInInstance ("none", "pvp", "arena", ...)
 function P.RecordHK(kind)
   local h = counters()
+  if today(h) then h.todayCount = (h.todayCount or 0) + 1 end
   if kind == "pvp" or kind == "arena" then
     h.bg = h.bg + 1; h.sbg = h.sbg + 1
   elseif kind == "none" or kind == nil then
@@ -83,6 +122,7 @@ P.StatsStore = store
 
 function P.SendStats()
   if core.demo or not C.CanSend() then return end
+  core.SafeCall("pvpReconcile", P.ReconcileHK)
   local s = P.OwnStats()
   s.season = counters().season
   s.ts = U.Now()

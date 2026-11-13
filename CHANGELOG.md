@@ -10,11 +10,14 @@
   - *Who?* – group size as buttons (everyone, group, raid 10/25/40, teams) that fill in min./max. players; the points field shows the default.
   - *Goals* – a list with "+ Add goal" and a delete button per goal; the defaults of the event type are filled in.
   - A live preview shows the event as members will see it. Errors (date in the past, min. above max.) appear before anything is sent.
+- **Take back a challenge:** a duel of honor that was sent or accepted can be taken back by either duelist (button in the tab, `/gem duel cancel`) as long as no winner is booked.
+- **The clan / order banner now grows with its level:** cloth in the guild colours (1), the faction sigil on it (2), trophies at its foot (3), flickering flames beside it (4). Click a stage below the banner to preview it.
 - **"Use as template"** on every event: copies it as a new event on the same weekday and time, the next date ahead.
 
 ### Fixed
 - **Guild looked "not activated" for a while after a reconnect.** Right after login or a reconnect the game returns an empty guild info text; the addon took that as "activation code removed". It now keeps the known state, reads again later and rides out a short "no guild" during loading screens.
 - **Kills were lost** while the guild state was unknown: they are now kept for 15 minutes and booked as soon as the guild is active again. The kill counter is also checked after every fight and every 20 seconds, in case the game's counter could not be read during the fight or the session counter restarted after a disconnect.
+- **"Today" higher than the season count in PvP Kills.** "Today" comes from the game, the other columns are the module's own counts, and kills the module missed (older versions, reconnects, crashes) never reached them. The module now compares its count of the day with the game's and adds what it missed.
 - **PvP Kills counters dropped after a crash or disconnect.** The game saves addon data only on logout or /reload, so a disconnect loses the counts of that session. Other members now give a member back what the guild knew of him when he logs in, and their copies never go down.
 
 ### Module API

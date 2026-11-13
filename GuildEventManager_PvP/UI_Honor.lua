@@ -148,9 +148,13 @@ local function refresh(p)
     row.text:SetText(L.PVP_MAK_VS:format(G.Display(m.a), G.Display(m.b))
       .. (m.stake and U.Color(muted, " · " .. m.stake) or "") .. U.Color(muted, " · " .. info))
     row.b1:Hide(); row.b2:Hide()
+    row.b1:SetEnabled(true); row.b2:SetEnabled(true)
     if st == "open" and m.b == me then
       W.SetLabel(row.b1, L.PVP_MAK_ACCEPT); row.b1:SetScript("OnClick", function() P.Answer(m.id, true) end); row.b1:Show()
       W.SetLabel(row.b2, L.PVP_MAK_DECLINE); row.b2:SetScript("OnClick", function() P.Answer(m.id, false) end); row.b2:Show()
+    elseif m.a == me or m.b == me then
+      -- own challenge (sent, or accepted and waiting for witnesses): take it back
+      W.SetLabel(row.b2, L.PVP_MAK_CANCEL); row.b2:SetScript("OnClick", function() P.CancelChallenge(m.id) end); row.b2:Show()
     elseif st == "fight" and m.a ~= me and m.b ~= me then
       local mine = m.wit and m.wit[me]
       W.SetLabel(row.b1, L.PVP_MAK_WINS:format(G.Display(m.a)))

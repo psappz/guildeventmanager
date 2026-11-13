@@ -31,30 +31,110 @@ local function build(p)
   local card = W.Box(p, 280, 10, "panel2")
   card:SetPoint("TOPLEFT", 0, 0); card:SetPoint("BOTTOMLEFT", 0, 0)
   p.card = card
-  card.crest = card:CreateTexture(nil, "ARTWORK")
-  card.crest:SetSize(96, 96); card.crest:SetPoint("TOP", 0, -14)
-  card.crest:SetTexture(th.crest)
+  -- the banner itself grows with the level: 1 cloth, 2 sigil, 3 trophies, 4 flames
+  local scene = CreateFrame("Frame", nil, card)
+  scene:SetSize(240, 160); scene:SetPoint("TOP", 0, -8)
+  card.scene = scene
+  local gold = { 0.83, 0.66, 0.30 }
+  local function tex(layer, sub)
+    local t = scene:CreateTexture(nil, layer, nil, sub or 0)
+    t:SetTexture("Interface\\Buttons\\WHITE8X8")
+    return t
+  end
+  scene.pole = tex("BACKGROUND", 1); scene.pole:SetSize(5, 150); scene.pole:SetPoint("TOP", 0, -8)
+  scene.pole:SetVertexColor(0.42, 0.28, 0.16)
+  scene.bar = tex("BORDER", 1); scene.bar:SetSize(108, 5); scene.bar:SetPoint("TOP", 0, -14)
+  scene.bar:SetVertexColor(gold[1], gold[2], gold[3])
+  scene.tip = tex("BORDER", 2); scene.tip:SetSize(10, 10); scene.tip:SetPoint("TOP", 0, -2)
+  scene.tip:SetVertexColor(gold[1], gold[2], gold[3]); scene.tip:SetRotation(math.rad(45))
+  -- cloth with gold edges and a swallowtail (a square in the card colour cuts the notch)
+  scene.cloth = tex("ARTWORK", 0); scene.cloth:SetSize(88, 112); scene.cloth:SetPoint("TOP", scene.bar, "BOTTOM", 0, 0)
+  scene.edgeL = tex("ARTWORK", 1); scene.edgeL:SetSize(3, 112); scene.edgeL:SetPoint("TOPLEFT", scene.cloth, "TOPLEFT")
+  scene.edgeR = tex("ARTWORK", 1); scene.edgeR:SetSize(3, 112); scene.edgeR:SetPoint("TOPRIGHT", scene.cloth, "TOPRIGHT")
+  for _, e in ipairs({ scene.edgeL, scene.edgeR }) do e:SetVertexColor(gold[1], gold[2], gold[3]) end
+  scene.notch = tex("ARTWORK", 3); scene.notch:SetSize(34, 34); scene.notch:SetPoint("CENTER", scene.cloth, "BOTTOM", 0, 0)
+  scene.notch:SetRotation(math.rad(45))
+  -- 2: sigil (faction crest) on the cloth
+  scene.sigil = scene:CreateTexture(nil, "ARTWORK", nil, 4)
+  scene.sigil:SetSize(62, 62); scene.sigil:SetPoint("CENTER", scene.cloth, "CENTER", 0, 8)
+  -- 3: trophies at the foot of the pole
+  local function roundIcon(path, size, layer, parent)
+    parent = parent or scene
+    local t = parent:CreateTexture(nil, layer or "ARTWORK", nil, 5)
+    t:SetSize(size, size); t:SetTexture(path)
+    local m = parent:CreateMaskTexture()
+    m:SetAllPoints(t)
+    m:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    t:AddMaskTexture(m)
+    return t
+  end
+  scene.trophyL = roundIcon("Interface\\Icons\\INV_Misc_Head_Dragon_01", 34)
+  scene.trophyL:SetPoint("BOTTOMRIGHT", scene, "BOTTOM", -10, 0)
+  scene.trophyR = roundIcon("Interface\\Icons\\INV_Misc_Head_Dragon_01", 34)
+  scene.trophyR:SetPoint("BOTTOMLEFT", scene, "BOTTOM", 10, 0)
+  scene.trophyR:SetTexCoord(1, 0, 0, 1)
+  -- 4: flames left and right of the banner, flickering (own frame, so only they flicker)
+  scene.flames = CreateFrame("Frame", nil, scene)
+  scene.flames:SetAllPoints()
+  scene.flameL = roundIcon("Interface\\Icons\\Spell_Fire_Fire", 40, "OVERLAY", scene.flames)
+  scene.flameL:SetPoint("RIGHT", scene.cloth, "LEFT", -14, -6)
+  scene.flameR = roundIcon("Interface\\Icons\\Spell_Fire_Fire", 40, "OVERLAY", scene.flames)
+  scene.flameR:SetPoint("LEFT", scene.cloth, "RIGHT", 14, -6)
+  scene.flameR:SetTexCoord(1, 0, 0, 1)
+  for _, fl in ipairs({ scene.flameL, scene.flameR }) do fl:SetBlendMode("ADD") end
+  local ag = scene.flames:CreateAnimationGroup()
+  ag:SetLooping("BOUNCE")
+  local fade = ag:CreateAnimation("Alpha")
+  fade:SetFromAlpha(1); fade:SetToAlpha(0.55); fade:SetDuration(0.7); fade:SetSmoothing("IN_OUT")
+  scene.flicker = ag
+  scene.preview = W.Text(card, 9, "muted")
+  scene.preview:SetPoint("TOPRIGHT", card, "TOPRIGHT", -8, -6)
+
   card.guild = W.Text(card, 16, "title")
-  card.guild:SetPoint("TOP", card.crest, "BOTTOM", 0, -4)
+  card.guild:SetPoint("TOP", scene, "BOTTOM", 0, -6)
   card.guild:SetJustifyH("CENTER")
   card.level = W.Text(card, 13, "title")
-  card.level:SetPoint("TOP", card.guild, "BOTTOM", 0, -14)
+  card.level:SetPoint("TOP", card.guild, "BOTTOM", 0, -8)
   card.level:SetJustifyH("CENTER")
+  -- the four stages; a click shows that stage on the banner (preview), a second click ends it
   card.tiers = {}
+  local TIER_ICON = { nil, nil, "Interface\\Icons\\INV_Misc_Head_Dragon_01", "Interface\\Icons\\Spell_Fire_Fire" }
   for i = 1, 4 do
-    local t = CreateFrame("Frame", nil, card)
-    t:SetSize(56, 70)
-    t:SetPoint("TOPLEFT", card, "TOPLEFT", 14 + (i - 1) * 64, -196)
-    t.flag = t:CreateTexture(nil, "ARTWORK")
-    t.flag:SetPoint("TOP"); t.flag:SetSize(36, 50)
-    t.flag:SetColorTexture(th.banner[1], th.banner[2], th.banner[3], 1)
+    local t = CreateFrame("Button", nil, card)
+    t:SetSize(56, 62)
+    t:SetPoint("TOPLEFT", card, "TOPLEFT", 14 + (i - 1) * 64, -222)
+    t.icon = t:CreateTexture(nil, "ARTWORK")
+    t.icon:SetPoint("TOP"); t.icon:SetSize(38, 38)
+    if TIER_ICON[i] then
+      t.icon:SetTexture(TIER_ICON[i])
+      local m = t:CreateMaskTexture(); m:SetAllPoints(t.icon)
+      m:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+      t.icon:AddMaskTexture(m)
+    end
+    t.ring = t:CreateTexture(nil, "OVERLAY")
+    t.ring:SetPoint("CENTER", t.icon, "CENTER"); t.ring:SetSize(44, 44)
+    t.ring:SetTexture("Interface\\Buttons\\UI-ActionButton-Border"); t.ring:SetBlendMode("ADD")
+    t.ring:Hide()
     t.name = W.Text(t, 9, "muted")
-    t.name:SetPoint("TOP", t.flag, "BOTTOM", 0, -4)
+    t.name:SetPoint("TOP", t.icon, "BOTTOM", 0, -4)
     t.name:SetJustifyH("CENTER")
+    t.level = i
+    t:SetScript("OnClick", function(self)
+      V.preview = (V.preview ~= self.level) and self.level or nil
+      UI.Refresh()
+    end)
+    t:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      GameTooltip:SetText(L["TIER_" .. self.level], 1, 0.82, 0)
+      GameTooltip:AddLine(L["TIER_" .. self.level .. "_DESC"], 1, 1, 1, true)
+      GameTooltip:AddLine(L.BANNER_PREVIEW_TIP, 0.7, 0.7, 0.7, true)
+      GameTooltip:Show()
+    end)
+    t:SetScript("OnLeave", function() GameTooltip:Hide() end)
     card.tiers[i] = t
   end
   card.bar = W.Bar(card, 8)
-  card.bar:SetPoint("TOPLEFT", 16, -290); card.bar:SetPoint("RIGHT", -16, 0)
+  card.bar:SetPoint("TOPLEFT", 16, -300); card.bar:SetPoint("RIGHT", -16, 0)
   card.next = W.Text(card, 10, "muted")
   card.next:SetPoint("TOPLEFT", card.bar, "BOTTOMLEFT", 0, -6); card.next:SetPoint("RIGHT", card, "RIGHT", -16, 0)
   card.next:SetJustifyH("CENTER")
@@ -151,9 +231,33 @@ local function refresh(p)
   local b = Pts.Banner()
   p.card.guild:SetText(G.Name() or "")
   p.card.level:SetText(L.BANNER_LEVEL:format(T.Word("BANNER"), b.level, L["TIER_" .. b.level]))
+  -- banner picture: the reached level, or the stage the manager clicked (preview)
+  local lvl = V.preview or b.level
+  local sc = p.card.scene
+  local c = th.banner
+  sc.cloth:SetVertexColor(c[1], c[2], c[3])
+  if sc.cloth.SetGradient and CreateColor then
+    sc.cloth:SetGradient("VERTICAL", CreateColor(c[1] * 0.6, c[2] * 0.6, c[3] * 0.6, 1), CreateColor(c[1], c[2], c[3], 1))
+  end
+  local bg = th.panel2
+  sc.notch:SetVertexColor(bg[1], bg[2], bg[3])
+  sc.sigil:SetTexture(th.crest)
+  local show = { cloth = lvl >= 1, sigil = lvl >= 2, trophies = lvl >= 3, flames = lvl >= 4 }
+  for _, x in ipairs({ sc.cloth, sc.edgeL, sc.edgeR, sc.notch }) do x:SetShown(show.cloth) end
+  sc.sigil:SetShown(show.sigil)
+  sc.trophyL:SetShown(show.trophies); sc.trophyR:SetShown(show.trophies)
+  sc.flames:SetShown(show.flames)
+  if show.flames then if not sc.flicker:IsPlaying() then sc.flicker:Play() end else sc.flicker:Stop() end
+  sc.preview:SetText(V.preview and L.BANNER_PREVIEW:format(L["TIER_" .. V.preview]) or "")
   for i, t in ipairs(p.card.tiers) do
     t.name:SetText(L["TIER_" .. i])
-    t.flag:SetAlpha(i <= b.level and 1 or 0.25)
+    if i == 1 then t.icon:SetTexture("Interface\\Icons\\" .. (T.Faction() == "alliance" and "INV_BannerPVP_02" or "INV_BannerPVP_01")) end
+    if i == 2 then t.icon:SetTexture(th.crest) end
+    local reached = i <= b.level
+    t.icon:SetDesaturated(not reached)
+    t.icon:SetAlpha(reached and 1 or 0.45)
+    W.Color(t.name, reached and "title" or "muted")
+    t.ring:SetShown(V.preview == i)
   end
   if b.nextAt then
     p.card.bar:SetValue(math.min(1, (b.value - b.from) / math.max(1, b.nextAt - b.from)))
