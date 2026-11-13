@@ -90,6 +90,24 @@ local function killsToday()
 end
 function P.KillsToday() return killsToday() end
 
+-- Redeem an open debt against this enemy (from a kill or from his death in our target)
+function P.RedeemDebt(name)
+  if not name or not P.OpenWorld() or not G.IsActivated() then return false end
+  local r = P.Rules()
+  for _, d in ipairs(P.OpenDebts()) do
+    if key(d.name) == key(name) then
+      d.state = "paid"; d.paid = U.Now()
+      local cold = (U.Now() - d.t) <= (r.coldMin or 5) * 60
+      Pts.AddSelf("honor", r.debt, "debt", { flag = cold and "cold" or nil, note = d.name, zone = GetZoneText and GetZoneText() or "" })
+      P.Notice(L.PVP_DEBT_PAID:format(T.Word("DEBT"), d.name, r.debt))
+      core.Fire("PVP_DEBT_PAID", d, cold)
+      P.PlaySignal()
+      return true
+    end
+  end
+  return false
+end
+
 -- name may be nil when the client gives no honor line
 function P.OnKill(name, kind)
   if not G.IsActivated() then return end
@@ -99,19 +117,7 @@ function P.OnKill(name, kind)
   local zone = GetZoneText and GetZoneText() or ""
   local victim = name or L.PVP_UNKNOWN
 
-  if name then
-    for _, d in ipairs(P.OpenDebts()) do
-      if key(d.name) == key(name) then
-        d.state = "paid"; d.paid = U.Now()
-        local cold = (U.Now() - d.t) <= (r.coldMin or 5) * 60
-        Pts.AddSelf("honor", r.debt, "debt", { flag = cold and "cold" or nil, note = victim, zone = zone })
-        P.Notice(L.PVP_DEBT_PAID:format(T.Word("DEBT"), victim, r.debt))
-        core.Fire("PVP_DEBT_PAID", d, cold)
-        P.PlaySignal()
-        break
-      end
-    end
-  end
+  if name then P.RedeemDebt(name) end
 
   local k = killsToday()
   if name then
@@ -223,10 +229,10 @@ f:RegisterEvent("PLAYER_LOGIN")
 f:SetScript("OnEvent", function(self, event, arg1)
   if event == "PLAYER_LOGIN" then
     for _, e in ipairs({ "PLAYER_PVP_KILLS_CHANGED", "CHAT_MSG_COMBAT_HONOR_GAIN", "PLAYER_DEAD",
-      "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED" }) do
+      "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED", "PLAYER_REGEN_ENABLED" }) do
       pcall(self.RegisterEvent, self, e)
     end
-    if self.RegisterUnitEvent then pcall(self.RegisterUnitEvent, self, "UNIT_HEALTH", "player") end
+    if self.RegisterUnitEvent then pcall(self.RegisterUnitEvent, self, "UNIT_HEALTH", "player", "target") end
     lastHK = sessionHK()
   elseif event == "PLAYER_PVP_KILLS_CHANGED" then
     core.Schedule("gemPvpHK", 0.3, checkKills)
@@ -240,6 +246,8 @@ f:SetScript("OnEvent", function(self, event, arg1)
     local name = victimFromHonorLine(arg1)
     if name then honorLines[#honorLines + 1] = { name = name, t = GetTime() } end
     core.Schedule("gemPvpHK", 0.3, checkKills)
+  elseif event == "PLAYER_REGEN_ENABLED" then
+    P.lastCombat = GetTime()
   elseif event == "PLAYER_DEAD" then
     core.SafeCall("pvpDeath", P.OnDeath)
   elseif event == "PLAYER_TARGET_CHANGED" then
@@ -248,6 +256,10 @@ f:SetScript("OnEvent", function(self, event, arg1)
     core.SafeCall("pvpSee", seeUnit, "mouseover")
   elseif event == "NAME_PLATE_UNIT_ADDED" then
     core.SafeCall("pvpSee", seeUnit, arg1)
+  elseif event == "UNIT_HEALTH" and arg1 == "target" then
+    local name = deadEnemyName("target")
+    local fighting = (UnitAffectingCombat and UnitAffectingCombat("player")) or (GetTime() - (P.lastCombat or 0) < 10)
+    if name and fighting then core.SafeCall("pvpDebtTarget", P.RedeemDebt, name) end
   elseif event == "UNIT_HEALTH" and arg1 == "player" then
     -- we take damage: note which enemy player is on us
     core.Schedule("gemPvpScan", 0.2, scanAttackers)

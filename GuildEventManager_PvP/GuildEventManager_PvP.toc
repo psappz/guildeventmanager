@@ -3,7 +3,7 @@
 ## Notes: PvP module for GuildEventManager: guild honor for open world kills, blood debts, war drums and warbands.
 ## Notes-deDE: PvP-Modul für GuildEventManager: Gildenehre für Siege im offenen Gelände, Blutschuld, Kriegstrommeln und Kriegszüge.
 ## Author: psappz
-## Version: 0.3.1
+## Version: 0.3.2
 ## Dependencies: GuildEventManager
 ## IconTexture: Interface\AddOns\GuildEventManager\Media\GuildEventManagerIcon
 ## X-License: MIT

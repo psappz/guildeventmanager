@@ -1,5 +1,10 @@
 # GuildEventManager
 
+## PvP module 0.3.2
+
+### Fixed
+- Blood debts are redeemed when the debtor dies in your target while you are fighting, also without an honorable kill (grey enemies, diminished honor). Before, a debt was only redeemed through a kill with a readable victim name, which the client never delivered.
+
 ## PvP module 0.3.1
 
 ### Fixed
