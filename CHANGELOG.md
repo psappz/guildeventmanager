@@ -3,7 +3,7 @@
 ## Unreleased
 
 ### Changed
-- **Painted clan / order banner:** hand-painted art for all four stages of both factions (cloth, sigil ring with the faction crest, trophies, braziers with flickering flames), a leather (Horde) or parchment (Alliance) card background, and the stages as small pictures below the banner.
+- **Painted clan / order banner:** hand-painted art for all four stages of both factions (cloth, sigil with an own emblem per faction, trophies, braziers with flickering flames), a leather (Horde) or parchment (Alliance) card background, and the stages as small pictures below the banner.
 
 ### Fixed
 - **Victim names missing although the enemy was in the target.** During a fight the game's kill counter is often unreadable, so the kill is counted after the fight – when the target is long gone. The PvP module now remembers every enemy player it sees die (target and nameplates, also when the name was only readable before the fight) and gives those names to the kills counted later. `/gem pvpcheck` and `/gem export` show what was seen at the last kills.

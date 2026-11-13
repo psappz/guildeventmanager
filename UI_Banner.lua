@@ -250,8 +250,8 @@ V.ART_SIZE = 232
 -- positions on the painted images (fractions of the image): ring of the sigil,
 -- flames of the braziers; measured on the ChatGPT art
 V.ART_POS = {
-  horde = { ring = { 0.5, 0.339, 0.34 }, flames = { { 0.158, 0.575 }, { 0.845, 0.58 } } },
-  alliance = { ring = { 0.5, 0.337, 0.34 }, flames = { { 0.148, 0.53 }, { 0.852, 0.53 } } },
+  horde = { emblem = true, ring = { 0.5, 0.339, 0.34 }, flames = { { 0.158, 0.575 }, { 0.845, 0.58 } } },
+  alliance = { emblem = true, ring = { 0.5, 0.337, 0.34 }, flames = { { 0.148, 0.53 }, { 0.852, 0.53 } } },
 }
 local function artFor(level)
   local list = V.ART[T.Faction()]
@@ -292,7 +292,8 @@ local function refresh(p)
     sc.artSigil:SetSize(S * pos.ring[3], S * pos.ring[3])
     sc.artSigil:ClearAllPoints(); sc.artSigil:SetPoint("CENTER", sc.art, "TOPLEFT", S * pos.ring[1], -S * pos.ring[2])
   end
-  sc.artSigil:SetShown(art ~= nil and show.sigil and artStage >= 2)
+  -- the painted stages 2-4 carry their own emblem; the crest is only for stages without one
+  sc.artSigil:SetShown(art ~= nil and show.sigil and artStage >= 2 and not (pos and pos.emblem))
   -- painted trophies / flames replace the drawn ones
   local paintedTrophies = art ~= nil and artStage >= 3
   local paintedFlames = art ~= nil and artStage >= 4

@@ -1,0 +1,104 @@
+{
+  "assets": [
+    {
+      "filename": "banner_horde_1.png",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "sha256": "7dec8778e6644c6337d3ee2d0d7713383a54231e3537674a862523e514dc0260"
+    },
+    {
+      "filename": "banner_horde_2.png",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "sha256": "cbb5f15c9e9ba705efd718db47f77d56e1d07be95901609d3f9dbb9d9e72ac19"
+    },
+    {
+      "filename": "banner_horde_3.png",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "sha256": "f95784efecb7afad5f23dd38e112dfe6c6dcc62c5fc13dd132b07f1da0be9418"
+    },
+    {
+      "filename": "banner_horde_4.png",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "sha256": "d64f607fbf1130b723505ad8b38ceb574220636fdf47df1693eb4ed585b7e8e9"
+    },
+    {
+      "filename": "banner_alliance_1.png",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "sha256": "c3b86c247815f448a3627e90369c2d563bbb1f59562cb2850b317ffc75c79add"
+    },
+    {
+      "filename": "banner_alliance_2.png",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "sha256": "1ef693d2bf15695fc83b66140dc53724360196c8f59d4ab6fd756370a3ff7e0f"
+    },
+    {
+      "filename": "banner_alliance_3.png",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "sha256": "adc5b37afdafe064959af249a7c2772bf373b26523a3cc6b4ebe178dbd7cc7c3"
+    },
+    {
+      "filename": "banner_alliance_4.png",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "sha256": "47fc47db68399f8acd2c63ffe26f62aeeaa1f58a94df687e62495cf0ac773b18"
+    },
+    {
+      "filename": "flame.png",
+      "width": 512,
+      "height": 1024,
+      "transparent": true,
+      "sha256": "1a69a962182a63bc9e55843d175b4c2e90e687231e58fb9ac7b2c4ef7c87586c"
+    },
+    {
+      "filename": "bg_horde.png",
+      "width": 512,
+      "height": 1024,
+      "transparent": false,
+      "sha256": "5f59a2bff019a2f59125a9f960c7305b3765cf157d2385f37d93b8d09393b05d"
+    },
+    {
+      "filename": "bg_alliance.png",
+      "width": 512,
+      "height": 1024,
+      "transparent": false,
+      "sha256": "8f0db2d6b27bf56678a225f0f114764259cc052b418dd3e8a0b62bc5d52f1148"
+    }
+  ],
+  "checks": {
+    "horde_stage1_is_exact_approved_1254_original": true,
+    "faction_stage1_alpha_silhouettes_are_identical": true,
+    "horde_crest_center_and_hardware_pixels_preserved": true,
+    "horde_stage3_retains_stage2_object_pixels": true,
+    "horde_stage2_alpha_is_unchanged": true,
+    "alliance_crest_center_and_hardware_pixels_preserved": true,
+    "alliance_stage3_retains_stage2_object_pixels": true,
+    "alliance_stage2_alpha_is_unchanged": true
+  },
+  "layout": {
+    "canvas": [
+      1254,
+      1254
+    ],
+    "pole_x": 627,
+    "crest_center": [
+      627,
+      451
+    ],
+    "empty_crest_radius": 138,
+    "note": "Approved master geometry is retained. Stage 2 adds ring/border artwork; stage 3 adds trophies; stage 4 adds braziers and local warm RGB light on the cloth. Existing hardware stays unchanged."
+  }
+}

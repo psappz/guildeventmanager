@@ -8,6 +8,7 @@ manual-changelog:
   markup-type: markdown
 
 ignore:
+  - art-src
   - README.md
   - .github
   - docs
