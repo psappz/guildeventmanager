@@ -113,8 +113,23 @@ function P.RedeemDebt(name, how)
 end
 
 -- name may be nil when the client gives no honor line
-function P.OnKill(name, kind)
+-- kills while the guild state is unknown (reconnect, loading): kept for 15 minutes
+P.pendingKills = {}
+function P.FlushKills()
   if not G.IsActivated() then return end
+  local list = P.pendingKills
+  P.pendingKills = {}
+  for _, k in ipairs(list) do
+    if GetTime() - k.t < 900 then core.SafeCall("pvpKill", P.OnKill, k.name, k.kind) end
+  end
+end
+core.On("ACTIVATED", function() core.Schedule("gemPvpFlush", 2, P.FlushKills) end)
+
+function P.OnKill(name, kind)
+  if not G.IsActivated() then
+    if #P.pendingKills < 30 then P.pendingKills[#P.pendingKills + 1] = { name = name, kind = kind, t = GetTime() } end
+    return
+  end
   core.Fire("PVP_KILL", name, kind or "none")
   if not P.OpenWorld() then return end
   local r = P.Rules()
@@ -178,6 +193,8 @@ end
 local function checkKills()
   local hk = sessionHK()
   if not hk then return end
+  -- the game restarted its session counter (new session after a disconnect)
+  if lastHK and hk < lastHK then lastHK = 0 end
   if lastHK and hk > lastHK then
     for i = 1, hk - lastHK do
       local line = table.remove(honorLines, 1)
@@ -240,6 +257,12 @@ f:SetScript("OnEvent", function(self, event, arg1)
     -- all units: player (who hits us), target and nameplates (a debtor dying near us)
     pcall(self.RegisterEvent, self, "UNIT_HEALTH")
     lastHK = sessionHK()
+    -- safety net: look at the kill counter every 20 s (missed events, reconnects)
+    if C_Timer and C_Timer.NewTicker then
+      C_Timer.NewTicker(20, function()
+        if not (InCombatLockdown and InCombatLockdown()) then core.SafeCall("pvpHK", checkKills) end
+      end)
+    end
   elseif event == "PLAYER_PVP_KILLS_CHANGED" then
     core.Schedule("gemPvpHK", 0.3, checkKills)
   elseif event == "CHAT_MSG_COMBAT_HONOR_GAIN" then
@@ -254,6 +277,8 @@ f:SetScript("OnEvent", function(self, event, arg1)
     core.Schedule("gemPvpHK", 0.3, checkKills)
   elseif event == "PLAYER_REGEN_ENABLED" then
     P.lastCombat = GetTime()
+    -- the kill counter may have been unreadable during the fight
+    core.Schedule("gemPvpHK", 1, checkKills)
     if P.recapPending then core.Schedule("gemPvpRecap", 2, function() P.TryRecap("after combat") end) end
   elseif event == "PLAYER_DEAD" then
     core.SafeCall("pvpDeath", P.OnDeath)

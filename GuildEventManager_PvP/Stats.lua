@@ -91,19 +91,59 @@ function P.SendStats()
   if core.UI then core.UI.Refresh() end
 end
 
+local COUNT = { "ow", "bg", "sow", "sbg" }
+
 C.On("PVPSTAT", function(data, from)
   if type(data.s) ~= "table" or not from then return end
   local s = data.s
   -- numbers from an older season do not count for this season
   if tonumber(s.season) ~= core.Points.SeasonStart() then s.sow, s.sbg = 0, 0 end
+  -- the module's own counters only grow: a member whose game crashed or lost
+  -- the connection lost the counts of that session (the game saves addon data
+  -- only on logout); keep the higher numbers we already know
+  local old = store()[from]
+  if old and tonumber(old.season) == tonumber(s.season) then
+    for _, k in ipairs(COUNT) do
+      if (tonumber(old[k]) or 0) > (tonumber(s[k]) or 0) then s[k] = old[k] end
+    end
+  elseif old then
+    for _, k in ipairs({ "ow", "bg" }) do
+      if (tonumber(old[k]) or 0) > (tonumber(s[k]) or 0) then s[k] = old[k] end
+    end
+  end
   s.ts = U.Now()
   store()[from] = s
   if core.UI then core.UI.Refresh() end
 end)
 
--- Somebody logged in: everyone answers with his own numbers (spread out)
-C.On("HELLO", function()
+-- Somebody logged in: everyone answers with his own numbers (spread out),
+-- and one member gives him back what the guild knows of him, so counts lost
+-- by a crash or a disconnect come back.
+C.On("HELLO", function(_, from)
   core.Schedule("gemPvpStatSend", 3 + math.random() * 12, P.SendStats)
+  local known = from and store()[from]
+  if known and from ~= G.MyKey() then
+    core.Schedule("gemPvpBack" .. from, 1 + math.random() * 6, function()
+      C.Send("PVPSTATBACK", { to = from, s = { ow = known.ow, bg = known.bg, sow = known.sow, sbg = known.sbg, season = known.season } })
+    end)
+  end
+end)
+
+C.On("PVPSTATBACK", function(data, from)
+  local to = data.to
+  if not to then return end
+  -- somebody else already answered: no need for a second answer
+  if to ~= G.MyKey() then core.Unschedule("gemPvpBack" .. to); return end
+  local s = data.s
+  if type(s) ~= "table" then return end
+  local h = counters()
+  local changed = false
+  local same = tonumber(s.season) == h.season
+  for _, k in ipairs(same and COUNT or { "ow", "bg" }) do
+    local v = tonumber(s[k]) or 0
+    if v > (h[k] or 0) then h[k] = v; changed = true end
+  end
+  if changed then core.Schedule("gemPvpStatSend", 3, P.SendStats) end
 end)
 
 -- Rows for the table: one per member with numbers

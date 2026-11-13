@@ -12,6 +12,11 @@
   - A live preview shows the event as members will see it. Errors (date in the past, min. above max.) appear before anything is sent.
 - **"Use as template"** on every event: copies it as a new event on the same weekday and time, the next date ahead.
 
+### Fixed
+- **Guild looked "not activated" for a while after a reconnect.** Right after login or a reconnect the game returns an empty guild info text; the addon took that as "activation code removed". It now keeps the known state, reads again later and rides out a short "no guild" during loading screens.
+- **Kills were lost** while the guild state was unknown: they are now kept for 15 minutes and booked as soon as the guild is active again. The kill counter is also checked after every fight and every 20 seconds, in case the game's counter could not be read during the fight or the session counter restarted after a disconnect.
+- **PvP Kills counters dropped after a crash or disconnect.** The game saves addon data only on logout or /reload, so a disconnect loses the counts of that session. Other members now give a member back what the guild knew of him when he logs in, and their copies never go down.
+
 ### Module API
 - Deprecated: callbacks `MAKGORA`, `MAKGORA_NEW` → `HONORDUEL`, `HONORDUEL_NEW`; `PvP.ActiveMakgoras()`, `PvP.MakgoraRecord()` → `PvP.ActiveDuels()`, `PvP.DuelRecord()`. The old names still work (removed in 1.2 at the earliest).
 - Event types: `gmin`/`gmax` defaults are used by the editor; `icon` and `descKey` are shown on the type tiles.

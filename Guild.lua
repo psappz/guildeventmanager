@@ -136,8 +136,12 @@ function G.ReadMarker()
   local key = G.StoreKey()
   if not key or not ns.db then return false end
   local text = GetGuildInfoText and GetGuildInfoText() or ""
-  local v, id = tostring(text):match(G.MARKER_PATTERN)
   ns.db.markers = ns.db.markers or {}
+  -- Right after login or a reconnect the game has not loaded the guild info yet
+  -- and returns an empty text. That is "unknown", not "removed": keep what we
+  -- knew and read again later, otherwise the guild looks deactivated for a while.
+  if text == nil or text == "" or (issecretvalue and issecretvalue(text)) then return false end
+  local v, id = tostring(text):match(G.MARKER_PATTERN)
   ns.db.markers[key] = v and ("[GEM:" .. v .. ":" .. id .. "]") or false
   G.markerRead = key
   return true
@@ -153,7 +157,15 @@ end
 
 function G.IsActivated()
   if ns.demo then return true end
-  return G.InGuild() and G.Marker() ~= nil
+  if not G.InGuild() or not G.StoreKey() then
+    -- during a reconnect or a loading screen the game briefly reports "no guild";
+    -- stay active for two minutes before believing it
+    if G.lastActive and GetTime() - G.lastActive < 120 then return true end
+    return false
+  end
+  local on = G.Marker() ~= nil
+  if on then G.lastActive = GetTime() end
+  return on
 end
 
 function G.IsLeader()
