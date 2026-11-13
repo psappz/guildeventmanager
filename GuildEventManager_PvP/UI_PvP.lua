@@ -8,7 +8,7 @@ local L = P.L
 local V = {}
 
 local RULES = { "kill", "perVictim", "dailyCap", "debt", "debtDays", "coldMin", "drum", "drumWindow", "drumRadius", "revengeChat", "revengeChatMin",
-  "makgora", "makgoraDays", "makgoraPerDay", "makgoraPerMember", "oath1", "oath2", "oath3", "oathDays", "oathWitnesses", "seasonGoal" }
+  "makgora", "makgoraWitnessRank", "makgoraDays", "makgoraPerDay", "makgoraPerMember", "oath1", "oath2", "oath3", "oathDays", "oathWitnesses", "seasonGoal" }
 
 local function build(p)
   local th = T.Current()
@@ -136,7 +136,22 @@ local function build(p)
     l:SetPoint("TOPLEFT", 10 + col * 136, -10 - row * 50)
     l:SetWidth(128); l:SetWordWrap(false)
     l:SetText(k.label)
-    local e = W.Edit(rc, 90, 22)
+    local e
+    if k.key == "makgoraWitnessRank" then
+      -- guild rank as a dropdown; behaves like the number fields for refresh and save
+      e = W.Dropdown(rc, 128, function()
+        local o = { { 9, L.PVP_RANK_ANY } }
+        for ri = 0, 9 do
+          if G.rankNames and G.rankNames[ri] then o[#o + 1] = { ri, L.PVP_RANK_MIN:format(G.rankNames[ri]) } end
+        end
+        return o
+      end, function() return e and e.value end, function(v) e.value = v; e.dirty = true end)
+      function e:GetText() return tostring(self.value or "") end
+      function e:SetText(t) self.value = tonumber(t); self:Refresh() end
+      function e:HasFocus() return self.dirty end
+    else
+      e = W.Edit(rc, 90, 22)
+    end
     e:SetPoint("TOPLEFT", l, "BOTTOMLEFT", 0, -3)
     p.ruleEdits[k.key] = e
   end
@@ -154,6 +169,7 @@ local function build(p)
       for _, k in ipairs(p.ruleKeys) do
         local v = tonumber((string.gsub(p.ruleEdits[k.key]:GetText() or "", ",", ".")))
         if v and v >= 0 then pr.pvp[k.key] = v end
+        p.ruleEdits[k.key].dirty = nil
       end
     end)
     U.Print(core.L.SAVED)

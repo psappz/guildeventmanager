@@ -150,7 +150,8 @@ local function refresh(p)
   p.makHead:SetText(T.Word("MAKGORA"))
   local function lim(n, max) max = tonumber(max) or 0; return max > 0 and (n .. "/" .. max) or tostring(n) end
   p.makHint:SetText(L.PVP_MAK_SAFE .. "\n" .. L.PVP_MAK_HINT:format(r.makgora) .. "\n"
-    .. L.PVP_MAK_TODAY:format(lim(P.DuelsToday(nil), r.makgoraPerDay), lim(P.DuelsToday(me), r.makgoraPerMember)))
+    .. L.PVP_MAK_TODAY:format(lim(P.DuelsToday(nil), r.makgoraPerDay), lim(P.DuelsToday(me), r.makgoraPerMember))
+    .. (((tonumber(r.makgoraWitnessRank) or 9) < 9) and (" · " .. L.PVP_MAK_WITRANK_HINT:format(P.WitnessRankName())) or ""))
   local list = P.ActiveMakgoras()
   for i, m in ipairs(list) do
     if i > 4 then break end

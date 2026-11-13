@@ -138,6 +138,18 @@ local function sendMak(m)
   C.Send("MAKG", { m = { id = m.id, a = m.a, b = m.b, w = m.w, stake = m.stake, ts = m.ts, state = m.state, acc = m.acc } })
 end
 
+-- Rule makgoraWitnessRank: lowest rank index a witness may have (0 = guild master).
+function P.CanWitness(key)
+  local max = tonumber(P.Rules().makgoraWitnessRank) or 9
+  if max >= 9 then return true end
+  local rank = G.RankOf(key)
+  return rank ~= nil and rank <= max
+end
+function P.WitnessRankName()
+  local max = tonumber(P.Rules().makgoraWitnessRank) or 9
+  return (G.rankNames and G.rankNames[max]) or tostring(max)
+end
+
 -- Only the witness named by the challenger can decide the winner.
 function P.Challenge(name, witness, stake)
   if not C.CanSend() then U.Print(core.L.NOT_ACTIVE); return end
@@ -151,6 +163,7 @@ function P.Challenge(name, witness, stake)
   local w = G.Resolve(witness)
   if not w then U.Print(L.PVP_MAK_NOMEMBER:format(witness)); return end
   if w == me or w == b then U.Print(L.PVP_MAK_NOWITNESS); return end
+  if not P.CanWitness(w) then U.Print(L.PVP_MAK_WITRANK:format(G.Display(w), P.WitnessRankName())); return end
   for _, m in ipairs(P.ActiveMakgoras()) do
     if m.a == me or m.b == me then U.Print(L.PVP_MAK_BUSY); return end
   end
