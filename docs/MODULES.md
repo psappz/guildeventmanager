@@ -280,6 +280,10 @@ PvP (`pvp = 4`):
 - **Breaking:** `PvP.Challenge(name, witness, stake)` – a duel of honor needs a named witness, a guild member other than the two duelists. Only that witness can confirm the winner; votes of anyone else are ignored, and the system-chat prompt after the duel appears only for them. Migration: pass the witness as the second argument; the old call `PvP.Challenge(name, stake)` now treats the stake as the witness name and fails with a message to the player.
 - Duel records (`PvP.ActiveDuels()`) carry `w`, the witness key. Duels sent by 0.6.0 clients have no `w`; for them the old rule (`makgoraWitnesses` votes from anyone) still applies, but newer clients offer no witness buttons for them.
 - The `MAKG` message carries `w`.
+- Bounties: `PvP.OpenBounties()`, `PvP.WonBounties()`, `PvP.BountyOn(name)` (honor sum, count), `PvP.PostBounty(name, honor)`; callbacks `PVP_BOUNTY_NEW(b)` and `PVP_BOUNTY_WON(b)`. A bounty is paid in advance: the poster books a minus for himself (ledger `why = "bounty"`, `flag = "set"`), the collector the plus (`flag = "won"`), back-bookings use `flag = "back" | "exp" | "dup" | "late"`.
+
+Core (`api = 4`), ledger:
+- `Pts.SELF_NEG`: why-codes for which a member may book a minus for himself (`bounty`). Clients before API 4 ignore such entries, so their totals miss the advance payment.
 
 ### API 3 · PvP API 3 – GuildEventManager 0.6.0
 

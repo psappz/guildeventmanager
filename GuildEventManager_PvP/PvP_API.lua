@@ -91,6 +91,11 @@ function PvP.Swear(level, text) P.Swear(level, text) end                 -- leve
 function PvP.ActiveDuels() return P.ActiveMakgoras() end
 function PvP.ActiveMakgoras() return P.ActiveMakgoras() end   -- deprecated name
 function PvP.OpenOaths() return P.OpenOaths() end
+-- bounties (PvP API 4): { id, by, target, amt, ts, state, w, wts }
+function PvP.OpenBounties() return P.OpenBounties() end
+function PvP.WonBounties() return P.WonBounties() end
+function PvP.BountyOn(name) return P.BountyOn(name) end          -- honor sum, count
+function PvP.PostBounty(name, honor) return P.PostBounty(name, honor) end
 function PvP.DuelRecord(name) return PvP.MakgoraRecord(name) end
 function PvP.MakgoraRecord(name) return P.MakgoraRecord(name and core.Guild.Resolve(name) or core.Guild.MyKey()) end  -- wins, losses (deprecated name)
 

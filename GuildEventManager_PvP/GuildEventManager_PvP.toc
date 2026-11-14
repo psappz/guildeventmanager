@@ -24,8 +24,10 @@ Detect.lua
 Stats.lua
 Drums.lua
 Honor.lua
+Bounty.lua
 Season.lua
 UI_PvP.lua
 UI_Kills.lua
 UI_Honor.lua
+UI_Bounty.lua
 PvP_API.lua

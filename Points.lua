@@ -76,13 +76,24 @@ end
 -- himself, in pots other than the core ones. Managers can revert them.
 Pts.CORE_POTS = { event = true, ach = true }
 Pts.SELF_MAX = 100
+-- why-codes for which a member may also book a minus for himself (he can only
+-- harm himself): a bounty is paid in advance from the own honor (API 4)
+Pts.SELF_NEG = { bounty = true }
+
+local function selfAmtOk(amt, why)
+  amt = tonumber(amt) or 0
+  if amt > 0 then return amt <= Pts.SELF_MAX end
+  return amt < 0 and Pts.SELF_NEG[why] and amt >= -Pts.SELF_MAX or false
+end
 
 function Pts.AddSelf(pot, amt, why, extra)
   amt = tonumber(amt)
-  if not amt or amt <= 0 or Pts.CORE_POTS[pot] then return nil end
+  if not amt or amt == 0 or Pts.CORE_POTS[pot] then return nil end
+  if amt > 0 then amt = math.min(amt, Pts.SELF_MAX) end
+  if not selfAmtOk(amt, why) then return nil end
   if not ns.Comm.CanSend() then return nil end
   local me = G.MyKey()
-  local e = { id = U.NewId(), who = me, pot = pot, amt = math.min(amt, Pts.SELF_MAX), why = why, ts = U.Now(), by = me }
+  local e = { id = U.NewId(), who = me, pot = pot, amt = amt, why = why, ts = U.Now(), by = me }
   for k, v in pairs(extra or {}) do if e[k] == nil then e[k] = v end end
   ledger()[e.id] = e
   ns.Fire("POINTS_ADDED", e)
@@ -96,7 +107,7 @@ end
 
 local function selfEntryOk(e, from)
   return e.who == from and e.by == from and not Pts.CORE_POTS[e.pot]
-    and (tonumber(e.amt) or 0) > 0 and tonumber(e.amt) <= Pts.SELF_MAX and e.why ~= "revert"
+    and selfAmtOk(e.amt, e.why) and e.why ~= "revert"
 end
 
 function Pts.Flush()

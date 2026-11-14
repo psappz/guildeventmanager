@@ -24,6 +24,10 @@ P.DEFAULTS = {
   revengeChatMin = 2, -- minutes between two such posts of one member
   makgora = 10,      -- honor for a won duel of honor (with witness)
   makgoraWitnesses = 1, -- witnesses needed for a duel of honor
+  bountyMin = 5,        -- smallest bounty in honor
+  bountyMax = 50,       -- largest bounty in honor (at most 100)
+  bountyDays = 7,       -- a bounty runs n days, then the poster gets the honor back
+  bountyOpen = 3,       -- open bounties per member (0 = no limit)
   makgoraWitnessRank = 9, -- lowest guild rank index a duel witness may have (0 = guild master, 9 = every rank)
   makgoraDays = 3,      -- an accepted duel of honor can be fought within n days
   makgoraPerDay = 5,    -- duels of honor in the whole guild per game day (0 = no limit)
@@ -178,5 +182,5 @@ function P.Notice(msg)
   end
 end
 
-core.HelpExt = (core.HelpExt or "") .. " · /gem pvp · /gem drum help|rally|attack [text] · /gem duel <name> [stake] · /gem oath [1-3] <text>"
+core.HelpExt = (core.HelpExt or "") .. " · /gem pvp · /gem drum help|rally|attack [text] · /gem duel <name> <witness> [stake] · /gem oath [1-3] <text> · /gem bounty <name> <honor>"
 core.SlashExt.pvp = function() core.UI.Show("pvp") end

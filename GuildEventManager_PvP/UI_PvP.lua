@@ -8,7 +8,7 @@ local L = P.L
 local V = {}
 
 local RULES = { "kill", "perVictim", "dailyCap", "debt", "debtDays", "coldMin", "drum", "drumWindow", "drumRadius", "revengeChat", "revengeChatMin",
-  "makgora", "makgoraWitnessRank", "makgoraDays", "makgoraPerDay", "makgoraPerMember", "oath1", "oath2", "oath3", "oathDays", "oathWitnesses", "seasonGoal" }
+  "makgora", "makgoraWitnessRank", "makgoraDays", "makgoraPerDay", "makgoraPerMember", "oath1", "oath2", "oath3", "oathDays", "oathWitnesses", "bountyMin", "bountyMax", "bountyDays", "bountyOpen", "seasonGoal" }
 
 local function build(p)
   local th = T.Current()
@@ -258,6 +258,10 @@ local function refresh(p)
       elseif deed:find("%%s") then deed = deed:format(e.note or "?") end
     end
     if e.why == "debt" then deed = deed .. " (" .. T.Word("DEBT") .. ")" end
+    if e.why == "bounty" then
+      local key = ({ set = "PVP_DEED_BNT_SET", won = "PVP_DEED_BNT_WON", back = "PVP_DEED_BNT_BACK", exp = "PVP_DEED_BNT_BACK" })[e.flag or ""] or "PVP_DEED_BNT_FIX"
+      deed = L[key]:format(e.note or "?")
+    end
     local txt = G.Display(e.who) .. U.Color(T.Hex(th.muted), " · " .. deed .. ((e.zone and e.zone ~= "") and (" · " .. e.zone) or ""))
     if e.reverted then txt = U.Color("ff808080", G.Display(e.who) .. " · " .. deed .. " · " .. L.PVP_REVERTED) end
     row.text:SetText(txt)
