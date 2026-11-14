@@ -120,17 +120,19 @@ function P.FlushKills()
   local list = P.pendingKills
   P.pendingKills = {}
   for _, k in ipairs(list) do
-    if GetTime() - k.t < 900 then core.SafeCall("pvpKill", P.OnKill, k.name, k.kind) end
+    if GetTime() - k.t < 900 then core.SafeCall("pvpKill", P.OnKill, k.name, k.kind, k.source) end
   end
 end
 core.On("ACTIVATED", function() core.Schedule("gemPvpFlush", 2, P.FlushKills) end)
 
-function P.OnKill(name, kind)
+-- source: how the name was found ("honor line", "dead target", "seen dying target",
+-- "seen dying" = a nameplate died, may be somebody else's kill)
+function P.OnKill(name, kind, source)
   if not G.IsActivated() then
-    if #P.pendingKills < 30 then P.pendingKills[#P.pendingKills + 1] = { name = name, kind = kind, t = GetTime() } end
+    if #P.pendingKills < 30 then P.pendingKills[#P.pendingKills + 1] = { name = name, kind = kind, source = source, t = GetTime() } end
     return
   end
-  core.Fire("PVP_KILL", name, kind or "none")
+  core.Fire("PVP_KILL", name, kind or "none", source)
   if not P.OpenWorld() then return end
   local r = P.Rules()
   local zone = GetZoneText and GetZoneText() or ""
@@ -202,15 +204,21 @@ local function noteDead(unit)
   local name = deadEnemyName(unit)
   if not name then return end
   local now = GetTime()
-  for _, d in ipairs(deadSeen) do if d.name == name and now - d.t < 30 then return end end
-  deadSeen[#deadSeen + 1] = { name = name, t = now }
+  for _, d in ipairs(deadSeen) do
+    if d.name == name and now - d.t < 30 then
+      if unit == "target" then d.tgt = true end
+      return
+    end
+  end
+  -- tgt: died while in my target (a nameplate alone may be somebody else's kill)
+  deadSeen[#deadSeen + 1] = { name = name, t = now, tgt = unit == "target" or nil }
   while #deadSeen > 20 do table.remove(deadSeen, 1) end
 end
 local function takeDead()
   local now = GetTime()
   while deadSeen[1] and now - deadSeen[1].t > 180 do table.remove(deadSeen, 1) end
   local d = table.remove(deadSeen, 1)
-  return d and d.name
+  return d and d.name, d and d.tgt
 end
 
 -- what the module saw at the last kills (for /gem pvpcheck and /gem export)
@@ -246,12 +254,17 @@ local function checkKills()
       local source = name and "honor line"
       -- the honor line may not be readable on this client: then the enemy we saw
       -- die (target / nameplate), then the dead enemy in the target right now
-      if not name then name = takeDead(); source = name and "seen dying" end
-      if not name then name = deadEnemyName("target") or deadEnemyName("mouseover"); source = name and "dead target" end
+      if not name then
+        local tgt
+        name, tgt = takeDead()
+        source = name and (tgt and "seen dying target" or "seen dying")
+      end
+      if not name then name = deadEnemyName("target"); source = name and "dead target" end
+      if not name then name = deadEnemyName("mouseover"); source = name and "dead mouseover" end
       diagKill(source or "none", name)
       local _, kind = IsInInstance()
       if P.RecordHK then core.SafeCall("pvpStat", P.RecordHK, kind) end
-      core.SafeCall("pvpKill", P.OnKill, name, kind)
+      core.SafeCall("pvpKill", P.OnKill, name, kind, source)
     end
   end
   lastHK = hk

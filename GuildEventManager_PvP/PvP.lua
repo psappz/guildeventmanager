@@ -24,8 +24,8 @@ P.DEFAULTS = {
   revengeChatMin = 2, -- minutes between two such posts of one member
   makgora = 10,      -- honor for a won duel of honor (with witness)
   makgoraWitnesses = 1, -- witnesses needed for a duel of honor
-  bountyMin = 5,        -- smallest bounty in honor
-  bountyMax = 50,       -- largest bounty in honor (at most 100)
+  bountyMin = 8,        -- smallest bounty in honor (never below kill + 5)
+  bountyMax = 50,       -- largest bounty in honor (at most 50)
   bountyDays = 7,       -- a bounty runs n days, then the poster gets the honor back
   bountyOpen = 3,       -- open bounties per member (0 = no limit)
   makgoraWitnessRank = 9, -- lowest guild rank index a duel witness may have (0 = guild master, 9 = every rank)

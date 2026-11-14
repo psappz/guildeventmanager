@@ -39,6 +39,23 @@ end
 
 local function days() return math.max(1, tonumber(P.Rules().bountyDays) or 7) end
 
+-- smallest bounty: at least 5 above the honor of a normal kill; largest: 50
+P.BOUNTY_CAP = 50
+function P.BountyLimits()
+  local r = P.Rules()
+  local floor = (tonumber(r.kill) or 3) + 5
+  local min = math.max(floor, tonumber(r.bountyMin) or floor)
+  local max = math.min(P.BOUNTY_CAP, tonumber(r.bountyMax) or P.BOUNTY_CAP)
+  if max < min then max = min end
+  return min, math.min(max, P.BOUNTY_CAP)
+end
+
+-- a bounty only pays when the name is sure to be the own kill: the honor line,
+-- or the enemy died in my target. A nameplate that died near me can be somebody
+-- else's kill, so it does not count (the normal kill honor still does).
+local SURE = { ["honor line"] = true, ["dead target"] = true, ["seen dying target"] = true }
+P.BOUNTY_SOURCES = SURE
+
 function P.BountyState(b)
   if b.state == "open" and U.Now() - (b.ts or 0) > days() * DAY then return "expired" end
   return b.state
@@ -86,7 +103,7 @@ function P.PostBounty(name, amt)
   name = tostring(name or ""):match("^%s*(.-)%s*$")
   amt = math.floor(tonumber(amt) or 0)
   local r = P.Rules()
-  local min, max = tonumber(r.bountyMin) or 5, math.min(Pts.SELF_MAX, tonumber(r.bountyMax) or 50)
+  local min, max = P.BountyLimits()
   if name == "" then U.Print(L.PVP_BNT_NONAME); return end
   if G.Resolve(name) then U.Print(L.PVP_BNT_GUILD:format(name)); return end
   if amt < min or amt > max then U.Print(L.PVP_BNT_RANGE:format(min, max)); return end
@@ -154,8 +171,14 @@ local function claim(b)
   core.Fire("PVP_BOUNTY_WON", b)
 end
 
-core.On("PVP_KILL", function(name)
+core.On("PVP_KILL", function(name, kind, source)
   if not name then return end
+  if source and not SURE[source] then
+    for _, b in ipairs(P.OpenBounties()) do
+      if b.tk == tkey(name) and b.by ~= G.MyKey() then U.Print(L.PVP_BNT_UNSURE:format(name)); break end
+    end
+    return
+  end
   local k, me = tkey(name), G.MyKey()
   for _, b in ipairs(P.OpenBounties()) do
     if b.tk == k and b.by ~= me then claim(b) end
@@ -170,7 +193,7 @@ C.On("BNTY", function(data, from)
   local d = type(data.b) == "table" and data.b
   if not d or type(d.id) ~= "string" or d.by ~= from or type(d.target) ~= "string" then return end
   local amt = tonumber(d.amt)
-  if not amt or amt < 1 or amt > Pts.SELF_MAX then return end
+  if not amt or amt < 1 or amt > P.BOUNTY_CAP then return end
   local b = P.bounties[d.id]
   if b then return end
   b = { id = d.id, by = from, target = d.target:sub(1, 48), tk = tkey(d.target), amt = math.floor(amt),

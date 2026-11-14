@@ -48,7 +48,7 @@ local function build(p)
   end)
   p.btn:SetScript("OnClick", function()
     local name, amt = p.name:GetText(), tonumber(p.amt:GetText())
-    if not amt then U.Print(L.PVP_BNT_RANGE:format(tonumber(P.Rules().bountyMin) or 5, tonumber(P.Rules().bountyMax) or 50)); return end
+    if not amt then U.Print(L.PVP_BNT_RANGE:format(P.BountyLimits())); return end
     W.Dialog({ text = L.PVP_BNT_CONFIRM_Q:format(amt, name), accept = L.PVP_BNT_POST, onAccept = function()
       if P.PostBounty(name, amt) then p.name:SetText(""); p.amt:SetText("") end
       p.name:ClearFocus(); p.amt:ClearFocus()
@@ -118,7 +118,8 @@ local function refresh(p)
   local r = P.Rules()
   local days = math.max(1, tonumber(r.bountyDays) or 7)
 
-  p.hint:SetText(L.PVP_BNT_HINT:format(tonumber(r.bountyMin) or 5, tonumber(r.bountyMax) or 50, days)
+  local bmin, bmax = P.BountyLimits()
+  p.hint:SetText(L.PVP_BNT_HINT:format(bmin, bmax, days)
     .. "\n" .. L.PVP_BNT_BALANCE:format(P.MyHonorBalance()))
 
   -- open bounties
