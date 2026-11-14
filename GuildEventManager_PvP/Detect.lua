@@ -136,7 +136,7 @@ function P.OnKill(name, kind, source)
   if not P.OpenWorld() then return end
   local r = P.Rules()
   local zone = GetZoneText and GetZoneText() or ""
-  local victim = name or L.PVP_UNKNOWN
+  local victim = name or L.PVP_UNKNOWN_NAME
 
   if name then P.RedeemDebt(name, "kill") end
 
@@ -199,26 +199,81 @@ end
 -- Enemy players we saw die (target or nameplate), oldest first. The game's kill
 -- counter is sometimes unreadable during a fight and is counted afterwards; by
 -- then the target is gone, so the kills take the names from this list.
+--
+-- Feign Death: a hunter who plays dead looks dead to us and drops out of our
+-- target. So (1) "died in my target" only counts if the target still shows the
+-- dead enemy half a second later (a real corpse stays selected), and (2) an
+-- enemy we saw dead and then see alive again is taken off the list.
 local deadSeen = {}
+local function confirmTarget(d)
+  local name = UnitExists("target") and deadEnemyName("target")
+  if name and name == d.name then d.tgt = true; d.suspect = nil
+  else d.suspect = true end   -- gone from the target right after "dying": Feign Death
+end
 local function noteDead(unit)
   local name = deadEnemyName(unit)
   if not name then return end
   local now = GetTime()
-  for _, d in ipairs(deadSeen) do
-    if d.name == name and now - d.t < 30 then
-      if unit == "target" then d.tgt = true end
-      return
-    end
+  local d
+  for _, x in ipairs(deadSeen) do if x.name == name and now - x.t < 30 then d = x; break end end
+  if not d then
+    d = { name = name, t = now }
+    deadSeen[#deadSeen + 1] = d
+    while #deadSeen > 20 do table.remove(deadSeen, 1) end
   end
   -- tgt: died while in my target (a nameplate alone may be somebody else's kill)
-  deadSeen[#deadSeen + 1] = { name = name, t = now, tgt = unit == "target" or nil }
-  while #deadSeen > 20 do table.remove(deadSeen, 1) end
+  if unit == "target" and not d.tgt and not d.checking then
+    d.checking = true
+    if C_Timer and C_Timer.After then
+      C_Timer.After(0.5, function() d.checking = nil; core.SafeCall("pvpDeadTarget", confirmTarget, d) end)
+    else
+      d.checking = nil; confirmTarget(d)
+    end
+  end
+end
+-- seen alive again: feigned (or resurrected before the kill was counted)
+local function noteAlive(unit)
+  if not unit or not isEnemyPlayer(unit) then return end
+  local ok, dead = pcall(UnitIsDeadOrGhost, unit)
+  if not ok or secret(dead) or dead then return end
+  local name = unitName(unit)
+  if not name then return end
+  local now = GetTime()
+  for i = #deadSeen, 1, -1 do
+    local d = deadSeen[i]
+    if d.name == name and now - d.t > 0.3 then table.remove(deadSeen, i); P.feignSeen = (P.feignSeen or 0) + 1 end
+  end
+end
+P.NoteAlive = noteAlive
+
+-- Enemy players we had in the target during the fight: the last resort for the
+-- name of a kill (the most recent first). Not sure enough for a bounty.
+local foes = {}
+local function noteFoe(unit)
+  if not isEnemyPlayer(unit) then return end
+  local name = unitName(unit)
+  if not name then return end
+  for i = #foes, 1, -1 do if foes[i].name == name then table.remove(foes, i) end end
+  foes[#foes + 1] = { name = name, t = GetTime() }
+  while #foes > 10 do table.remove(foes, 1) end
+end
+local function takeFoe()
+  local now = GetTime()
+  for i = #foes, 1, -1 do
+    local f = foes[i]
+    if now - f.t < 120 then table.remove(foes, i); return f.name end
+  end
 end
 local function takeDead()
   local now = GetTime()
   while deadSeen[1] and now - deadSeen[1].t > 180 do table.remove(deadSeen, 1) end
-  local d = table.remove(deadSeen, 1)
-  return d and d.name, d and d.tgt
+  for i, d in ipairs(deadSeen) do
+    if d.checking and not d.tgt then confirmTarget(d) end   -- counted within the half second
+    if not d.suspect then
+      table.remove(deadSeen, i)
+      return d.name, d.tgt
+    end
+  end
 end
 
 -- what the module saw at the last kills (for /gem pvpcheck and /gem export)
@@ -232,7 +287,7 @@ local function diagKill(source, name)
     at = date("%H:%M:%S"), source = source, name = name,
     target = t and true or false, player = t and UnitIsPlayer("target") or false,
     dead = (ok and secret(dead)) and "<secret>" or (ok and dead) or false,
-    nameSecret = secret(n), cached = targetName, seen = #deadSeen,
+    nameSecret = secret(n), cached = targetName, seen = #deadSeen, feigned = P.feignSeen or 0,
   })
   while #P.killDiag > 8 do table.remove(P.killDiag) end
 end
@@ -261,6 +316,8 @@ local function checkKills()
       end
       if not name then name = deadEnemyName("target"); source = name and "dead target" end
       if not name then name = deadEnemyName("mouseover"); source = name and "dead mouseover" end
+      if not name then name = takeFoe(); source = name and "last target" end
+      if name then for j = #foes, 1, -1 do if foes[j].name == name then table.remove(foes, j) end end end
       diagKill(source or "none", name)
       local _, kind = IsInInstance()
       if P.RecordHK then core.SafeCall("pvpStat", P.RecordHK, kind) end
@@ -351,18 +408,34 @@ f:SetScript("OnEvent", function(self, event, arg1)
   elseif event == "PLAYER_TARGET_CHANGED" then
     targetName = isEnemyPlayer("target") and unitName("target") or nil
     core.SafeCall("pvpSee", seeUnit, "target")
+    core.SafeCall("pvpFoe", noteFoe, "target")
+    core.SafeCall("pvpAlive", noteAlive, "target")
   elseif event == "UPDATE_MOUSEOVER_UNIT" then
     core.SafeCall("pvpSee", seeUnit, "mouseover")
   elseif event == "NAME_PLATE_UNIT_ADDED" then
     core.SafeCall("pvpSee", seeUnit, arg1)
+    core.SafeCall("pvpAlive", noteAlive, arg1)
   elseif event == "UNIT_HEALTH" and (arg1 == "target" or (type(arg1) == "string" and arg1:find("^nameplate"))) then
     if arg1 == "target" and not targetName and isEnemyPlayer("target") then targetName = unitName("target") end
+    core.SafeCall("pvpAlive", noteAlive, arg1)
     core.SafeCall("pvpDeadSeen", noteDead, arg1)
     -- a debtor dies in our target or near us (nameplate) while we fight: revenge taken
     local fighting = (UnitAffectingCombat and UnitAffectingCombat("player")) or (GetTime() - (P.lastCombat or 0) < 10)
     if fighting and #P.OpenDebts() > 0 then
       local name = deadEnemyName(arg1)
-      if name then core.SafeCall("pvpDebtNear", P.RedeemDebt, name, arg1 == "target" and "target" or "near") end
+      local how = arg1 == "target" and "target" or "near"
+      -- wait 2 seconds: a hunter playing dead gets up again (then he is off the list)
+      local function redeem()
+        for _, d in ipairs(deadSeen) do
+          if d.name == name then
+            if not d.suspect then core.SafeCall("pvpDebtNear", P.RedeemDebt, name, how) end
+            return
+          end
+        end
+      end
+      if name then
+        if C_Timer and C_Timer.After then C_Timer.After(2, redeem) else redeem() end
+      end
     end
   elseif event == "UNIT_HEALTH" and arg1 == "player" then
     -- we take damage: note which enemy player is on us

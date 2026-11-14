@@ -167,6 +167,10 @@ function P.Char()
   return c.pvp
 end
 
+-- placeholders older versions wrote into the ledger instead of a name
+P.OLD_UNKNOWN = { ["an enemy"] = true, ["einen Gegner"] = true, ["un ennemi"] = true, ["un enemigo"] = true,
+  ["un nemico"] = true, ["um inimigo"] = true }
+
 -- Drum / bell sound per faction; falls back to the raid warning sound
 function P.PlaySignal()
   if core.db and core.db.pvpMute then return end

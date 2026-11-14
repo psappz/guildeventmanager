@@ -252,6 +252,8 @@ local function refresh(p)
     row.entry = e
     row:ClearAllPoints(); row:SetPoint("TOPLEFT", 0, -(n - 1) * 20); row:SetPoint("RIGHT", p.rollScroll.content, "RIGHT", 0, 0)
     local deed = P.DeedLabel and P.DeedLabel(e)
+    -- older versions stored "an enemy" when the name was unknown
+    if e.note and P.OLD_UNKNOWN[e.note] then e = setmetatable({ note = L.PVP_UNKNOWN_NAME }, { __index = e }) end
     if not deed then
       deed = L[WHY[e.why] or "PVP_DEED_OTHER"]
       if e.why == "makgora" then deed = deed:format(e.note and G.Display(e.note) or "?")

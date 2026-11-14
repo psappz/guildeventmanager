@@ -4,6 +4,7 @@ if not core then return end
 -- Français
 core.AddLocale("frFR", {
   PVP_UNKNOWN = "un ennemi",
+  PVP_UNKNOWN_NAME = "(nom inconnu)",
   MOD_PVP = "JcJ",
   TAB_PVP = "JcJ",
   TAB_PVPKILLS = "Victoires JcJ",
