@@ -78,6 +78,47 @@ local function treeOfSpecIndex(class, idx, role)
   return idx, nil
 end
 
+-- All specializations of the own class: { index, id, name, tree, role, configured }
+-- configured = the player saved a talent loadout for it (his "dual spec")
+local ROLE_OF = { TANK = "mt", HEALER = "heal" }
+function R.MySpecs()
+  local SI = C_SpecializationInfo
+  local class = R.MyClass()
+  local classID = select(3, UnitClass("player"))
+  local num = GetNumSpecializations or (SI and SI.GetNumSpecializations)
+  local n
+  if num then local ok, v = pcall(num); n = ok and tonumber(v) end
+  if not n and SI and SI.GetNumSpecializationsForClassID and classID then
+    local ok, v = pcall(SI.GetNumSpecializationsForClassID, classID); n = ok and tonumber(v)
+  end
+  n = n or (class == "DRUID" and 4 or 3)
+  local info = GetSpecializationInfo or (SI and SI.GetSpecializationInfo)
+  local CT = C_ClassTalents
+  local out = {}
+  for i = 1, math.min(n, 4) do
+    local id, name, role
+    if info then
+      local r = { pcall(info, i) }
+      if r[1] then id, name, role = r[2], r[3], r[6] end
+    end
+    local tree, fixed = treeOfSpecIndex(class, i)
+    local our = fixed or ROLE_OF[role] or R.DefaultRole(class, tree)
+    local configured = false
+    if CT and id then
+      if CT.GetConfigIDsBySpecID then
+        local ok, ids = pcall(CT.GetConfigIDsBySpecID, id)
+        if ok and type(ids) == "table" and #ids > 0 then configured = true end
+      end
+      if not configured and CT.GetLastSelectedSavedConfigID then
+        local ok, cid = pcall(CT.GetLastSelectedSavedConfigID, id)
+        if ok and cid then configured = true end
+      end
+    end
+    out[#out + 1] = { index = i, id = id, name = name, tree = tree, role = our, configured = configured }
+  end
+  return out
+end
+
 -- returns { [group] = tree }, active group, source
 function R.ReadTalents()
   local class = R.MyClass()
@@ -86,9 +127,16 @@ function R.ReadTalents()
   local getSpec = GetSpecialization or (SI and SI.GetSpecialization)
   if getSpec then
     local ok, idx = pcall(getSpec)
-    if ok and idx then
-      local t, role = treeOfSpecIndex(class, idx)
-      out[1] = { t, role }
+    if ok and tonumber(idx) then
+      -- WoW Forever: specializations with saved talent loadouts. The active
+      -- spec is group 1; another spec the player has a loadout for is group 2.
+      for _, x in ipairs(R.MySpecs()) do
+        if x.index == idx then out[1] = { x.tree, x.role } end
+      end
+      if not out[1] then local t, role = treeOfSpecIndex(class, idx); out[1] = { t, role } end
+      for _, x in ipairs(R.MySpecs()) do
+        if x.index ~= idx and x.configured and not out[2] then out[2] = { x.tree, x.role } end
+      end
       return out, 1, "spec"
     end
   end
@@ -163,6 +211,12 @@ function R.UpdateOwnSpec()
       local r = role or R.DefaultRole(class, tree)
       if rec[slot][2] ~= r then rec[slot][2] = r; changed = true end
     end
+  end
+  local src = select(3, R.ReadTalents())
+  if src == "spec" and got[2] and cur.m and cur.m[1] == got[2][1] and cur.m[2] == got[2][2] then
+    got[1], got[2] = got[2], got[1]   -- playing the second spec right now
+  elseif src == "spec" and not got[2] and cur.m and got[1] and cur.m[1] ~= got[1][1] and cur.o == nil then
+    got[2] = got[1]; got[1] = cur.m
   end
   if got[2] then fill("m", 1); fill("o", 2)
   elseif got[1] then
@@ -790,7 +844,11 @@ API.AddProbe("pve", function()
   for g, x in pairs(got) do t[#t + 1] = "group " .. g .. ": tree " .. tostring(x[1]) .. (x[2] and (" (" .. x[2] .. ")") or "") end
   return {
     { "talent API", "GetTalentTabInfo " .. P.Has(GetTalentTabInfo) .. " · GetNumTalentGroups " .. P.Has(GetNumTalentGroups) .. " · GetSpecialization " .. P.Has(GetSpecialization) },
-    { "talent groups", GetNumTalentGroups and P.Try(GetNumTalentGroups) or "no" },
+    { "specs (loadout saved = *)", (function()
+      local t = {}
+      for _, x in ipairs(R.MySpecs()) do t[#t + 1] = x.index .. " " .. tostring(x.name) .. " → " .. tostring(x.role) .. (x.configured and " *" or "") end
+      return table.concat(t, " · ")
+    end)() },
     { "talents read", (#t > 0 and table.concat(t, "; ") or "nothing") .. " · active " .. tostring(active) .. " · via " .. tostring(src) },
     { "lockouts (GetNumSavedInstances)", GetNumSavedInstances and P.Try(GetNumSavedInstances) or "no" },
     { "first lockout", (GetSavedInstanceInfo and GetNumSavedInstances and (select(2, pcall(GetNumSavedInstances)) or 0) > 0) and P.Try(GetSavedInstanceInfo, 1) or "none" },

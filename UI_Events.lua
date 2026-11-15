@@ -393,9 +393,21 @@ local function refreshDetail(p)
     local bits = {}
     for _, f in ipairs(fields) do
       local v = s.f[f.id]
-      if v ~= nil and f.hidden ~= true and (f.leadOnly ~= true or E.CanManage(e)) then
+      if v ~= nil and v ~= "none" and f.hidden ~= true and (f.leadOnly ~= true or E.CanManage(e)) then
+        if f.format then
+          local ok, fv = pcall(f.format, v); if ok and fv then v = fv end
+        elseif f.kind == "choice" or f.kind == "multi" then
+          local lab = {}
+          for _, o in ipairs(f.options or {}) do
+            if type(o) == "table" then lab[o[1]] = (o[2] and ns.L[o[2]]) or o[2] or o[1] end
+          end
+          if type(v) == "table" then
+            local t = {}
+            for _, x in ipairs(v) do t[#t + 1] = lab[x] or x end
+            v = table.concat(t, ", ")
+          else v = lab[v] or v end
+        end
         if type(v) == "table" then v = table.concat(v, ", ") elseif type(v) == "boolean" then v = v and L.YES or L.NO end
-        if f.format and type(v) ~= "string" then v = f.format(v) end
         bits[#bits + 1] = (f.short or E.FieldLabel(f)) .. ": " .. tostring(v)
       end
     end
