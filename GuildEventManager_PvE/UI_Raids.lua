@@ -114,13 +114,29 @@ local function specDropdowns(card, slot, y)
   local th = T.Current()
   local lab = W.Text(card, 10, "muted"); lab:SetPoint("TOPLEFT", 10, y)
   lab:SetText(slot == "m" and L.RAID_MAIN or L.RAID_OFF)
-  local tree = W.Dropdown(card, 140, function()
+  local tree = W.Dropdown(card, slot == "m" and 160 or 140, function()
     local o = {}
     local class = card.rec and card.rec.class
     for i, sp in ipairs(class and R.SPECS[class] or {}) do o[#o + 1] = { i, R.SpecName(class, i) } end
     if slot == "o" then table.insert(o, 1, { 0, L.RAID_ROLE_none }) end
+    -- main spec: "automatic" = the tree with the most talent points
+    if slot == "m" then
+      local got = R.ReadTalents()
+      local det = got[1] and R.SpecName(class, got[1][1])
+      table.insert(o, 1, { "auto", det and L.RAID_AUTO_SPEC:format(det) or L.RAID_AUTO_NONE })
+    end
     return o
-  end, function() local x = card.rec and card.rec[slot]; return x and x[1] or 0 end, function(v)
+  end, function()
+    if slot == "m" and card.rec and card.rec.auto then return "auto" end
+    local x = card.rec and card.rec[slot]; return x and x[1] or 0
+  end, function(v)
+    if v == "auto" then
+      card.rec.auto = true
+      local got = R.ReadTalents()
+      if got[1] then card.rec.m = { got[1][1], got[1][2] or R.DefaultRole(card.rec.class, got[1][1]) } end
+      UI.Refresh(); return
+    end
+    if slot == "m" then card.rec.auto = false end
     if v == 0 then card.rec[slot] = nil; return end
     card.rec[slot] = card.rec[slot] or {}
     card.rec[slot][1] = v
@@ -128,11 +144,12 @@ local function specDropdowns(card, slot, y)
     UI.Refresh()
   end)
   tree:SetPoint("TOPLEFT", lab, "BOTTOMLEFT", 0, -4)
-  local role = W.Dropdown(card, 130, function()
+  local role = W.Dropdown(card, slot == "m" and 120 or 130, function()
     local o = {}
     for _, r in ipairs(R.ROLES) do o[#o + 1] = { r, R.RoleName(r) } end
     return o
   end, function() local x = card.rec and card.rec[slot]; return x and x[2] end, function(v)
+    if slot == "m" then card.rec.auto = false end
     card.rec[slot] = card.rec[slot] or { 1 }
     card.rec[slot][2] = v
   end)
@@ -184,6 +201,7 @@ local function buildOverview(p)
   card.src = W.Text(card, 10, "muted"); card.src:SetPoint("TOPLEFT", 10, -158); card.src:SetPoint("RIGHT", -10, 0)
   card.src:SetSpacing(2)
   card.read = W.Button(card, L.RAID_READ_TALENTS, false, 22)
+  card.read:Hide()
   card.read:SetPoint("BOTTOMLEFT", 10, 10)
   card.read:SetScript("OnClick", function()
     local got = R.ReadTalents()
@@ -193,7 +211,11 @@ local function buildOverview(p)
   card.save = W.Button(card, core.L.SAVE, true, 22)
   card.save:SetPoint("BOTTOMRIGHT", -10, 10)
   card.save:SetScript("OnClick", function()
-    if card.rec then card.rec.src = "self"; R.SaveSpec(nil, card.rec); card.rec = nil; UI.Refresh() end
+    if not card.rec then return end
+    local rec = card.rec
+    rec.src = rec.auto and "auto" or "self"
+    rec.auto = nil
+    R.SaveSpec(nil, rec); card.rec = nil; UI.Refresh()
   end)
   p.hint = W.Text(p, 10, "muted"); p.hint:SetPoint("TOPLEFT", card, "BOTTOMLEFT", 0, -10); p.hint:SetPoint("RIGHT", 0, 0)
   p.hint:SetSpacing(2)
@@ -208,7 +230,8 @@ local function refreshOverview(p)
   local card = p.card
   if not card.rec then
     local cur = R.Spec() or {}
-    card.rec = { class = cur.class or R.MyClass(), m = cur.m and U.Copy(cur.m), o = cur.o and U.Copy(cur.o), src = cur.src }
+    card.rec = { class = cur.class or R.MyClass(), m = cur.m and U.Copy(cur.m), o = cur.o and U.Copy(cur.o), src = cur.src,
+      auto = cur.src ~= "self" and cur.src ~= "lead" }
   end
   local cname = card.rec.class and (LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[card.rec.class]) or card.rec.class or "?"
   card.class:SetText(U.Color(R.CLASS_COLOR[card.rec.class or ""] or "ffffffff", cname))
