@@ -116,6 +116,12 @@ function R.MySpecs()
     end
     out[#out + 1] = { index = i, id = id, name = name, tree = tree, role = our, configured = configured }
   end
+  -- a character that has not chosen a specialization yet has one "spec"
+  -- named like the class: no spec at all for us
+  local className = UnitClass("player")
+  if #out == 1 or (out[1] and out[1].name and out[1].name == className) then
+    for _, x in ipairs(out) do x.initial = true end
+  end
   return out
 end
 
@@ -130,7 +136,9 @@ function R.ReadTalents()
     if ok and tonumber(idx) then
       -- WoW Forever: specializations with saved talent loadouts. The active
       -- spec is group 1; another spec the player has a loadout for is group 2.
-      for _, x in ipairs(R.MySpecs()) do
+      local specs = R.MySpecs()
+      if specs[1] and specs[1].initial then return out, 1, "initial" end
+      for _, x in ipairs(specs) do
         if x.index == idx then out[1] = { x.tree, x.role } end
       end
       if not out[1] then local t, role = treeOfSpecIndex(class, idx); out[1] = { t, role } end
@@ -846,7 +854,9 @@ API.AddProbe("pve", function()
     { "talent API", "GetTalentTabInfo " .. P.Has(GetTalentTabInfo) .. " · GetNumTalentGroups " .. P.Has(GetNumTalentGroups) .. " · GetSpecialization " .. P.Has(GetSpecialization) },
     { "specs (loadout saved = *)", (function()
       local t = {}
-      for _, x in ipairs(R.MySpecs()) do t[#t + 1] = x.index .. " " .. tostring(x.name) .. " → " .. tostring(x.role) .. (x.configured and " *" or "") end
+      local specs = R.MySpecs()
+      if specs[1] and specs[1].initial then return "no specialization chosen yet (" .. tostring(specs[1].name) .. ")" end
+      for _, x in ipairs(specs) do t[#t + 1] = x.index .. " " .. tostring(x.name) .. " → " .. tostring(x.role) .. (x.configured and " *" or "") end
       return table.concat(t, " · ")
     end)() },
     { "talents read", (#t > 0 and table.concat(t, "; ") or "nothing") .. " · active " .. tostring(active) .. " · via " .. tostring(src) },
