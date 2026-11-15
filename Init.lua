@@ -73,7 +73,7 @@ SlashCmdList.GUILDEVENTMANAGER = function(msg)
   local cmd, rest = (msg or ""):match("^%s*(%S*)%s*(.-)%s*$")
   cmd = (cmd or ""):lower()
   if cmd == "" then ns.SafeCall("open", ns.UI.Toggle)
-  elseif cmd == "events" or cmd == "banner" or cmd == "settings" then ns.SafeCall("open", ns.UI.Show, cmd)
+  elseif cmd == "events" or cmd == "banner" or cmd == "settings" or cmd == "home" or cmd == "ledger" then ns.SafeCall("open", ns.UI.Show, cmd)
   elseif cmd == "ach" or cmd == "achievements" or cmd == "erfolge" then ns.SafeCall("open", ns.UI.Show, "ach")
   elseif cmd == "plaque" or cmd == "plakette" then
     local f = rest:lower()

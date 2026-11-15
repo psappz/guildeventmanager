@@ -90,7 +90,7 @@ local function build(p)
   p.rollHead:SetPoint("TOPLEFT", 0, 0)
   p.rulesBtn = W.Button(right, L.PVP_RULES, false, 20)
   p.rulesBtn:SetPoint("TOPRIGHT", 0, 2)
-  p.rulesBtn:SetScript("OnClick", function() V.showRules = not V.showRules; UI.Refresh() end)
+  p.rulesBtn:SetScript("OnClick", function() UI.Show("pvprules") end)
   p.rollHead.line:SetPoint("RIGHT", p.rulesBtn, "LEFT", -8, 0)
 
   p.roll = W.Box(right, 10, 10, "panel2")
@@ -117,10 +117,16 @@ local function build(p)
   p.rollEmpty:SetPoint("TOPLEFT", 2, -4); p.rollEmpty:SetPoint("RIGHT", p.rollScroll.content, "RIGHT", -2, 0)
   p.rollEmpty:SetText(L.PVP_ROLL_EMPTY)
 
+end
+
+-- rules form (managers edit, everyone can read): a page in the settings
+local function buildRules(p)
+  local parent = p
+  p.head = UI.Section(p, L.PVP_RULES)
+  p.head:SetPoint("TOPLEFT", 0, 0)
   -- rules form (managers edit, everyone can read)
-  p.rules = W.Box(right, 10, 10, "panel2")
+  p.rules = W.Box(parent, 10, 10, "panel2")
   p.rules:SetPoint("TOPLEFT", 0, -24); p.rules:SetPoint("BOTTOMRIGHT", 0, 0)
-  p.rules:Hide()
   p.ruleEdits = {}
   -- built-in rules plus rules of PvP extension modules (GuildEventManagerAPI.PvP.AddRule)
   local keys = {}
@@ -181,8 +187,37 @@ local function build(p)
   end)
 end
 
+local function refreshRules(p)
+  local manager = G.IsManager()
+  local r = P.Rules()
+  for _, k in ipairs(p.ruleKeys) do
+    local e = p.ruleEdits[k.key]
+    if not e:HasFocus() then e:SetText(tostring(r[k.key] or "")) end
+    e:SetEnabled(manager)
+  end
+  p.rulesSave:SetShown(manager); p.rulesDefault:SetShown(manager)
+end
+
 local WHY = { kill = "PVP_DEED_KILL", debt = "PVP_DEED_DEBT", drum = "PVP_DEED_DRUM", revert = "PVP_DEED_REVERT",
   makgora = "PVP_DEED_MAKGORA", oath = "PVP_DEED_OATH" }
+
+-- how an honor entry reads ("defeated Name", "won a bounty on Name" ...)
+function P.DeedText(e)
+  local deed = P.DeedLabel and P.DeedLabel(e)
+  -- older versions stored "an enemy" when the name was unknown
+  if e.note and P.OLD_UNKNOWN[e.note] then e = setmetatable({ note = L.PVP_UNKNOWN_NAME }, { __index = e }) end
+  if not deed then
+    deed = L[WHY[e.why] or "PVP_DEED_OTHER"]
+    if e.why == "makgora" then deed = deed:format(e.note and G.Display(e.note) or "?")
+    elseif deed:find("%%s") then deed = deed:format(e.note or "?") end
+  end
+  if e.why == "debt" then deed = deed .. " (" .. T.Word("DEBT") .. ")" end
+  if e.why == "bounty" then
+    local key = ({ set = "PVP_DEED_BNT_SET", won = "PVP_DEED_BNT_WON", back = "PVP_DEED_BNT_BACK", exp = "PVP_DEED_BNT_BACK" })[e.flag or ""] or "PVP_DEED_BNT_FIX"
+    deed = L[key]:format(e.note or "?")
+  end
+  return deed
+end
 
 local function refresh(p)
   local th = T.Current()
@@ -229,20 +264,6 @@ local function refresh(p)
   p.postOwn:SetShown(chatOn); p.hideOthers:SetShown(chatOn)
 
   -- right side
-  local showRules = V.showRules
-  p.roll:SetShown(not showRules)
-  p.rules:SetShown(showRules)
-  W.SetLabel(p.rulesBtn, showRules and L.PVP_ROLL or L.PVP_RULES)
-  p.rollHead:SetText(showRules and L.PVP_RULES or L.PVP_ROLL)
-  if showRules then
-    for _, k in ipairs(p.ruleKeys) do
-      local e = p.ruleEdits[k.key]
-      if not e:HasFocus() then e:SetText(tostring(r[k.key] or "")) end
-      e:SetEnabled(manager)
-    end
-    p.rulesSave:SetShown(manager); p.rulesDefault:SetShown(manager)
-    return
-  end
   local list = Pts.Entries(function(e) return e.pot == "honor" end)
   local n = 0
   for _, e in ipairs(list) do
@@ -251,19 +272,7 @@ local function refresh(p)
     local row = p.rollRows:Get(n)
     row.entry = e
     row:ClearAllPoints(); row:SetPoint("TOPLEFT", 0, -(n - 1) * 20); row:SetPoint("RIGHT", p.rollScroll.content, "RIGHT", 0, 0)
-    local deed = P.DeedLabel and P.DeedLabel(e)
-    -- older versions stored "an enemy" when the name was unknown
-    if e.note and P.OLD_UNKNOWN[e.note] then e = setmetatable({ note = L.PVP_UNKNOWN_NAME }, { __index = e }) end
-    if not deed then
-      deed = L[WHY[e.why] or "PVP_DEED_OTHER"]
-      if e.why == "makgora" then deed = deed:format(e.note and G.Display(e.note) or "?")
-      elseif deed:find("%%s") then deed = deed:format(e.note or "?") end
-    end
-    if e.why == "debt" then deed = deed .. " (" .. T.Word("DEBT") .. ")" end
-    if e.why == "bounty" then
-      local key = ({ set = "PVP_DEED_BNT_SET", won = "PVP_DEED_BNT_WON", back = "PVP_DEED_BNT_BACK", exp = "PVP_DEED_BNT_BACK" })[e.flag or ""] or "PVP_DEED_BNT_FIX"
-      deed = L[key]:format(e.note or "?")
-    end
+    local deed = P.DeedText(e)
     local txt = G.Display(e.who) .. U.Color(T.Hex(th.muted), " · " .. deed .. ((e.zone and e.zone ~= "") and (" · " .. e.zone) or ""))
     if e.reverted then txt = U.Color("ff808080", G.Display(e.who) .. " · " .. deed .. " · " .. L.PVP_REVERTED) end
     row.text:SetText(txt)
@@ -275,11 +284,33 @@ local function refresh(p)
   p.rollScroll:SetContentHeight(math.min(n, 60) * 20)
 end
 
-UI.AddTab("pvp", {
+UI.AddModule("pvp", {
   label = function() return L.TAB_PVP end,
-  build = build,
-  refresh = refresh,
+  icon = "Interface\\Icons\\Achievement_PVP_H_01",
+  category = "module",
+  order = 10,
+  badge = function()
+    local n = 0
+    for _ in ipairs(P.OpenBounties and P.OpenBounties() or {}) do n = n + 1 end
+    return n > 0 and tostring(n) or nil
+  end,
+  tabs = { { id = "pvp", label = function() return core.L.TAB_HOME end, build = build, refresh = refresh } },
 })
+
+UI.AddSettingsPage("pvprules", {
+  label = function() return L.PVP_RULES end,
+  build = buildRules,
+  refresh = refreshRules,
+})
+
+-- honor entries in the guild's honor book
+if core.Ledger then
+  core.Ledger.AddFormat("pvp", {
+    label = function() return L.TAB_PVP end,
+    match = function(e) return e.pot == "honor" end,
+    text = function(e) return P.DeedText(e) end,
+  })
+end
 
 -- the drum list counts down: refresh the open tab every few seconds
 local function pulse()

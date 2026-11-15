@@ -270,6 +270,7 @@ local function refresh(p)
 end
 
 UI.AddTab("pvphonor", {
+  parent = "pvp",
   label = function() return L.TAB_PVPHONOR end,
   build = build,
   refresh = refresh,

@@ -1,26 +1,166 @@
 local ADDON, ns = ...
--- Main window: faction header, tabs (Events, Banner, Achievements, Settings),
--- and the family bar at the bottom like in the other Manager addons.
+-- Main window: header (crest, guild, bell, settings), sidebar with the guild's
+-- own areas and one entry per module, sub-tabs inside an entry, and the family
+-- bar at the bottom like in the other Manager addons.
+--
+-- Entries (sidebar) hold one or more views (tabs). Modules add an entry with
+-- UI.AddModule; UI.AddTab stays as the short form (one entry with one view, or
+-- one more view in an existing entry with def.parent).
 local U, G, T, W = ns.U, ns.Guild, ns.Theme, ns.W
 local UI = {}
 ns.UI = UI
 
-UI.views = {}      -- id -> { label = fn, build = fn(parent), refresh = fn(panel) }
-UI.order = { "events", "banner", "ach", "settings" }
+UI.views = {}      -- view id -> { label = fn, build = fn(parent), refresh = fn(panel) }
+UI.entries = {}    -- entry id -> { id, label = fn, icon, group, order, tabs = { view ids }, badge = fn, hidden }
+UI.entryOf = {}    -- view id -> entry id
 local win
 
-function UI.RegisterView(id, def) UI.views[id] = def end
+local W_WIDTH, W_HEIGHT, SIDE = 1080, 620, 184
 
--- Modules add their own tab (before Settings). Must happen before the window opens.
-function UI.AddTab(id, def)
+-- the guild's own areas, in this order
+local CORE = { "home", "events", "ledger", "ach", "banner" }
+local CORE_ICONS = {
+  home = "Interface\\Icons\\INV_Misc_Map_01",
+  events = "Interface\\Icons\\INV_Misc_Note_06",
+  ledger = "Interface\\Icons\\INV_Misc_Book_11",
+  ach = "Interface\\Icons\\Achievement_General",
+  banner = "Interface\\Icons\\INV_BannerPVP_02",
+}
+-- sidebar groups in this order; modules pick one with def.category
+UI.GROUPS = { "guild", "module", "holiday" }
+
+local function addEntry(id, def)
+  local e = UI.entries[id] or { id = id, tabs = {} }
+  e.label = def.label or e.label
+  e.icon = def.icon or e.icon
+  e.group = def.category or def.group or e.group or "module"
+  e.order = def.order or e.order or 100
+  e.badge = def.badge or e.badge
+  e.hidden = def.hidden or e.hidden
+  UI.entries[id] = e
+  if win then win.navDirty = true end
+  return e
+end
+
+local function addView(entry, vid, def, pos)
+  UI.views[vid] = def
+  UI.entryOf[vid] = entry.id
+  for _, v in ipairs(entry.tabs) do if v == vid then return end end
+  if pos then table.insert(entry.tabs, math.min(pos, #entry.tabs + 1), vid) else entry.tabs[#entry.tabs + 1] = vid end
+  if win then win.navDirty = true end
+end
+
+-- Core views: each its own entry (settings is reached by the gear in the header)
+function UI.RegisterView(id, def)
+  for i, c in ipairs(CORE) do
+    if c == id then
+      local e = addEntry(id, { label = def.label, icon = CORE_ICONS[id], group = "guild", order = i })
+      addView(e, id, def, 1)
+      return
+    end
+  end
+  if id == "settings" then
+    local e = addEntry("settings", { label = def.label, group = "guild", hidden = true, order = 99 })
+    addView(e, id, def, 1)
+    return
+  end
   UI.views[id] = def
-  for _, v in ipairs(UI.order) do if v == id then return end end
-  table.insert(UI.order, #UI.order, id)
+end
+
+-- A sidebar entry for a module: def = { label = fn, icon, category = "module"|"holiday",
+-- order, badge = fn() -> text, tabs = { { id, label = fn, build, refresh }, ... } }
+function UI.AddModule(id, def)
+  local e = addEntry(id, def)
+  for _, t in ipairs(def.tabs or {}) do addView(e, t.id, t) end
+  return e
+end
+
+-- Short form: def.parent adds a view to an existing entry, otherwise the view
+-- gets an entry of its own (API 1 behaviour)
+function UI.AddTab(id, def)
+  if def.parent then
+    local e = UI.entries[def.parent] or addEntry(def.parent, { label = def.parentLabel or def.label })
+    addView(e, id, def, def.pos)
+  else
+    local e = addEntry(id, { label = def.label, icon = def.icon, category = def.category, order = def.order })
+    addView(e, id, def, 1)
+  end
+end
+
+-- One more page in the settings (rules of a module and the like)
+function UI.AddSettingsPage(id, def)
+  local e = addEntry("settings", { group = "guild", hidden = true, order = 99 })
+  addView(e, id, def)
+end
+
+---------------------------------------------------------------------------
+-- Window
+---------------------------------------------------------------------------
+local function navButton(parent)
+  local th = T.Current()
+  local b = CreateFrame("Button", nil, parent, "BackdropTemplate")
+  b:SetHeight(28)
+  W.Paint(b, { 0, 0, 0, 0 }, { 0, 0, 0, 0 })
+  b.icon = b:CreateTexture(nil, "ARTWORK")
+  b.icon:SetSize(18, 18); b.icon:SetPoint("LEFT", 8, 0)
+  b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  b.text = W.Text(b, 12, "text")
+  b.text:SetPoint("LEFT", b.icon, "RIGHT", 8, 0)
+  b.badge = W.Text(b, 10, "title")
+  b.badge:SetPoint("RIGHT", -8, 0)
+  b.text:SetPoint("RIGHT", b.badge, "LEFT", -4, 0)
+  b.text:SetWordWrap(false)
+  b:SetScript("OnEnter", function(self) if not self.active then self:SetBackdropColor(th.panel2[1], th.panel2[2], th.panel2[3], 0.8) end end)
+  b:SetScript("OnLeave", function(self) if not self.active then self:SetBackdropColor(0, 0, 0, 0) end end)
+  b:SetScript("OnClick", function(self) UI.Show(self.entry) end)
+  return b
+end
+
+local function groupLabel(parent)
+  local fs = W.Text(parent, 10, "muted")
+  return fs
+end
+
+local function buildNav()
+  local side = win.side
+  win.navDirty = false
+  win.navBtns = win.navBtns or {}
+  win.navHeads = win.navHeads or {}
+  for _, b in pairs(win.navBtns) do b:Hide() end
+  for _, h in pairs(win.navHeads) do h:Hide() end
+  local y, nb, nh = -10, 0, 0
+  for _, grp in ipairs(UI.GROUPS) do
+    local list = {}
+    for _, e in pairs(UI.entries) do
+      if e.group == grp and not e.hidden and #e.tabs > 0 then list[#list + 1] = e end
+    end
+    table.sort(list, function(a, b) if a.order ~= b.order then return a.order < b.order end return a.id < b.id end)
+    if #list > 0 then
+      nh = nh + 1
+      local h = win.navHeads[nh] or groupLabel(side)
+      win.navHeads[nh] = h
+      h:ClearAllPoints(); h:SetPoint("TOPLEFT", 14, y - 4)
+      h:SetText(ns.L["NAV_" .. grp:upper()] or grp)
+      h:Show()
+      y = y - 22
+      for _, e in ipairs(list) do
+        nb = nb + 1
+        local b = win.navBtns[nb] or navButton(side)
+        win.navBtns[nb] = b
+        b.entry = e.id
+        b:ClearAllPoints(); b:SetPoint("TOPLEFT", 6, y); b:SetPoint("RIGHT", side, "RIGHT", -6, 0)
+        b.icon:SetTexture(e.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+        b:Show()
+        y = y - 30
+      end
+      y = y - 8
+    end
+  end
 end
 
 local function buildWindow()
   local th = T.Current()
-  local f = W.Box(UIParent, 900, 600, "bg")
+  local f = W.Box(UIParent, W_WIDTH, W_HEIGHT, "bg")
   f:SetBackdropBorderColor(th.border[1], th.border[2], th.border[3], 1)
   f:SetPoint("CENTER")
   f:SetFrameStrata("HIGH")
@@ -44,17 +184,21 @@ local function buildWindow()
     f:SetPoint(w[1] or "CENTER", UIParent, w[2] or "CENTER", w[3] or 0, w[4] or 0)
   end
 
-  -- header
+  -- header: crest (opens the banner), guild, bell, settings
   local head = CreateFrame("Frame", nil, f)
   head:SetPoint("TOPLEFT", 1, -1); head:SetPoint("TOPRIGHT", -1, -1); head:SetHeight(56)
   local hbg = head:CreateTexture(nil, "BACKGROUND")
   hbg:SetAllPoints()
   hbg:SetColorTexture(th.banner[1], th.banner[2], th.banner[3], 0.35)
-  local crest = head:CreateTexture(nil, "ARTWORK")
-  crest:SetSize(44, 44); crest:SetPoint("LEFT", 12, -2)
+  local crestBtn = CreateFrame("Button", nil, head)
+  crestBtn:SetSize(44, 44); crestBtn:SetPoint("LEFT", 12, -2)
+  local crest = crestBtn:CreateTexture(nil, "ARTWORK")
+  crest:SetAllPoints()
   crest:SetTexture(th.crest)
+  crestBtn:SetScript("OnClick", function() UI.Show("banner") end)
+  crestBtn.tip = { ns.L.TAB_BANNER }
   f.title = W.Text(head, 17, "title")
-  f.title:SetPoint("TOPLEFT", crest, "TOPRIGHT", 8, -4)
+  f.title:SetPoint("TOPLEFT", crestBtn, "TOPRIGHT", 8, -4)
   f.title:SetText("GuildEventManager")
   f.sub = W.Text(head, 11, { 0.85, 0.80, 0.72 })
   f.sub:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", 0, -4)
@@ -62,30 +206,55 @@ local function buildWindow()
   line:SetColorTexture(th.border[1], th.border[2], th.border[3], 1)
   line:SetHeight(1); line:SetPoint("BOTTOMLEFT"); line:SetPoint("BOTTOMRIGHT")
   W.Close(f)
+  f.gear = W.Button(head, ns.L.TAB_SETTINGS, false, 24)
+  f.gear:SetPoint("RIGHT", -44, 0)
+  f.gear:SetScript("OnClick", function() UI.Show("settings") end)
+  f.bell = W.Button(head, ns.L.NOTICES, false, 24)
+  f.bell:SetPoint("RIGHT", f.gear, "LEFT", -6, 0)
+  f.bell:SetScript("OnClick", function() UI.ToggleNotices() end)
 
-  -- tabs
-  f.tabs = {}
-  local prev
-  for _, id in ipairs(UI.order) do
-    local b = W.Button(f, "", false, 26)
-    b.id = id
-    if prev then b:SetPoint("LEFT", prev, "RIGHT", 4, 0) else b:SetPoint("TOPLEFT", 16, -66) end
-    b:SetScript("OnClick", function(self) UI.Show(self.id) end)
-    f.tabs[id] = b
-    prev = b
-  end
+  -- sidebar
+  f.side = CreateFrame("Frame", nil, f, "BackdropTemplate")
+  f.side:SetPoint("TOPLEFT", 1, -57); f.side:SetPoint("BOTTOMLEFT", 1, 29)
+  f.side:SetWidth(SIDE)
+  W.Paint(f.side, { th.bg[1] * 0.85, th.bg[2] * 0.85, th.bg[3] * 0.85, 1 }, th.line)
+  f.navDirty = true
 
-  -- content
+  -- content with optional sub-tabs
   f.body = W.Box(f, 10, 10, "panel")
   f.body:SetBackdropBorderColor(th.border[1], th.border[2], th.border[3], 1)
-  f.body:SetPoint("TOPLEFT", 16, -92)
-  f.body:SetPoint("BOTTOMRIGHT", -16, 36)
+  f.body:SetPoint("TOPLEFT", SIDE + 10, -66)
+  f.body:SetPoint("BOTTOMRIGHT", -12, 36)
   f.panels = {}
+  f.subtabs = {}
 
   -- not activated / no guild
   f.notice = W.Text(f.body, 13, "text")
   f.notice:SetPoint("TOPLEFT", 24, -24); f.notice:SetPoint("RIGHT", -24, 0)
   f.notice:SetSpacing(4)
+
+  -- notices (bell)
+  f.noticeBox = W.Box(f, 340, 40, "panel2")
+  f.noticeBox:SetPoint("TOPRIGHT", f.bell, "BOTTOMRIGHT", 0, -6)
+  f.noticeBox:SetFrameLevel(f:GetFrameLevel() + 30)
+  f.noticeBox:EnableMouse(true)
+  f.noticeBox:Hide()
+  f.noticeRows = W.Pool(f.noticeBox, function(parent)
+    local r = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    r:SetHeight(36)
+    W.Paint(r, th.panel, th.line)
+    r.group = W.Text(r, 9, "title"); r.group:SetPoint("TOPLEFT", 8, -5)
+    r.text = W.Text(r, 10, "text"); r.text:SetPoint("TOPLEFT", r.group, "BOTTOMLEFT", 0, -3); r.text:SetPoint("RIGHT", -8, 0)
+    r.text:SetWordWrap(false)
+    r:SetScript("OnClick", function(self)
+      f.noticeBox:Hide()
+      if self.n then ns.Notices.Open(self.n) end
+    end)
+    return r
+  end)
+  f.noticeEmpty = W.Text(f.noticeBox, 10, "muted")
+  f.noticeEmpty:SetPoint("TOPLEFT", 10, -12)
+  f.noticeEmpty:SetText(ns.L.NOTICES_NONE)
 
   -- footer: family bar in the family look (dark blue)
   local foot = CreateFrame("Frame", nil, f, "BackdropTemplate")
@@ -101,19 +270,43 @@ end
 
 function UI.Frame() return win end
 
+-- Notices list under the bell
+function UI.ToggleNotices()
+  if not win then return end
+  local box = win.noticeBox
+  if box:IsShown() then box:Hide(); return end
+  local list = ns.Notices and ns.Notices.List() or {}
+  local th = T.Current()
+  for i, n in ipairs(list) do
+    if i > 8 then break end
+    local r = win.noticeRows:Get(i)
+    r.n = n
+    r:ClearAllPoints(); r:SetPoint("TOPLEFT", 6, -6 - (i - 1) * 40); r:SetPoint("RIGHT", box, "RIGHT", -6, 0)
+    r.group:SetText((n.group or "") .. "  " .. U.Color(T.Hex(th.muted), date("%d.%m. %H:%M", n.at or U.Now())))
+    r.text:SetText(n.text or "")
+  end
+  local shown = math.min(#list, 8)
+  win.noticeRows:HideFrom(shown + 1)
+  win.noticeEmpty:SetShown(shown == 0)
+  box:SetHeight(math.max(40, shown * 40 + 12))
+  box:Show()
+  if ns.Notices then ns.Notices.MarkRead() end
+  UI.Refresh()
+end
+
+-- id: a view id or an entry id (opens the entry's last view)
 function UI.Show(id)
   win = win or buildWindow()
-  id = id or win.current or "events"
+  if win.navDirty then buildNav() end
+  local entry = id and UI.entries[id]
+  if entry and UI.views[id] == nil then id = entry.last or entry.tabs[1] end
+  id = id or win.current or "home"
+  if not UI.views[id] then id = "home" end
   win.current = id
-  for vid, b in pairs(win.tabs) do
-    local v = UI.views[vid]
-    W.SetLabel(b, v and v.label() or vid)
-    local th = T.Current()
-    local active = vid == id
-    b:SetBackdropColor(unpack(active and th.accent or th.panel2))
-    b.label:SetTextColor(unpack(active and { 1, 0.95, 0.85 } or th.text))
-  end
+  local eid = UI.entryOf[id]
+  if eid and UI.entries[eid] then UI.entries[eid].last = id end
   for vid, p in pairs(win.panels) do p:SetShown(vid == id) end
+  win.noticeBox:Hide()
   local opened = not win:IsShown()
   win:Show()
   UI.Refresh()
@@ -133,19 +326,69 @@ local function blockedText()
   end
 end
 
+local function refreshChrome()
+  local th = T.Current()
+  if win.navDirty then buildNav() end
+  local cur = UI.entryOf[win.current]
+  for _, b in ipairs(win.navBtns or {}) do
+    if b:IsShown() then
+      local e = UI.entries[b.entry]
+      local active = b.entry == cur
+      b.active = active
+      b.text:SetText(e.label and e.label() or e.id)
+      local badge = e.badge and e.badge()
+      b.badge:SetText(badge or "")
+      if active then
+        b:SetBackdropColor(th.accent[1], th.accent[2], th.accent[3], 1)
+        b.text:SetTextColor(1, 0.95, 0.85)
+      else
+        b:SetBackdropColor(0, 0, 0, 0)
+        b.text:SetTextColor(th.text[1], th.text[2], th.text[3])
+      end
+    end
+  end
+  -- sub-tabs of the open entry
+  local e = cur and UI.entries[cur]
+  local tabs = (e and #e.tabs > 1) and e.tabs or {}
+  local prev
+  for i, vid in ipairs(tabs) do
+    local b = win.subtabs[i]
+    if not b then
+      b = W.Button(win.body, "", false, 24)
+      b:SetScript("OnClick", function(self) UI.Show(self.view) end)
+      win.subtabs[i] = b
+    end
+    b.view = vid
+    local v = UI.views[vid]
+    W.SetLabel(b, v and v.label and v.label() or vid)
+    local active = vid == win.current
+    b:SetBackdropColor(unpack(active and th.accent or th.panel2))
+    b.label:SetTextColor(unpack(active and { 1, 0.95, 0.85 } or th.text))
+    b:ClearAllPoints()
+    if prev then b:SetPoint("LEFT", prev, "RIGHT", 4, 0) else b:SetPoint("TOPLEFT", 12, -10) end
+    b:Show()
+    prev = b
+  end
+  for i = #tabs + 1, #win.subtabs do win.subtabs[i]:Hide() end
+  win.hasTabs = #tabs > 0
+  -- bell: unread count
+  local unread = ns.Notices and ns.Notices.Unread() or 0
+  W.SetLabel(win.bell, unread > 0 and (ns.L.NOTICES .. " (" .. unread .. ")") or ns.L.NOTICES)
+end
+
 function UI.Refresh()
   if not win or not win:IsShown() then return end
   ns.Schedule("gemUIRefresh", 0.05, function()
     if not win:IsShown() then return end
-    local th = T.Current()
     local season = date("%d.%m.", ns.Points.SeasonStart()) .. " – " .. date("%d.%m.", ns.Points.SeasonEnd() - 1)
     win.sub:SetText(G.InGuild()
       and ns.L.HEADER_SUB:format(G.Name() or "?", T.Word("GUILD"), season)
       or ns.L.NO_GUILD_SHORT)
     win.family:Refresh()
+    refreshChrome()
     local id = win.current
     local blocked = blockedText()
-    if blocked and id ~= "settings" then
+    if blocked and UI.entryOf[id] ~= "settings" then
       for _, p in pairs(win.panels) do p:Hide() end
       win.notice:SetText(blocked)
       win.notice:Show()
@@ -155,11 +398,15 @@ function UI.Refresh()
     local v = UI.views[id]
     if not v then return end
     local p = win.panels[id]
+    local top = win.hasTabs and -44 or -12
     if not p then
       p = CreateFrame("Frame", nil, win.body)
-      p:SetPoint("TOPLEFT", 12, -12); p:SetPoint("BOTTOMRIGHT", -12, 12)
       win.panels[id] = p
+      p:SetPoint("TOPLEFT", 12, top); p:SetPoint("BOTTOMRIGHT", -12, 12)
       v.build(p)
+    else
+      p:ClearAllPoints()
+      p:SetPoint("TOPLEFT", 12, top); p:SetPoint("BOTTOMRIGHT", -12, 12)
     end
     p:Show()
     v.refresh(p)
@@ -199,4 +446,33 @@ function UI.Pill(parent)
     self:SetShown(text ~= nil and text ~= "")
   end
   return b
+end
+
+-- Row of chips to pick one value: opts = { { value, label }, ... }
+function UI.ChipRow(parent, getOpts, getValue, onPick, w)
+  local row = CreateFrame("Frame", nil, parent)
+  row:SetHeight(24)
+  row.chips = {}
+  function row:Refresh()
+    local opts = getOpts()
+    local prev
+    for i, o in ipairs(opts) do
+      local c = self.chips[i]
+      if not c then
+        c = W.Chip(self, "", w, 22)
+        c:SetScript("OnClick", function(b) onPick(b.value) end)
+        self.chips[i] = c
+      end
+      c.value = o[1]
+      W.SetLabel(c, o[2])
+      if not w then c:SetWidth(c.label:GetStringWidth() + 20) end
+      c:SetSelected(getValue() == o[1])
+      c:ClearAllPoints()
+      if prev then c:SetPoint("LEFT", prev, "RIGHT", 4, 0) else c:SetPoint("LEFT", 0, 0) end
+      c:Show()
+      prev = c
+    end
+    for i = #opts + 1, #self.chips do self.chips[i]:Hide() end
+  end
+  return row
 end

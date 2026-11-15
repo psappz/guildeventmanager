@@ -9,8 +9,12 @@ local ROW_H = 58
 
 local function build(p)
   local th = T.Current()
-  local head = UI.Section(p, T.Word("ACHS"))
+  local head = UI.Section(p, L.ACH_MINE)
   head:SetPoint("TOPLEFT", 0, 0)
+  p.mineHint = W.Text(p, 10, "muted")
+  p.mineHint:SetPoint("TOPLEFT", 0, -22); p.mineHint:SetPoint("RIGHT", p, "RIGHT", -290, 0)
+  p.mineHint:SetWordWrap(false)
+  p.mineHint:SetText(L.ACH_MINE_HINT .. " · " .. L.ACH_GUILD_SOON)
   p.total = W.Text(p, 11, "muted")
   p.preview = W.Button(p, L.SHOW_PLAQUE, false, 20)
   p.preview:SetPoint("TOPRIGHT", 0, 2)
@@ -19,7 +23,7 @@ local function build(p)
   head.line:SetPoint("RIGHT", p.total, "LEFT", -8, 0)
 
   p.scroll = W.Scroll(p)
-  p.scroll:SetPoint("TOPLEFT", 0, -26); p.scroll:SetPoint("BOTTOMRIGHT", -290, 0)
+  p.scroll:SetPoint("TOPLEFT", 0, -42); p.scroll:SetPoint("BOTTOMRIGHT", -290, 0)
   p.rows = W.Pool(p.scroll.content, function(parent)
     local r = CreateFrame("Button", nil, parent, "BackdropTemplate")
     r:SetHeight(ROW_H - 6)
@@ -184,7 +188,7 @@ local function refresh(p)
 end
 
 UI.RegisterView("ach", {
-  label = function() return T.Word("ACHS") end,
+  label = function() return L.ACH_MINE end,
   build = build,
   refresh = refresh,
 })

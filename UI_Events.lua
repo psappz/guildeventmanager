@@ -34,6 +34,15 @@ end
 ---------------------------------------------------------------------------
 -- Overview
 ---------------------------------------------------------------------------
+-- may I create events at all (managers, or a type that allows me, e.g. raids)?
+function V.AnyCreate()
+  if G.IsManager() then return true end
+  for _, t in ipairs(ns.Modules.AllTypes()) do
+    if not t.missing and E.CanCreate(t.id) then return true end
+  end
+  return false
+end
+
 local function makeRow(parent)
   local th = T.Current()
   local r = CreateFrame("Button", nil, parent, "BackdropTemplate")
@@ -82,7 +91,7 @@ end
 
 local function refreshList(p)
   local list = p.list
-  local manager = G.IsManager()
+  local manager = V.AnyCreate()
   list.new:SetShown(manager)
   local groups = {
     { L.SEC_RUNNING, function(e) return e.status == "running" and e.kind ~= "season" end },
@@ -110,12 +119,12 @@ local function refreshList(p)
         r.name:SetText(e.name .. (E.TypeMissing(e) and ("  " .. U.Color(U.WARN, L.MODULE_MISSING)) or ""))
         r.meta:SetText(table.concat({ ns.Modules.TypeName(e.type), kindText(e.kind), groupText(e), whenText(e),
           L.SIGNED_N:format(E.SignCount(e)) }, " · "))
-        local signed = E.IsSigned(e)
+        local st = E.Status(e)
         if E.IsOpen(e) then
-          r.pill:Set(signed and L.SIGNED or (e.status == "running" and statusText(e) or nil), e.status == "running")
-          W.SetLabel(r.action, signed and L.SIGN_OFF or L.SIGN_ON)
+          r.pill:Set(st and L.YOU_ST:format(L["ST_" .. st]) or (e.status == "running" and statusText(e) or nil), e.status == "running")
+          W.SetLabel(r.action, st and L.SIGN_CHANGE or L.SIGN_ON)
           r.action:Show()
-          r.action:SetScript("OnClick", function() E.SignUp(e, not E.IsSigned(e)) end)
+          r.action:SetScript("OnClick", function() V.OpenDetail(e) end)
         else
           r.pill:Set(statusText(e), false)
           r.action:Hide()
@@ -175,9 +184,49 @@ local function buildDetail(p)
 
   d.right = CreateFrame("Frame", nil, d)
   d.right:SetPoint("TOPLEFT", d, "TOP", 8, -54); d.right:SetPoint("BOTTOMRIGHT", 0, 34)
-  d.signHead = UI.Section(d.right, L.SIGNUPS); d.signHead:SetPoint("TOPLEFT", 0, 0)
+  -- own sign-up: state, comment, the event's own fields
+  d.myHead = UI.Section(d.right, L.MY_SIGNUP); d.myHead:SetPoint("TOPLEFT", 0, 0)
+  d.my = W.Box(d.right, 10, 10, "panel2")
+  d.my:SetPoint("TOPLEFT", 0, -22); d.my:SetPoint("RIGHT", 0, 0)
+  d.stRow = UI.ChipRow(d.my, function()
+    local o = {}
+    for _, st in ipairs(E.SIGN) do o[#o + 1] = { st, L["ST_" .. st] } end
+    return o
+  end, function() return d.draft and d.draft.st end, function(v) d.draft.st = v; V.RefreshDetail() end)
+  d.stRow:SetPoint("TOPLEFT", 8, -8); d.stRow:SetPoint("RIGHT", -8, 0)
+  d.cLabel = W.Text(d.my, 10, "muted"); d.cLabel:SetText(L.SIGN_COMMENT)
+  d.comment = W.Edit(d.my, 10, 22)
+  d.comment:SetMaxLetters(E.COMMENT_MAX)
+  d.comment:SetScript("OnTextChanged", function(self) if d.draft then d.draft.c = self:GetText() end end)
+  d.fieldRows = W.Pool(d.my, function(parent)
+    local r = CreateFrame("Frame", nil, parent)
+    r:SetHeight(42)
+    r.label = W.Text(r, 10, "muted"); r.label:SetPoint("TOPLEFT", 0, 0)
+    r.auto = W.Text(r, 13, "title"); r.auto:SetPoint("TOPLEFT", r.label, "BOTTOMLEFT", 0, -6)
+    r.autoTag = UI.Pill(r); r.autoTag:SetPoint("LEFT", r.auto, "RIGHT", 8, 0)
+    r.chips = UI.ChipRow(r, function() return r.opts or {} end, function() return r.get and r.get() end, function(v) if r.set then r.set(v) end end)
+    r.chips:SetPoint("TOPLEFT", r.label, "BOTTOMLEFT", 0, -4); r.chips:SetPoint("RIGHT", 0, 0)
+    r.edit = W.Edit(r, 120, 22); r.edit:SetPoint("TOPLEFT", r.label, "BOTTOMLEFT", 0, -4)
+    r.edit:SetScript("OnTextChanged", function(self) if r.set and self:HasFocus() then r.set(self:GetText()) end end)
+    r.check = W.Check(r, "", function(_, on) if r.set then r.set(on) end end)
+    r.check:SetPoint("TOPLEFT", r.label, "BOTTOMLEFT", 0, -4)
+    return r
+  end)
+  d.save = W.Button(d.my, L.SIGN_ON, true, 22)
+  d.save:SetScript("OnClick", function()
+    local e = d.ev
+    if not e or not d.draft then return end
+    local ok = E.SetSignup(e, d.draft)
+    if ok then d.saved = U.Now() end
+    V.RefreshDetail()
+  end)
+  d.savedText = W.Text(d.my, 10, "muted")
+  d.savedText:SetPoint("LEFT", d.save, "RIGHT", 8, 0); d.savedText:SetPoint("RIGHT", -8, 0)
+  d.savedText:SetWordWrap(false)
+
+  d.signHead = UI.Section(d.right, L.SIGNUPS)
   d.signBox = W.Box(d.right, 10, 10, "panel2")
-  d.signBox:SetPoint("TOPLEFT", 0, -22); d.signBox:SetPoint("BOTTOMRIGHT", 0, 0)
+  d.signBox:SetPoint("TOPLEFT", d.signHead, "BOTTOMLEFT", 0, -8); d.signBox:SetPoint("BOTTOMRIGHT", 0, 0)
   d.signScroll = W.Scroll(d.signBox)
   d.signScroll:SetPoint("TOPLEFT", 6, -6); d.signScroll:SetPoint("BOTTOMRIGHT", -6, 6)
   d.signText = W.Text(d.signScroll.content, 11, "text")
@@ -196,6 +245,7 @@ local function buildDetail(p)
   d.bEnd = act("ACT_END", function(e) V.OpenAttendance(e) end)
   d.bEdit = act("ACT_EDIT", function(e) V.OpenEditor(e) end)
   d.bCopy = act("ACT_COPY", function(e) V.OpenEditor(nil, e) end)
+  d.bInvite = act("ACT_INVITE", function(e) E.InviteAll(e) end)
   d.bCancel = act("ACT_CANCEL", function(e)
     W.Dialog({ text = L.CONFIRM_CANCEL:format(e.name), onAccept = function() E.Cancel(e) end })
   end)
@@ -236,7 +286,7 @@ local function refreshDetail(p)
   d.facts:SetText(table.concat(facts, "\n"))
   d.goalHead:SetShown(total > 0)
   d.goalHead:SetText(L.GOALS .. "  " .. L.GOALS_DONE:format(done, total))
-  local manager = G.IsManager()
+  local manager = E.CanManage(e)
   for i, g in ipairs(e.goals or {}) do
     local c = d.goalChecks:Get(i)
     c:ClearAllPoints(); c:SetPoint("TOPLEFT", d.goalHead, "BOTTOMLEFT", 2, -8 - (i - 1) * 20)
@@ -247,19 +297,121 @@ local function refreshDetail(p)
   end
   d.goalChecks:HideFrom(total + 1)
 
-  local names = {}
-  for key, s in pairs(e.signups or {}) do if s.on then names[#names + 1] = G.Display(key) end end
-  table.sort(names)
-  d.signHead:SetText(L.SIGNUPS .. " (" .. #names .. ")")
-  d.signText:SetText(#names > 0 and table.concat(names, "\n") or L.NO_SIGNUPS)
-  d.signScroll:SetContentHeight(d.signText:GetStringHeight() + 4)
-
+  -- own sign-up
   local open = E.IsOpen(e)
-  d.sign:SetShown(open)
-  W.SetLabel(d.sign, E.IsSigned(e) and L.SIGN_OFF or L.SIGN_ON)
-  d.sign:SetScript("OnClick", function() E.SignUp(e, not E.IsSigned(e)) end)
+  local th = T.Current()
+  local muted = T.Hex(th.muted)
+  if d.draftFor ~= e.id then
+    local cur = E.Signup(e)
+    d.draftFor = e.id
+    d.saved = nil
+    d.draft = { st = E.Status(e) or "in", c = cur and cur.c or "", f = U.Copy(cur and cur.f or {}) }
+    d.comment:SetText(d.draft.c or "")
+  end
+  d.myHead:SetShown(open); d.my:SetShown(open)
+  local y = 0
+  if open then
+    d.stRow:Refresh()
+    d.cLabel:ClearAllPoints(); d.cLabel:SetPoint("TOPLEFT", 8, -40)
+    d.comment:ClearAllPoints(); d.comment:SetPoint("TOPLEFT", 8, -54); d.comment:SetPoint("RIGHT", -8, 0)
+    y = -84
+    local fields = E.Fields(e)
+    for i, f in ipairs(fields) do
+      local r = d.fieldRows:Get(i)
+      r:ClearAllPoints(); r:SetPoint("TOPLEFT", 8, y); r:SetPoint("RIGHT", d.my, "RIGHT", -8, 0)
+      r.label:SetText(E.FieldLabel(f) .. (f.required and " *" or ""))
+      local kind = f.kind or "text"
+      r.auto:SetShown(kind == "auto"); r.autoTag:SetShown(kind == "auto")
+      r.chips:SetShown(kind == "choice" or kind == "multi")
+      r.edit:SetShown(kind == "number" or kind == "text")
+      r.check:SetShown(kind == "check")
+      r.get, r.set, r.opts = nil, nil, nil
+      if kind == "auto" then
+        local v = E.AutoValue(f, e)
+        r.auto:SetText(v ~= nil and (f.format and f.format(v) or tostring(v)) or "–")
+        r.autoTag:Set(L.FIELD_AUTO, false)
+      elseif kind == "choice" or kind == "multi" then
+        r.opts = {}
+        for _, o in ipairs(f.options or {}) do
+          local val, lab = o, o
+          if type(o) == "table" then val, lab = o[1], o[2] or o[1] end
+          if type(lab) == "string" and ns.L[lab] then lab = ns.L[lab] end
+          r.opts[#r.opts + 1] = { val, lab }
+        end
+        if kind == "choice" then
+          r.get = function() return d.draft.f[f.id] end
+          r.set = function(v) d.draft.f[f.id] = v; V.RefreshDetail() end
+        else
+          r.get = function() return nil end
+          r.set = function(v)
+            local list = d.draft.f[f.id] or {}
+            local found
+            for j = #list, 1, -1 do if list[j] == v then table.remove(list, j); found = true end end
+            if not found then list[#list + 1] = v end
+            d.draft.f[f.id] = list
+            V.RefreshDetail()
+          end
+        end
+        r.chips:Refresh()
+        if kind == "multi" then
+          local sel = {}
+          for _, v in ipairs(d.draft.f[f.id] or {}) do sel[v] = true end
+          for _, c in ipairs(r.chips.chips) do if c:IsShown() then c:SetSelected(sel[c.value] or false) end end
+        end
+      elseif kind == "check" then
+        r.check.text:SetText(f.checkLabel or "")
+        r.check:SetChecked(d.draft.f[f.id] and true or false)
+        r.set = function(v) d.draft.f[f.id] = v end
+      else
+        if not r.edit:HasFocus() then r.edit:SetText(d.draft.f[f.id] ~= nil and tostring(d.draft.f[f.id]) or "") end
+        r.edit:SetNumeric(kind == "number")
+        r.set = function(v) d.draft.f[f.id] = v end
+      end
+      y = y - 46
+    end
+    d.fieldRows:HideFrom(#fields + 1)
+    d.save:ClearAllPoints(); d.save:SetPoint("TOPLEFT", 8, y - 4)
+    W.SetLabel(d.save, E.Status(e) and L.SIGN_SAVE or L.SIGN_ON)
+    local cur = E.Status(e)
+    d.savedText:SetText(d.saved and L.SIGN_SAVED or (cur and L.YOU_ST:format(L["ST_" .. cur]) or ""))
+    y = y - 34
+    d.my:SetHeight(-y)
+    d.signHead:ClearAllPoints(); d.signHead:SetPoint("TOPLEFT", d.my, "BOTTOMLEFT", 0, -12)
+  else
+    d.signHead:ClearAllPoints(); d.signHead:SetPoint("TOPLEFT", 0, 0)
+  end
 
-  local manager = G.IsManager()
+  -- all sign-ups, by state, with their answers
+  local fields = E.Fields(e)
+  local byState = {}
+  for _, s in ipairs(E.SignupList(e)) do
+    byState[s.st] = byState[s.st] or {}
+    local bits = {}
+    for _, f in ipairs(fields) do
+      local v = s.f[f.id]
+      if v ~= nil and f.hidden ~= true and (f.leadOnly ~= true or E.CanManage(e)) then
+        if type(v) == "table" then v = table.concat(v, ", ") elseif type(v) == "boolean" then v = v and L.YES or L.NO end
+        if f.format and type(v) ~= "string" then v = f.format(v) end
+        bits[#bits + 1] = (f.short or E.FieldLabel(f)) .. ": " .. tostring(v)
+      end
+    end
+    if s.c then bits[#bits + 1] = "»" .. s.c .. "«" end
+    byState[s.st][#byState[s.st] + 1] = G.Display(s.key) .. (#bits > 0 and U.Color(muted, "  · " .. table.concat(bits, " · ")) or "")
+  end
+  local lines = {}
+  for _, st in ipairs(E.SIGN) do
+    local l = byState[st]
+    if l and #l > 0 then
+      lines[#lines + 1] = U.Color(T.Hex(th.title), L["ST_" .. st] .. " (" .. #l .. ")")
+      for _, x in ipairs(l) do lines[#lines + 1] = "  " .. x end
+    end
+  end
+  d.signHead:SetText(L.SIGNUPS .. " (" .. E.SignCount(e) .. ")")
+  d.signText:SetText(#lines > 0 and table.concat(lines, "\n") or L.NO_SIGNUPS)
+  d.signScroll:SetContentHeight(d.signText:GetStringHeight() + 4)
+  d.sign:Hide()
+
+  local manager = E.CanManage(e)
   local x = 0
   for _, b in ipairs(d.mgr) do
     local show = manager and open
@@ -591,7 +743,7 @@ function V.EditorRefresh()
   at(ed.s1); y = y + 24
   local types = {}
   for _, t in ipairs(ns.Modules.AllTypes()) do
-    if not t.missing and ns.Profile.IsTypeActive(t.id) then types[#types + 1] = t end
+    if not t.missing and ns.Profile.IsTypeActive(t.id) and E.CanCreate(t.id) then types[#types + 1] = t end
   end
   for i, t in ipairs(types) do
     local b = ed.tiles:Get(i)
@@ -793,7 +945,7 @@ function V.SaveEditor()
   if ed.ev then
     e = E.Get(ed.ev.id)
     if not e then V.ShowList(); return end
-    for _, k in ipairs({ "type", "name", "desc", "kind", "start", "finish", "group", "gmin", "gmax", "pts", "goals" }) do e[k] = f[k] end
+    for _, k in ipairs({ "type", "name", "desc", "kind", "start", "finish", "group", "gmin", "gmax", "pts", "goals", "fields" }) do e[k] = f[k] end
     if e.kind == "season" then e.start = ns.Points.SeasonStart(); e.finish = ns.Points.SeasonEnd() end
     E.Save(e)
   else
@@ -805,7 +957,8 @@ end
 -- e: edit this event · template: copy of an event as a new one (same weekday and time, next date ahead)
 function V.OpenEditor(e, template)
   local p = V.panel
-  if not G.IsManager() then return end
+  if e and not E.CanManage(e) then return end
+  if not e and not V.AnyCreate() then return end
   local ed = p.editor
   ed.ev = e
   local src = e or template
@@ -830,7 +983,7 @@ function V.OpenEditor(e, template)
   end
   if not ed.f.type then
     for _, t in ipairs(ns.Modules.AllTypes()) do
-      if not t.missing and ns.Profile.IsTypeActive(t.id) then
+      if not t.missing and ns.Profile.IsTypeActive(t.id) and E.CanCreate(t.id) then
         ed.f.type = t.id; ed.f.kind = t.kind or ed.f.kind; ed.f.group = t.group or ed.f.group
         ed.f.gmin, ed.f.gmax = t.gmin, t.gmax
         break
@@ -948,6 +1101,7 @@ function V.Mode(m)
 end
 
 function V.ShowList() V.Mode("list") end
+function V.RefreshDetail() if V.panel and V.panel.mode == "detail" then refreshDetail(V.panel) end end
 
 function V.OpenDetail(e)
   if not V.panel then UI.Show("events"); return end

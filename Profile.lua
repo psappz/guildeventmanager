@@ -13,6 +13,7 @@ P.DEFAULTS = {
   managerRank = nil,        -- rank index with event rights (nil = only the guild master)
   managerRankName = nil,
   managerHigher = true,     -- higher ranks included
+  raidRank = 1,             -- lowest rank index that may create raids (1 = the rank below the guild master)
   season = "month",         -- "2weeks" | "month" | "quarter"
   pts = { participate = 10, goal = 5, lead = 15, leadMin = 5 },
   banner = { 1000, 3000, 6000 },  -- thresholds for banner levels 2, 3, 4 (honor + event points, last 28 days)
@@ -61,10 +62,10 @@ end
 function P.Update(fn)
   if not G.IsManager() then U.Print(ns.L.NO_RIGHTS); return false end
   local p = P.Get()
-  local oldRank, oldHigher = p.managerRank, p.managerHigher
+  local oldRank, oldHigher, oldRaid = p.managerRank, p.managerHigher, p.raidRank
   fn(p)
-  if not G.IsLeader() and (p.managerRank ~= oldRank or p.managerHigher ~= oldHigher) then
-    p.managerRank, p.managerHigher = oldRank, oldHigher
+  if not G.IsLeader() and (p.managerRank ~= oldRank or p.managerHigher ~= oldHigher or p.raidRank ~= oldRaid) then
+    p.managerRank, p.managerHigher, p.raidRank = oldRank, oldHigher, oldRaid
     U.Print(ns.L.ONLY_GM_RANK)
   end
   remember(p)
@@ -97,7 +98,7 @@ C.On("PROF", function(data, from)
   if (tonumber(new.v) or 0) <= (old.v or 0) then return end
   if not G.IsManager(from) then return end
   -- only the guild master may change who holds event rights
-  if G.RankOf(from) ~= 0 and (new.managerRank ~= old.managerRank or new.managerHigher ~= old.managerHigher) then return end
+  if G.RankOf(from) ~= 0 and (new.managerRank ~= old.managerRank or new.managerHigher ~= old.managerHigher or new.raidRank ~= old.raidRank) then return end
   s.profile = new
   P.Get()
   ns.Fire("PROFILE_CHANGED")

@@ -27,6 +27,7 @@ Locales\frFR.lua
 Locales\esES.lua
 Locales\itIT.lua
 Locales\ptBR.lua
+Locales\Core07.lua
 Util.lua
 Family.lua
 Theme.lua
@@ -37,12 +38,16 @@ Profile.lua
 Points.lua
 Achievements.lua
 Events.lua
+Ledger.lua
+Notices.lua
 Plaque.lua
 Widgets.lua
 UI_Main.lua
+UI_Home.lua
 UI_Events.lua
 UI_Banner.lua
 UI_Achievements.lua
+UI_Ledger.lua
 UI_Settings.lua
 Demo.lua
 Export.lua

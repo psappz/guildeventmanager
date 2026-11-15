@@ -211,6 +211,7 @@ local function refresh(p)
 end
 
 UI.AddTab("pvpkills", {
+  parent = "pvp",
   label = function() return L.TAB_PVPKILLS end,
   build = build,
   refresh = refresh,

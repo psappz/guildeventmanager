@@ -45,7 +45,7 @@ end
 local function click(button)
   if button == "RightButton" then ns.UI.Toggle("banner")
   elseif button == "MiddleButton" then ns.UI.Toggle("settings")
-  else ns.UI.Toggle("events") end
+  else ns.UI.Toggle() end
 end
 
 function MM.Create()

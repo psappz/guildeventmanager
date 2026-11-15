@@ -186,6 +186,7 @@ local function refresh(p)
 end
 
 UI.AddTab("pvpbounty", {
+  parent = "pvp",
   label = function() return L.TAB_PVPBOUNTY end,
   build = build,
   refresh = refresh,
