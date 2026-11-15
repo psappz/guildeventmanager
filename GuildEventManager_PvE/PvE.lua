@@ -82,24 +82,31 @@ end
 function R.ReadTalents()
   local class = R.MyClass()
   local out, active = {}, 1
-  if GetSpecialization and GetSpecializationInfo then
-    local ok, idx = pcall(GetSpecialization)
+  local SI = C_SpecializationInfo
+  local getSpec = GetSpecialization or (SI and SI.GetSpecialization)
+  if getSpec then
+    local ok, idx = pcall(getSpec)
     if ok and idx then
       local t, role = treeOfSpecIndex(class, idx)
       out[1] = { t, role }
       return out, 1, "spec"
     end
   end
-  if not GetTalentTabInfo then return out, active, nil end
-  local groups = (GetNumTalentGroups and select(2, pcall(GetNumTalentGroups))) or 1
+  local tabInfo = GetTalentTabInfo or (SI and SI.GetTalentTabInfo)
+  if not tabInfo then return out, active, nil end
+  local numGroups = GetNumTalentGroups or (SI and (SI.GetNumSpecGroups or SI.GetNumTalentGroups))
+  local groups = (numGroups and select(2, pcall(numGroups))) or 1
   if type(groups) ~= "number" then groups = 1 end
-  if GetActiveTalentGroup then
-    local ok, a = pcall(GetActiveTalentGroup); if ok and tonumber(a) then active = a end
+  local activeFn = GetActiveTalentGroup or (SI and (SI.GetActiveSpecGroup or SI.GetActiveTalentGroup))
+  if activeFn then
+    local ok, a = pcall(activeFn); if ok and tonumber(a) then active = a end
   end
   for g = 1, math.min(groups, 2) do
     local best, bestPts = nil, 0
     for t = 1, 3 do
-      local r = { pcall(GetTalentTabInfo, t, false, false, g) }
+      local r = { pcall(tabInfo, t, false, false, g) }
+      -- a table as answer (new API): { pointsSpent = n }
+      if r[1] and type(r[2]) == "table" then r = { true, nil, nil, nil, nil, tonumber(r[2].pointsSpent) } end
       if r[1] then
         local pts = (type(r[6]) == "number" and r[6]) or (type(r[4]) == "number" and r[4]) or 0
         if pts > bestPts then best, bestPts = t, pts end
@@ -210,17 +217,43 @@ function R.MyLockouts()
   return out
 end
 
+local AMULET = 16309
+-- true / false, or nil when the client gives no way to look
 function R.HasAmulet()
+  local how = nil
   local count = (C_Item and C_Item.GetItemCount) or GetItemCount
-  if not count then return nil end
-  local ok, n = pcall(count, 16309, false)
-  if ok and (n or 0) > 0 then return true end
-  -- worn around the neck
-  if GetInventoryItemID then
-    local ok2, id = pcall(GetInventoryItemID, "player", 2)
-    if ok2 and id == 16309 then return true end
+  if count then
+    local ok, n = pcall(count, AMULET, false)
+    if ok and type(n) == "number" then
+      if n > 0 then return true, "count" end
+      how = "count"
+    end
   end
-  return ok and false or nil
+  -- worn around the neck
+  local inv = GetInventoryItemID or (C_Item and C_Item.GetInventoryItemID)
+  if inv then
+    local ok, id = pcall(inv, "player", 2)
+    if ok then
+      if id == AMULET then return true, "neck" end
+      how = how or "neck"
+    end
+  end
+  -- in the bags
+  local C = C_Container
+  local slots = (C and C.GetContainerNumSlots) or GetContainerNumSlots
+  local itemId = (C and C.GetContainerItemID) or GetContainerItemID
+  if slots and itemId then
+    for bag = 0, 4 do
+      local ok, n = pcall(slots, bag)
+      for slot = 1, (ok and tonumber(n) or 0) do
+        local ok2, id = pcall(itemId, bag, slot)
+        if ok2 and id == AMULET then return true, "bags" end
+      end
+    end
+    how = how or "bags"
+  end
+  if how then return false, how end
+  return nil, "no API"
 end
 
 function R.SendState()
@@ -761,7 +794,8 @@ API.AddProbe("pve", function()
     { "talents read", (#t > 0 and table.concat(t, "; ") or "nothing") .. " · active " .. tostring(active) .. " · via " .. tostring(src) },
     { "lockouts (GetNumSavedInstances)", GetNumSavedInstances and P.Try(GetNumSavedInstances) or "no" },
     { "first lockout", (GetSavedInstanceInfo and GetNumSavedInstances and (select(2, pcall(GetNumSavedInstances)) or 0) > 0) and P.Try(GetSavedInstanceInfo, 1) or "none" },
-    { "Drakefire Amulet", tostring(R.HasAmulet()) },
+    { "Drakefire Amulet", (function() local a, how = R.HasAmulet(); return tostring(a) .. " (" .. tostring(how) .. ")" end)() },
+    { "C_Item.GetItemCount / GetItemCount", P.Has(C_Item and C_Item.GetItemCount) .. " / " .. P.Has(GetItemCount) .. " · test (Hearthstone 6948): " .. (((C_Item and C_Item.GetItemCount) or GetItemCount) and P.Try((C_Item and C_Item.GetItemCount) or GetItemCount, 6948) or "–") },
   }
 end)
 core.HelpExt = (core.HelpExt or "") .. " · /gem raid [an|vorläufig|spät|bank|ab|import]"

@@ -60,6 +60,39 @@ Pr.Add("core", function()
   return out
 end)
 
+-- Which functions does this client have? Names matching the patterns, in _G
+-- and in the C_ namespaces (the new engine moved many old globals there).
+function Pr.Find(patterns, max)
+  max = max or 40
+  local hits = {}
+  local function match(name)
+    local low = name:lower()
+    for _, p in ipairs(patterns) do if low:find(p, 1, true) then return true end end
+  end
+  for k, v in pairs(_G) do
+    if type(k) == "string" then
+      if type(v) == "function" and match(k) then hits[#hits + 1] = k
+      elseif type(v) == "table" and k:find("^C_") then
+        for fk, fv in pairs(v) do
+          if type(fk) == "string" and type(fv) == "function" and (match(fk) or match(k)) then hits[#hits + 1] = k .. "." .. fk end
+        end
+      end
+    end
+  end
+  table.sort(hits)
+  local n = #hits
+  while #hits > max do table.remove(hits) end
+  return table.concat(hits, ", ") .. (n > max and (" … (" .. n .. ")") or ""), n
+end
+
+Pr.Add("find", function()
+  return {
+    { "talent / spec functions", (Pr.Find({ "talent", "specializ", "specgroup" }, 60)) },
+    { "item count functions", (Pr.Find({ "itemcount", "getcontaineritemid", "getinventoryitemid" }, 20)) },
+    { "lockout functions", (Pr.Find({ "savedinstance", "raidinfo", "lockout" }, 20)) },
+  }
+end)
+
 function Pr.Run()
   local lines = {}
   for _, c in ipairs(Pr.checks) do
@@ -72,7 +105,13 @@ function Pr.Run()
   end
   if ns.db then ns.db.probe = { at = date("%Y-%m-%d %H:%M"), lines = lines } end
   U.Print(ns.L.PROBE_HEAD)
-  for _, l in ipairs(lines) do print("  " .. l) end
+  for _, l in ipairs(lines) do
+    while #l > 240 do
+      local cut = l:sub(1, 240):match("^.*(), ") or 240
+      print("  " .. l:sub(1, cut)); l = "      " .. l:sub(cut + 1)
+    end
+    print("  " .. l)
+  end
   return lines
 end
 
