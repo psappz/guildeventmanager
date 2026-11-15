@@ -191,14 +191,15 @@ function R.Loadouts()
   return out
 end
 
--- The active talent config is close between two trees (e.g. 17/0/15)?
--- returns "17/0/15" when the two biggest thirds are within 5 points, else nil
-function R.TalentMixed()
+-- Talent points of the active talent group per tree, as text
+-- ("Disziplin 17 · Heilig 0 · Schatten 15"), or nil
+function R.TalentPoints()
+  local class = R.MyClass()
   for _, l in ipairs(R.Loadouts()) do
     if l.active and l.pts then
-      local t = { l.pts[1], l.pts[2], l.pts[3] }
-      table.sort(t, function(a, b) return a > b end)
-      if t[1] > 0 and t[1] - t[2] <= 5 then return table.concat(l.pts, "/") end
+      local t = {}
+      for i = 1, 3 do t[#t + 1] = R.SpecName(class, i) .. " " .. l.pts[i] end
+      return table.concat(t, " · ")
     end
   end
 end
@@ -291,11 +292,15 @@ end
 
 -- Read the talents and fill gaps of the own record (never overwrites a role
 -- the member picked)
-function R.UpdateOwnSpec()
+-- Take the specs from the talents. A choice the member (or the raid lead) made
+-- by hand always stays; only force (button "Read talents") replaces it.
+function R.UpdateOwnSpec(force)
   local class = R.MyClass()
   if not class then return end
-  local got, active = R.ReadTalents()
   local cur = R.Spec() or {}
+  if not force and (cur.src == "self" or cur.src == "lead") and cur.class == class then return end
+  local got, active = R.ReadTalents()
+  if force then cur = { class = class, src = "auto" } end
   local rec = { class = class, m = cur.m and U.Copy(cur.m) or nil, o = cur.o and U.Copy(cur.o) or nil, src = cur.src }
   local changed = cur.class ~= class
   local function fill(slot, g)
@@ -320,9 +325,9 @@ function R.UpdateOwnSpec()
     -- one group readable: it is the active one; the other stays as saved
     fill((active == 2) and "o" or "m", 1)
   end
-  if changed then
-    rec.src = (cur.src == "self" or cur.src == "lead") and cur.src or "auto"
-    R.SaveSpec(nil, rec, true)
+  if changed or force then
+    rec.src = "auto"
+    R.SaveSpec(nil, rec, not force)
   end
 end
 
