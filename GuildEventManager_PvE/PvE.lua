@@ -125,6 +125,72 @@ function R.MySpecs()
   return out
 end
 
+-- Points per third of the class talent tree for one talent config:
+-- returns tree (1-3) or nil, { pts1, pts2, pts3 }, info
+local function configThirds(configID)
+  local TR = C_Traits
+  if not TR or not configID then return nil, nil, "no C_Traits" end
+  local ok, ci = pcall(TR.GetConfigInfo, configID)
+  if not ok or type(ci) ~= "table" or type(ci.treeIDs) ~= "table" or not ci.treeIDs[1] then return nil, nil, "no tree" end
+  local ok2, nodes = pcall(TR.GetTreeNodes, ci.treeIDs[1])
+  if not ok2 or type(nodes) ~= "table" then return nil, nil, "no nodes" end
+  local list, minX, maxX = {}, math.huge, -math.huge
+  for _, nodeID in ipairs(nodes) do
+    local ok3, ni = pcall(TR.GetNodeInfo, configID, nodeID)
+    if ok3 and type(ni) == "table" and ni.posX then
+      list[#list + 1] = { x = ni.posX, r = tonumber(ni.ranksPurchased) or tonumber(ni.currentRank) or 0, sub = ni.subTreeID }
+      if ni.posX < minX then minX = ni.posX end
+      if ni.posX > maxX then maxX = ni.posX end
+    end
+  end
+  if #list == 0 or maxX <= minX then return nil, nil, "nodes " .. #list end
+  local pts = { 0, 0, 0 }
+  local w = (maxX - minX) / 3
+  for _, n in ipairs(list) do
+    local third = math.min(3, math.floor((n.x - minX) / w) + 1)
+    pts[third] = pts[third] + n.r
+  end
+  local best, bp = nil, 0
+  for i = 1, 3 do if pts[i] > bp then best, bp = i, pts[i] end end
+  return best, pts, "nodes " .. #list .. " · x " .. math.floor(minX) .. "–" .. math.floor(maxX) .. " · name " .. tostring(ci.name)
+end
+R.ConfigThirds = configThirds
+
+-- the active talent config and the saved loadouts:
+-- { { id, name, active, tree, pts, info } }
+function R.Loadouts()
+  local CT = C_ClassTalents
+  local out = {}
+  if not CT then return out end
+  local active
+  if CT.GetActiveConfigID then local ok, v = pcall(CT.GetActiveConfigID); active = ok and v or nil end
+  local seen = {}
+  local function add(id, isActive)
+    if not id or seen[id] then return end
+    seen[id] = true
+    local tree, pts, info = configThirds(id)
+    local name
+    if C_Traits and C_Traits.GetConfigInfo then
+      local ok, ci = pcall(C_Traits.GetConfigInfo, id); name = ok and type(ci) == "table" and ci.name or nil
+    end
+    out[#out + 1] = { id = id, name = name, active = isActive, tree = tree, pts = pts, info = info }
+  end
+  add(active, true)
+  local specs = R.MySpecs()
+  for _, sp in ipairs(specs) do
+    if sp.id and CT.GetConfigIDsBySpecID then
+      local ok, ids = pcall(CT.GetConfigIDsBySpecID, sp.id)
+      if ok and type(ids) == "table" then for _, id in ipairs(ids) do add(id, false) end end
+    end
+  end
+  -- the saved loadout that is currently selected counts as the active one
+  if CT.GetLastSelectedSavedConfigID and specs[1] and specs[1].id then
+    local ok, last = pcall(CT.GetLastSelectedSavedConfigID, specs[1].id)
+    if ok and last then for _, l in ipairs(out) do if l.id == last and not l.active then l.selected = true end end end
+  end
+  return out
+end
+
 -- returns { [group] = tree }, active group, source
 function R.ReadTalents()
   local class = R.MyClass()
@@ -137,7 +203,18 @@ function R.ReadTalents()
       -- WoW Forever: specializations with saved talent loadouts. The active
       -- spec is group 1; another spec the player has a loadout for is group 2.
       local specs = R.MySpecs()
-      if specs[1] and specs[1].initial then return out, 1, "initial" end
+      if specs[1] and specs[1].initial then
+        -- one talent tree for the whole class (WoW Forever): the classic
+        -- trees side by side; the third with the most points is the spec
+        local loads = R.Loadouts()
+        for _, l in ipairs(loads) do
+          if l.active and l.tree then out[1] = { l.tree, R.DefaultRole(class, l.tree) } end
+        end
+        for _, l in ipairs(loads) do
+          if not l.active and l.tree and not out[2] and (not out[1] or l.tree ~= out[1][1]) then out[2] = { l.tree, R.DefaultRole(class, l.tree) } end
+        end
+        return out, 1, out[1] and "loadouts" or "initial"
+      end
       for _, x in ipairs(specs) do
         if x.index == idx then out[1] = { x.tree, x.role } end
       end
@@ -855,9 +932,17 @@ API.AddProbe("pve", function()
     { "specs (loadout saved = *)", (function()
       local t = {}
       local specs = R.MySpecs()
-      if specs[1] and specs[1].initial then return "no specialization chosen yet (" .. tostring(specs[1].name) .. ")" end
+      if specs[1] and specs[1].initial then return "one spec for the whole class (" .. tostring(specs[1].name) .. ")" end
       for _, x in ipairs(specs) do t[#t + 1] = x.index .. " " .. tostring(x.name) .. " → " .. tostring(x.role) .. (x.configured and " *" or "") end
       return table.concat(t, " · ")
+    end)() },
+    { "loadouts (third with most points = tree)", (function()
+      local t = {}
+      for _, l in ipairs(R.Loadouts()) do
+        t[#t + 1] = (l.active and "ACTIVE " or "") .. (l.selected and "SELECTED " or "") .. tostring(l.name) .. " #" .. tostring(l.id) ..
+          ": " .. (l.pts and table.concat(l.pts, "/") or "-") .. " → " .. (l.tree and R.SpecName(R.MyClass(), l.tree) or "?") .. " (" .. tostring(l.info) .. ")"
+      end
+      return #t > 0 and table.concat(t, " · ") or "none (C_ClassTalents " .. P.Has(C_ClassTalents) .. ", C_Traits " .. P.Has(C_Traits) .. ")"
     end)() },
     { "talents read", (#t > 0 and table.concat(t, "; ") or "nothing") .. " · active " .. tostring(active) .. " · via " .. tostring(src) },
     { "lockouts (GetNumSavedInstances)", GetNumSavedInstances and P.Try(GetNumSavedInstances) or "no" },
