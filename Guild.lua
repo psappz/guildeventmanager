@@ -101,12 +101,12 @@ function G.ReadRoster()
   wipe(G.alias)
   local n = GetNumGuildMembers and GetNumGuildMembers() or 0
   for i = 1, n do
-    local name, rankName, rankIndex, level, _, _, _, _, online = GetGuildRosterInfo(i)
+    local name, rankName, rankIndex, level, _, _, _, _, online, _, class = GetGuildRosterInfo(i)
     if name then
       local display = G.StripRealm(name)
       local short = tostring(display):match("^(.+)%-[^%-]+$")
       if short then G.alias[G.Key(short)] = G.Key(display) end
-      G.roster[G.Key(display)] = { name = display, rankName = rankName, rankIndex = rankIndex, level = level, online = online }
+      G.roster[G.Key(display)] = { name = display, rankName = rankName, rankIndex = rankIndex, level = level, online = online, class = class }
     end
   end
   wipe(G.rankNames)

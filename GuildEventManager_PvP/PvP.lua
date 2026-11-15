@@ -186,5 +186,5 @@ function P.Notice(msg)
   end
 end
 
-core.HelpExt = (core.HelpExt or "") .. " · /gem pvp · /gem drum help|rally|attack [text] · /gem duel <name> <witness> [stake] · /gem oath [1-3] <text> · /gem bounty <name> <honor>"
+core.HelpExt = (core.HelpExt or "") .. " · /gem pvp · /gem drum help|rally|attack [text] · /gem duel <name> <witness> [stake] · /gem oath [1-3] <text> · /gem bounty <name> <honor> · /gem watch <name>"
 core.SlashExt.pvp = function() core.UI.Show("pvp") end

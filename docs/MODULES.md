@@ -205,7 +205,12 @@ Only in an activated guild, throttled, split when long, dropped from senders out
 
 | Function | |
 |---|---|
-| `API.AddTab(id, { label = fn, build = fn(panel), refresh = fn(panel) })` | own tab before *Settings*. `build` runs once, `refresh` on every update. Register when your file loads. |
+| `API.AddModule(id, { label = fn, icon, order, badge = fn, tabs = { { id, label = fn, build = fn(panel), refresh = fn(panel) }, ... } })` | an entry in the side bar (group "Modules") with sub tabs. `build` runs once per tab, `refresh` on every update. `badge` returns a short text (a count) or nil. API 5 |
+| `API.AddTab(id, { label = fn, build, refresh, parent = "entryId" })` | one more tab: with `parent` as a sub tab of a module entry, without it as an entry of its own (API 1 behaviour). |
+| `API.AddSettingsPage(id, { label = fn, build, refresh })` | a page behind the gear (the module's rules or options). API 5 |
+| `API.AddNotice({ key, group, text, view = "tabId" or ev = eventId or open = fn })`, `API.RemoveNotice(key)` | a notice behind the bell (one per `key`, kept 7 days). API 5 |
+| `API.AddLedgerFormat(id, { label = fn, match = fn(entry), text = fn(entry) })` | how your entries read in the honor book and which module tag they get. API 5 |
+| `API.AddProbe(id, fn)` | a check for `/gem probe`: `fn()` returns `{ { label, value }, ... }` – use it for client functions you are not sure about. API 5 |
 | `API.Open(tab)`, `API.Refresh()` | |
 | `API.Widgets` | themed widgets: `Box, Text, Button, Edit, Check, Dropdown, Scroll, Pool, Bar, Dialog, OpenMenu` (see `Widgets.lua`) |
 | `API.Section(parent, text)`, `API.Pill(parent)` | heading with line, small label |
@@ -271,7 +276,16 @@ Every change to `GuildEventManagerAPI` and `GuildEventManagerAPI.PvP`, newest fi
 - Ledger entries, achievement ids and message kinds of a released module are never reused with another meaning: old entries in the guild ledger stay readable.
 - Before 1.0 (0.x betas) the same rules apply as far as possible; breaking changes, if unavoidable, are listed here with a migration note.
 
-### API 4 · PvP API 4 – unreleased
+### API 5 · PvP API 4 – unreleased (0.7.0)
+
+- **Window:** side bar with entries and sub tabs. `API.AddModule`, `API.AddSettingsPage`, `API.AddTab` with `parent`, `API.AddNotice` / `API.RemoveNotice`, `API.AddLedgerFormat`, `API.AddProbe` (see *UI*). Tabs registered with `API.AddTab` without `parent` keep working as own entries.
+- **Sign-ups:** a sign-up now has a state – `"in"` (yes), `"tent"` (tentative), `"late"`, `"bench"`, `"out"` (no) –, a comment and answers. `API.SignupStatus(e, name)`, `API.GetSignups(e)` → `{ { key, st, c, f, t } }` by time, `API.SetSignup(e, { st, c, f })`, `API.InviteAll(e)`. `API.IsSigned` is true for yes and late. Callback `SIGNUP_CHANGED (e, key, signup)`.
+- **Sign-up fields:** an event type asks its own questions with `signupFields = { { id, kind, label|labelKey, short, options, required, default (value or fn(e)), min, max, validate = fn(v) -> error text, get = fn(e) (kind "auto"), format = fn(v), hidden, leadOnly } }`. Kinds: `auto` (read from the game when signing up), `choice`, `multi`, `number`, `check`, `text` (60 characters). Options are `{ value, labelKey }` pairs or plain values.
+- **Rights per event type:** `canCreate = function(key) return true/false end` in an event type lets more members than the event managers create and run events of that type (the PvE module uses it for the raid rank). `API.CanCreate(typeId, name)`, `API.CanManage(e, name)`. Points are still booked by event managers only.
+- `API.CreateEvent(fields)`, `API.SaveEvent(e)`. Fields of a module on the event (for example `e.pve`) travel with the event.
+- The guild roster has the class of every member (`class`, the English file name such as `"PRIEST"`).
+
+### API 4 · PvP API 4 – 0.7.0
 
 Core (`api = 4`):
 - Callback `WINDOW_OPENED` when the player opens the window.
@@ -331,6 +345,8 @@ Why: "Mak'gora" means a duel to the death in WoW Hardcore. Our duel of honor is 
 ---
 
 ## Known modules
+
+- **GuildEventManager_PvE** (in the package): raids. `GuildEventManagerAPI.pve` gives `Player(e, key, boss)`, `Lineup(e, boss)`, `Group(e, g, boss)`, `Coverage(e, boss)`, `Spec(key)`, `ExportText(e)` for modules that build on raids.
 
 | Module | Author | |
 |---|---|---|

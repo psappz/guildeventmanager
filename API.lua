@@ -9,7 +9,7 @@ local U, G, T = ns.U, ns.Guild, ns.Theme
 local API = {}
 GuildEventManagerAPI = API
 
-API.version = 4   -- see docs/MODULES.md, section 6 (API changes)
+API.version = 5   -- see docs/MODULES.md, section 6 (API changes)
 API.coreVersion = ns.VERSION
 
 local function moduleId(id)
@@ -145,6 +145,21 @@ function API.CanSend() return ns.Comm.CanSend() end
 ---------------------------------------------------------------------------
 -- Own tab in the main window (before Settings). def = { label = fn, build = fn(panel), refresh = fn(panel) }
 function API.AddTab(id, def) ns.UI.AddTab(id, def) end
+-- API 5: a side bar entry with sub tabs, settings pages, notices, honor book texts
+function API.AddModule(id, def) return ns.UI.AddModule(id, def) end
+function API.AddSettingsPage(id, def) ns.UI.AddSettingsPage(id, def) end
+function API.AddNotice(n) ns.Notices.Add(n) end         -- { key, group, text, view | ev | open = fn }
+function API.RemoveNotice(key) ns.Notices.Remove(key) end
+function API.AddLedgerFormat(id, def) return ns.Ledger.AddFormat(id, def) end -- { label = fn, match = fn(e), text = fn(e) }
+-- API 5: sign-ups with state, comment and the fields of the event type
+function API.SignupStatus(e, name) return ns.Events.Status(e, name and G.Resolve(name) or nil) end
+function API.GetSignups(e) return ns.Events.SignupList(e) end   -- { { key, st, c, f, t } }, by time
+function API.SetSignup(e, opts) return ns.Events.SetSignup(e, opts) end -- { st = "in"|"tent"|"late"|"bench"|"out", c, f }
+function API.InviteAll(e) return ns.Events.InviteAll(e) end
+function API.CanCreate(typeId, name) return ns.Events.CanCreate(typeId, name and G.Resolve(name) or nil) end
+function API.CanManage(e, name) return ns.Events.CanManage(e, name and G.Resolve(name) or nil) end
+function API.CreateEvent(fields) return ns.Events.Create(fields) end
+function API.SaveEvent(e) return ns.Events.Save(e) end
 function API.Open(tab) ns.UI.Show(tab) end
 function API.Refresh() if ns.UI then ns.UI.Refresh() end end
 -- Themed widgets: Box, Text, Button, Edit, Check, Dropdown, Scroll, Pool, Bar, Dialog, OpenMenu (see Widgets.lua)
@@ -157,6 +172,8 @@ function API.Print(msg) U.Print(msg) end
 function API.AddCommand(cmd, fn) ns.SlashExt[cmd:lower()] = fn end
 -- Own section in the support export (/gem export): fn(full) returns a list of text lines
 function API.AddExport(id, fn) ns.Export.Add(id, fn) end
+-- API 5: a check for /gem probe; fn() returns { { label, value }, ... }
+function API.AddProbe(id, fn) ns.Probe.Add(id, fn) end
 
 ---------------------------------------------------------------------------
 -- Helpers

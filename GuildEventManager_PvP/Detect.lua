@@ -36,6 +36,7 @@ local function isEnemyPlayer(unit)
 end
 
 local function key(name) return name and tostring(name):lower():gsub("[%-%s]+", " ") or nil end
+P.IsEnemyPlayer, P.UnitNameOf, P.NameKey = isEnemyPlayer, unitName, key
 
 ---------------------------------------------------------------------------
 -- Debts (by name: GUIDs of enemies are not readable without the combat log)
@@ -337,13 +338,8 @@ local function seeUnit(unit)
   if (UnitAffectingCombat and UnitAffectingCombat("player")) or unit == "target" then
     lastEnemy = { name = name, t = GetTime() }
   end
-  for _, d in ipairs(P.OpenDebts()) do
-    if key(d.name) == key(name) and GetTime() - (reminded[d.id] or -999) > 300 then
-      reminded[d.id] = GetTime()
-      P.Notice(L.PVP_DEBTOR_SEEN:format(T.Word("DEBT"), d.name))
-      P.PlaySignal()
-    end
-  end
+  -- wanted enemies (bounty, blood debt, oath, watch list): alarm window
+  if P.CheckWanted then P.CheckWanted(unit, name) end
 end
 
 -- Who is hitting us: enemy players among the nameplates that target the player

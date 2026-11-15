@@ -306,6 +306,9 @@ local function refreshDetail(p)
     d.draftFor = e.id
     d.saved = nil
     d.draft = { st = E.Status(e) or "in", c = cur and cur.c or "", f = U.Copy(cur and cur.f or {}) }
+    for _, fd in ipairs(E.Fields(e)) do
+      if d.draft.f[fd.id] == nil and fd.default ~= nil and fd.kind ~= "auto" then d.draft.f[fd.id] = E.FieldDefault(fd, e) end
+    end
     d.comment:SetText(d.draft.c or "")
   end
   d.myHead:SetShown(open); d.my:SetShown(open)
@@ -315,7 +318,8 @@ local function refreshDetail(p)
     d.cLabel:ClearAllPoints(); d.cLabel:SetPoint("TOPLEFT", 8, -40)
     d.comment:ClearAllPoints(); d.comment:SetPoint("TOPLEFT", 8, -54); d.comment:SetPoint("RIGHT", -8, 0)
     y = -84
-    local fields = E.Fields(e)
+    local fields = {}
+    for _, f in ipairs(E.Fields(e)) do if not f.hidden then fields[#fields + 1] = f end end
     for i, f in ipairs(fields) do
       local r = d.fieldRows:Get(i)
       r:ClearAllPoints(); r:SetPoint("TOPLEFT", 8, y); r:SetPoint("RIGHT", d.my, "RIGHT", -8, 0)
@@ -955,7 +959,8 @@ function V.SaveEditor()
 end
 
 -- e: edit this event · template: copy of an event as a new one (same weekday and time, next date ahead)
-function V.OpenEditor(e, template)
+-- preset: fields for a new event, e.g. { type = "raid_hyjal" }
+function V.OpenEditor(e, template, preset)
   local p = V.panel
   if e and not E.CanManage(e) then return end
   if not e and not V.AnyCreate() then return end
@@ -963,6 +968,11 @@ function V.OpenEditor(e, template)
   ed.ev = e
   local src = e or template
   ed.f = src and U.Copy(src) or { kind = "short", group = "none" }
+  if preset and not src then
+    for k, v in pairs(preset) do ed.f[k] = v end
+    local t = ed.f.type and ns.Modules.Type(ed.f.type)
+    if t then ed.f.kind = t.kind or ed.f.kind; ed.f.group = t.group or ed.f.group; ed.f.gmin, ed.f.gmax = t.gmin, t.gmax end
+  end
   if template then
     for _, k in ipairs({ "id", "status", "signups", "attended", "leader", "by", "ts", "v", "started", "ended", "created" }) do ed.f[k] = nil end
     for _, g in ipairs(ed.f.goals or {}) do g.done = false end

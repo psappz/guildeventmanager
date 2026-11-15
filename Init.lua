@@ -87,7 +87,7 @@ SlashCmdList.GUILDEVENTMANAGER = function(msg)
   elseif cmd == "errors" then showErrors()
   elseif cmd == "clearerrors" then ns.db.errors = {}; ns.db.unseenErrors = false; U.Print(ns.L.ERRORS_CLEARED)
   elseif ns.SlashExt[cmd] then ns.SafeCall("slash:" .. cmd, ns.SlashExt[cmd], rest)
-  else U.Print(ns.L.HELP .. (ns.HelpExt or "")) end
+  else U.Print(ns.L.HELP .. " · /gem home · /gem ledger · /gem probe" .. (ns.HelpExt or "")) end
 end
 
 local handlers = {}

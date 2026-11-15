@@ -233,6 +233,14 @@ function E.Fields(e)
   return out
 end
 
+function E.FieldDefault(f, e)
+  if type(f.default) == "function" then
+    local ok, v = pcall(f.default, e)
+    return ok and v or nil
+  end
+  return f.default
+end
+
 function E.FieldLabel(f) return f.label or (f.labelKey and ns.L[f.labelKey]) or f.id end
 
 -- the value of an auto field for me, read from the game now
@@ -278,7 +286,7 @@ function E.SetSignup(e, opts)
   local f = {}
   for _, fd in ipairs(E.Fields(e)) do
     local v = (fd.kind == "auto") and E.AutoValue(fd, e) or (opts.f and opts.f[fd.id])
-    if v == nil and fd.default ~= nil and fd.kind ~= "auto" then v = fd.default end
+    if v == nil and fd.default ~= nil and fd.kind ~= "auto" then v = E.FieldDefault(fd, e) end
     if st ~= "out" then
       local err = E.CheckField(fd, v)
       if err then U.Print(err); return false, err end

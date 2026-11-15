@@ -2,6 +2,7 @@ package-as: GuildEventManager
 
 move-folders:
   GuildEventManager/GuildEventManager_PvP: GuildEventManager_PvP
+  GuildEventManager/GuildEventManager_PvE: GuildEventManager_PvE
 
 manual-changelog:
   filename: CHANGELOG.md

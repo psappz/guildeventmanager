@@ -5,14 +5,14 @@ Plan and run guild events in WoW Forever: event points, guild honor, guild achie
 The guild master activates it for the guild by pasting an activation code into the guild info. Until then the addon sends nothing. Event rights go to the guild master and a rank he chooses.
 
 - Slash command: `/gem`
-- Modules: `GuildEventManager_PvP` (guild honor, blood debts, war drums, warbands, duels of honor, oaths, season results) ships in the same package as its own folder
+- Modules: `GuildEventManager_PvP` (guild honor, blood debts, war drums, warbands, duels of honor, oaths, bounties, target alarm, season results) and `GuildEventManager_PvE` (raids: roles, dual spec, line-up with drag & drop, buffs, raid night, Raid-Helper import) ship in the same package as their own folders
 - Languages: English, Deutsch, Français, Español, Italiano, Português
 - Changes: [CHANGELOG.md](CHANGELOG.md)
 - License: [MIT](LICENSE)
 
 ## Modules
 
-GuildEventManager is modular. The core and the PvP module ship together; every other module is a separate addon that depends on the core. PvP modules can extend the PvP module (own PvP event types, deeds that give guild honor, honor rules, reactions to kills, deaths and war drums).
+GuildEventManager is modular. The core, the PvP module and the PvE module ship together; every other module is a separate addon that depends on the core. PvP modules can extend the PvP module (own PvP event types, deeds that give guild honor, honor rules, reactions to kills, deaths and war drums).
 
 **Write your own module:** [docs/MODULES.md](docs/MODULES.md) – API reference, rules for the Forever client, testing checklist, API changes and compatibility promise. Working examples: [examples/GuildEventManager_Example](examples/GuildEventManager_Example) (event module) and [examples/GuildEventManager_PvPDuels](examples/GuildEventManager_PvPDuels) (PvP module).
 
@@ -20,6 +20,7 @@ GuildEventManager is modular. The core and the PvP module ship together; every o
 
 - Root: the core addon `GuildEventManager`
 - `GuildEventManager_PvP/`: the PvP module, moved to its own addon folder when packaged (see `.pkgmeta`)
+- `GuildEventManager_PvE/`: the PvE module (raids), moved to its own addon folder when packaged
 - `docs/`: module guide, logo and CurseForge texts, not packaged
 - `examples/`: example modules, not packaged
 
