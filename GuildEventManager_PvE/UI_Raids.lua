@@ -214,7 +214,8 @@ local function refreshOverview(p)
   card.class:SetText(U.Color(R.CLASS_COLOR[card.rec.class or ""] or "ffffffff", cname))
   for _, d in ipairs({ card.mTree, card.mRole, card.oTree, card.oRole }) do d:Refresh() end
   local src = (R.Spec() or {}).src
-  card.src:SetText(L["RAID_SRC_" .. (src or "none")] or "")
+  local mixed = (src == "auto" or src == nil) and R.TalentMixed()
+  card.src:SetText((L["RAID_SRC_" .. (src or "none")] or "") .. (mixed and ("\n" .. U.Color("ffe3b45b", L.RAID_SPEC_MIXED:format(mixed))) or ""))
 
   local e = current()
   p.sign:SetShown(e ~= nil and E.IsOpen(e))

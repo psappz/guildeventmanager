@@ -191,6 +191,18 @@ function R.Loadouts()
   return out
 end
 
+-- The active talent config is close between two trees (e.g. 17/0/15)?
+-- returns "17/0/15" when the two biggest thirds are within 5 points, else nil
+function R.TalentMixed()
+  for _, l in ipairs(R.Loadouts()) do
+    if l.active and l.pts then
+      local t = { l.pts[1], l.pts[2], l.pts[3] }
+      table.sort(t, function(a, b) return a > b end)
+      if t[1] > 0 and t[1] - t[2] <= 5 then return table.concat(l.pts, "/") end
+    end
+  end
+end
+
 -- returns { [group] = tree }, active group, source
 function R.ReadTalents()
   local class = R.MyClass()
