@@ -43,6 +43,7 @@ Notices.lua
 Plaque.lua
 Widgets.lua
 UI_Main.lua
+UI_GuildBanner.lua
 UI_Home.lua
 UI_Events.lua
 UI_Banner.lua

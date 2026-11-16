@@ -1,0 +1,190 @@
+{
+  "canvas": {
+    "width": 1024,
+    "height": 2048,
+    "origin": "top-left",
+    "alpha": "straight"
+  },
+  "emblem": {
+    "center": [
+      560,
+      820
+    ],
+    "radius": 210,
+    "stages": [
+      2,
+      3,
+      4
+    ]
+  },
+  "tintable": {
+    "patterns": [
+      "cloth_*",
+      "border_*"
+    ],
+    "visibleRgbRange": [
+      140,
+      255
+    ]
+  },
+  "factions": {
+    "horde": {
+      "1": [
+        "pole_horde.png",
+        "cloth_horde_1.png",
+        "border_horde_1.png"
+      ],
+      "2": [
+        "pole_horde.png",
+        "cloth_horde_2.png",
+        "border_horde_2.png"
+      ],
+      "3": [
+        "pole_horde.png",
+        "cloth_horde_3.png",
+        "border_horde_3.png",
+        "trim_horde.png",
+        "tassels_horde.png"
+      ],
+      "4": [
+        "pole_horde.png",
+        "cloth_horde_4.png",
+        "border_horde_4.png",
+        "sheen.png",
+        "trim_horde.png",
+        "tassels_horde.png",
+        "finial_horde.png"
+      ]
+    },
+    "alliance": {
+      "1": [
+        "pole_alliance.png",
+        "cloth_alliance_1.png",
+        "border_alliance_1.png"
+      ],
+      "2": [
+        "pole_alliance.png",
+        "cloth_alliance_2.png",
+        "border_alliance_2.png"
+      ],
+      "3": [
+        "pole_alliance.png",
+        "cloth_alliance_3.png",
+        "border_alliance_3.png",
+        "trim_alliance.png",
+        "tassels_alliance.png"
+      ],
+      "4": [
+        "pole_alliance.png",
+        "cloth_alliance_4.png",
+        "border_alliance_4.png",
+        "sheen.png",
+        "trim_alliance.png",
+        "tassels_alliance.png",
+        "finial_alliance.png"
+      ]
+    }
+  },
+  "assets": [
+    {
+      "file": "border_alliance_1.png",
+      "sha256": "480ce725686dd93eff2438fcc1c7ff1913adc55dae7ff843f911a91e43bf056e"
+    },
+    {
+      "file": "border_alliance_2.png",
+      "sha256": "da56dd2bbdb610c0dc46c819ad69914465731dc7231b5b70964af4109b9cf90b"
+    },
+    {
+      "file": "border_alliance_3.png",
+      "sha256": "0c5ffb8b6fb243d73060a60d390f3e92a6fc30f9743d705b8295ca6d6f25257b"
+    },
+    {
+      "file": "border_alliance_4.png",
+      "sha256": "c809d794706ca1553b0f1306ff1b11fb794f0e611b2f5c850339e1d46dc41b29"
+    },
+    {
+      "file": "border_horde_1.png",
+      "sha256": "8c91cd716c41fc2bc0420ea9a0089ea165e7abd4afdf1ce90646b758f1abf398"
+    },
+    {
+      "file": "border_horde_2.png",
+      "sha256": "36a52a4019aca62e28a6f7a59e9d28f8b5c45596b585bf0722e5e8aca51d20b4"
+    },
+    {
+      "file": "border_horde_3.png",
+      "sha256": "35fdeb1d79c3cfd6600c076e7144a4a639735e4a83f74c9a9757ffa8becf5c8b"
+    },
+    {
+      "file": "border_horde_4.png",
+      "sha256": "1cc0a2d7b0f5c88987f3cccf01c640b5c9e0d7c64d096b4f7f0ab07b794f0047"
+    },
+    {
+      "file": "cloth_alliance_1.png",
+      "sha256": "21cdf6fb2b30204aa8dd89531205ede02381a806c8870b71b72831d708074d41"
+    },
+    {
+      "file": "cloth_alliance_2.png",
+      "sha256": "66fb7c5def0d48a0de9f153bdd956995ef795b14ac2d1ac9941c0316bf5b4dce"
+    },
+    {
+      "file": "cloth_alliance_3.png",
+      "sha256": "95200d1d51249ecc48759523bf7e272be09de28c2508f838e4b381a895eb58d0"
+    },
+    {
+      "file": "cloth_alliance_4.png",
+      "sha256": "20583db5a54b93cb9111c7e2e8d18e26612b0e9a7a3861894980589f34ef0cba"
+    },
+    {
+      "file": "cloth_horde_1.png",
+      "sha256": "776d0839d0eed8515e3b4f2fad22385459bf265125269fe9ad489db70937861d"
+    },
+    {
+      "file": "cloth_horde_2.png",
+      "sha256": "2ed64fb739cc5fb91bf00f43a061df780fc6a421a6a8a3e890ee7e06615ec0a1"
+    },
+    {
+      "file": "cloth_horde_3.png",
+      "sha256": "131ea8e06c297e11cd236245017ac2b9f48a90109602fc88e0a5b2f1f221b455"
+    },
+    {
+      "file": "cloth_horde_4.png",
+      "sha256": "8a4eaa74042d4a27523fdbb55a276eea3091e7f01f3188a27b62db65b0180da6"
+    },
+    {
+      "file": "finial_alliance.png",
+      "sha256": "1ccdd624671c9c4782e35e951bb4a1d140fee7beb3521f5e27521c320a322299"
+    },
+    {
+      "file": "finial_horde.png",
+      "sha256": "3b0d60167a224bbfd6b8d576942d4637936268fc84459ad08184a868ec4d8baf"
+    },
+    {
+      "file": "pole_alliance.png",
+      "sha256": "a9e19e3462a16107f68538d5906a2069b6fe59dd528e5c545fb39aef916f68ea"
+    },
+    {
+      "file": "pole_horde.png",
+      "sha256": "30340baf59f37eb8d7c1149f882511cd96836f05e79c01e6a77e1bfe53e6180c"
+    },
+    {
+      "file": "sheen.png",
+      "sha256": "a5f4eb9ad325c867620bb91e2de32dbbc695db27d116348c327737dabef0a7c9"
+    },
+    {
+      "file": "tassels_alliance.png",
+      "sha256": "efdf23a3024afcf54eea96ed76885ff4896b9de074fa3e205b8bd6a715b623aa"
+    },
+    {
+      "file": "tassels_horde.png",
+      "sha256": "448923a7190e6680e89cec4a723f399b96792dfbff597aa0b29badd12e42d9b7"
+    },
+    {
+      "file": "trim_alliance.png",
+      "sha256": "506e0f3cd93bd059b3ef927f0bb1c9f76c5bf64dad132045bc6dea43e0703ab1"
+    },
+    {
+      "file": "trim_horde.png",
+      "sha256": "9659e2826845d2a20e0f46bf8d8b58b19f81f4180244db6a29a505451bab00e8"
+    }
+  ]
+}

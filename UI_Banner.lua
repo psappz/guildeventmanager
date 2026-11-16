@@ -39,6 +39,9 @@ local function build(p)
   local scene = CreateFrame("Frame", nil, card)
   scene:SetSize(250, V.ART_SIZE); scene:SetPoint("TOP", 0, -2)
   card.scene = scene
+  -- the guild banner from the tabard (UI_GuildBanner.lua)
+  scene.gb = UI.GuildBanner(card, 282)
+  scene.gb:SetPoint("TOP", card, "TOP", 0, -4)
   -- painted banner (Media\\banner_<faction>_<stage>.tga) where it exists for this faction
   scene.art = scene:CreateTexture(nil, "ARTWORK", nil, 2)
   scene.art:SetSize(V.ART_SIZE, V.ART_SIZE); scene.art:SetPoint("TOP", 0, 0)
@@ -245,7 +248,7 @@ end
 
 -- painted stages per faction (files in Media); missing stages use the highest
 -- painted one plus the drawn trophies / flames, a faction without art the drawn banner
-V.ART = { horde = { 1, 2, 3, 4 }, alliance = { 1, 2, 3, 4 } }
+V.ART = {}   -- the old painted banners are replaced by the guild banner (UI_GuildBanner.lua)
 V.ART_SIZE = 232
 -- positions on the painted images (fractions of the image): ring of the sigil,
 -- flames of the braziers; measured on the ChatGPT art
@@ -278,10 +281,11 @@ local function refresh(p)
   sc.notch:SetVertexColor(bg[1], bg[2], bg[3])
   sc.sigil:SetTexture(th.crest)
   local show = { cloth = lvl >= 1, sigil = lvl >= 2, trophies = lvl >= 3, flames = lvl >= 4 }
+  sc.gb:Set(lvl, T.Faction())
   local art, artStage = artFor(lvl)
-  sc.art:SetShown(art ~= nil)
-  if art then sc.art:SetTexture(art) end
-  local drawn = art == nil
+  sc.art:SetShown(false)
+  local drawn = false
+  show.trophies, show.flames = false, false
   for _, x in ipairs({ sc.pole, sc.bar, sc.tip }) do x:SetShown(drawn) end
   for _, x in ipairs({ sc.cloth, sc.edgeL, sc.edgeR, sc.notch }) do x:SetShown(drawn and show.cloth) end
   sc.sigil:SetShown(drawn and show.sigil)
@@ -319,18 +323,14 @@ local function refresh(p)
   sc.preview:SetText(V.preview and L.BANNER_PREVIEW:format(L["TIER_" .. V.preview]) or "")
   for i, t in ipairs(p.card.tiers) do
     t.name:SetText(L["TIER_" .. i])
-    local stageArt = artFor(i)
-    if stageArt and select(2, artFor(i)) == i then
-      t.icon:SetTexture(stageArt); t.icon:SetTexCoord(0.08, 0.92, 0.04, 0.88)
-    else
-      t.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-      if i == 1 then t.icon:SetTexture("Interface\\Icons\\" .. (T.Faction() == "alliance" and "INV_BannerPVP_02" or "INV_BannerPVP_01")) end
-      if i == 2 then t.icon:SetTexture(th.crest) end
-      if t.fallback then t.icon:SetTexture(t.fallback) end
+    if not t.mini then
+      t.mini = UI.GuildBanner(t, 54)
+      t.mini:SetPoint("CENTER", t.icon, "CENTER", 0, 0)
     end
+    t.mini:Set(i, T.Faction())
+    t.icon:SetTexture(nil)
     local reached = i <= b.level
-    t.icon:SetDesaturated(not reached)
-    t.icon:SetAlpha(reached and 1 or 0.45)
+    t.mini:SetAlpha(reached and 1 or 0.4)
     W.Color(t.name, reached and "title" or "muted")
     t.ring:SetShown(V.preview == i)
   end
