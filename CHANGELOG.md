@@ -7,6 +7,8 @@
 - **Level of an event:** the editor has a field "From level" (empty = all levels). Only characters of that level are reminded; the detail page shows the level. Raids use the highest player level by default. Event types can set `minLevel`.
 
 ### Changed
+- Members who are online when the guild master pastes the activation code switch on by themselves within about two minutes (before: only after `/reload`).
+- New guide for guild masters: `docs/GUILD_MASTER.md`.
 - Overview: "still without an answer" counts only the events you are asked to answer (declined ones and events above your level no longer count).
 
 ### Fixed

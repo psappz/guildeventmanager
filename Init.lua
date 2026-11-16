@@ -118,10 +118,18 @@ function handlers.PLAYER_ENTERING_WORLD()
   ns.Schedule("gemRoster", 2, G.RequestRoster)
 end
 
+-- every minute: notices a code that was pasted into the guild info while
+-- playing (cheap: the guild info is read again only while there is no code)
+local function pollActivation()
+  ns.CheckActivation()
+  ns.Schedule("gemActPoll", 60, pollActivation)
+end
+
 function handlers.GUILD_ROSTER_UPDATE()
   ns.Schedule("gemRosterRead", 0.5, function()
     G.ReadRoster()
     ns.CheckActivation()
+    if not ns.actPoll then ns.actPoll = true; ns.Schedule("gemActPoll", 60, pollActivation) end
   end)
 end
 

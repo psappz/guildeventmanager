@@ -144,14 +144,20 @@ function G.ReadMarker()
   local v, id = tostring(text):match(G.MARKER_PATTERN)
   ns.db.markers[key] = v and ("[GEM:" .. v .. ":" .. id .. "]") or false
   G.markerRead = key
+  G.markerAt = GetTime()
   return true
 end
 
 function G.Marker()
   local key = G.StoreKey()
   if not key or not ns.db then return nil end
-  if G.markerRead ~= key then G.ReadMarker() end
   local m = ns.db.markers and ns.db.markers[key]
+  -- read once per session; while there is no code, look again every minute so
+  -- members who are online when the guild master pastes it switch on by themselves
+  if G.markerRead ~= key or (not m and GetTime() - (G.markerAt or 0) > 60) then
+    G.ReadMarker()
+    m = ns.db.markers and ns.db.markers[key]
+  end
   return m or nil
 end
 

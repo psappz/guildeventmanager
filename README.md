@@ -14,6 +14,8 @@ The guild master activates it for the guild by pasting an activation code into t
 
 GuildEventManager is modular. The core, the PvP module and the PvE module ship together; every other module is a separate addon that depends on the core. PvP modules can extend the PvP module (own PvP event types, deeds that give guild honor, honor rules, reactions to kills, deaths and war drums).
 
+**Guild masters:** [docs/GUILD_MASTER.md](docs/GUILD_MASTER.md) – how to switch the addon on for your guild (English and German).
+
 **Write your own module:** [docs/MODULES.md](docs/MODULES.md) – API reference, rules for the Forever client, testing checklist, API changes and compatibility promise. Working examples: [examples/GuildEventManager_Example](examples/GuildEventManager_Example) (event module) and [examples/GuildEventManager_PvPDuels](examples/GuildEventManager_PvPDuels) (PvP module).
 
 ## Repository layout
