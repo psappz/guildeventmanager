@@ -182,9 +182,11 @@ local function dispatch(body, senderName, dist)
   end
   local key = G.Resolve(senderName)
   log("<-", kind, senderName, #body)
-  if dist == "GUILD" and not key then return end   -- not in our roster: ignore
+  -- only guild members count: a message from outside the roster (a whisper, a
+  -- party or raid message from a stranger) is ignored on every channel
+  if not key then return end
   for _, fn in ipairs(handlers[kind] or {}) do
-    ns.SafeCall("comm:" .. kind, fn, data, key or G.Key(senderName), dist)
+    ns.SafeCall("comm:" .. kind, fn, data, key, dist)
   end
 end
 
