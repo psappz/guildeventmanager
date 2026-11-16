@@ -89,6 +89,7 @@ function E.Create(fields)
     finish = fields.finish,
     group = fields.group or (t and t.group) or "none",
     gmin = fields.gmin, gmax = fields.gmax,
+    lvl = tonumber(fields.lvl), -- lowest character level that is asked to sign up, nil = all
     pts = fields.pts,  -- own participation points, nil = profile default
     goals = fields.goals, -- { { text, done } }
     fields = fields.fields, -- own questions of this event { { id, label, kind, options } }
@@ -444,6 +445,7 @@ local reminded = {}
 function E.Tick()
   ns.Schedule("gemEventTick", 30, E.Tick)
   if ns.demo or not G.IsActivated() then return end
+  ns.SafeCall("invites", E.CheckInvites)
   local now = U.Now()
   for _, e in pairs(events()) do
     if e.status == "planned" and e.kind == "short" and not reminded[e.id] then
@@ -460,8 +462,101 @@ function E.Tick()
   end
 end
 
+---------------------------------------------------------------------------
+-- Open invitations: a planned event that a member of the right level has not
+-- answered yet. A notice under the bell for every one; in the week before the
+-- event a popup that has to be answered ("open" or "later").
+---------------------------------------------------------------------------
+E.ASK_DAYS = 7
+E.ASK_SNOOZE = 3 * 3600      -- "Later" hides the popup for this long
+E.ASK_OPENED = 15 * 60       -- after "Open" give the member time to answer
+
+function E.MinLevel(e)
+  local v = e and tonumber(e.lvl)
+  if v and v > 1 then return math.floor(v) end
+  return nil
+end
+function E.LevelOf(key)
+  if not key or key == G.MyKey() then return UnitLevel and UnitLevel("player") end
+  local r = G.roster[key]
+  return r and r.level
+end
+-- true when the character is of the event's level (unknown level counts as yes)
+function E.Qualifies(e, key)
+  local min = E.MinLevel(e)
+  if not min then return true end
+  local lv = tonumber(E.LevelOf(key))
+  if not lv or lv <= 0 then return true end
+  return lv >= min
+end
+-- the member still has to say yes or no
+function E.NeedsAnswer(e, key)
+  if not e or e.status ~= "planned" or e.kind == "season" then return false end
+  if (tonumber(e.start) or 0) <= U.Now() then return false end
+  if E.Status(e, key) then return false end
+  return E.Qualifies(e, key)
+end
+-- own open invitations, soonest first
+function E.OpenInvites()
+  local list = {}
+  for _, e in pairs(events()) do if E.NeedsAnswer(e) then list[#list + 1] = e end end
+  table.sort(list, function(a, b) return (a.start or 0) < (b.start or 0) end)
+  return list
+end
+
+local function askStore()
+  local c = ns.char
+  if not c then return {} , {} end
+  c.askNotice = c.askNotice or {}
+  c.askSnooze = c.askSnooze or {}
+  return c.askNotice, c.askSnooze
+end
+
+function E.SnoozeInvite(e, secs)
+  local _, snooze = askStore()
+  if e and e.id then snooze[e.id] = U.Now() + (secs or E.ASK_SNOOZE) end
+end
+
+-- the popups that are due now (in the week before the event, not snoozed)
+function E.DueInvites()
+  local _, snooze = askStore()
+  local now, out = U.Now(), {}
+  for _, e in ipairs(E.OpenInvites()) do
+    if (e.start or 0) - now <= E.ASK_DAYS * 86400 and (snooze[e.id] or 0) <= now then out[#out + 1] = e end
+  end
+  return out
+end
+
+function E.CheckInvites()
+  if ns.demo or not G.IsActivated() then return end
+  local noticed, snooze = askStore()
+  local open = {}
+  for _, e in ipairs(E.OpenInvites()) do
+    open[e.id] = true
+    if not noticed[e.id] and ns.Notices then
+      noticed[e.id] = true
+      ns.Notices.Remove("ev:" .. e.id)
+      ns.Notices.Add({ key = "ask:" .. e.id, group = ns.L.TAB_EVENTS, text = ns.L.NOTICE_ASK:format(e.name, U.FormatTime(e.start)), ev = e.id })
+    end
+  end
+  for id in pairs(noticed) do
+    if not open[id] then
+      noticed[id] = nil
+      if ns.Notices then ns.Notices.Remove("ask:" .. id) end
+    end
+  end
+  for id in pairs(snooze) do if not open[id] then snooze[id] = nil end end
+  if ns.UIInvite then ns.UIInvite.Update() end
+end
+
+ns.On("SIGNUP_CHANGED", function(e, key)
+  if key == G.MyKey() then E.CheckInvites() end
+end)
+
 function E.LoginNotice()
   if not G.IsActivated() then return end
+  local ask = #E.OpenInvites()
+  if ask > 0 then U.Print(U.Color(U.GOLD, ns.L.LOGIN_ASK:format(ask))) end
   local planned, running = 0, 0
   for _, e in pairs(events()) do
     if e.status == "planned" then planned = planned + 1 elseif e.status == "running" then running = running + 1 end

@@ -119,6 +119,7 @@ API.RegisterModule({
 | `kind` | default run type: `"short"`, `"multiday"`, `"multiweek"`, `"season"` |
 | `group` | default group requirement: `"none"`, `"party"`, `"raid"`, `"teams"` |
 | `gmin`, `gmax` | optional default player numbers; the editor picks the matching group size (e.g. `group = "raid", gmax = 25` → "Raid (25)") |
+| `minLevel` | optional default for the event's lowest level (number or function); only members of that level are asked to sign up. The manager can change it in the editor. The PvE raids use the highest player level. |
 | `icon` | texture path – shown on the type tile in the event editor, so choose a clear one |
 | `goalKeys` | locale keys of goals suggested in the editor; each reached goal gives event points to all participants |
 
@@ -176,7 +177,7 @@ Guild event managers can change threshold, points, name, honor name and duration
 
 | Function | |
 |---|---|
-| `API.GetEvents(filter)`, `API.GetEvent(id)` | event tables: `id, type, name, desc, leader, kind, start, finish, group, status ("planned"/"running"/"done"/"cancelled"), signups, attended, goals` |
+| `API.GetEvents(filter)`, `API.GetEvent(id)` | event tables: `id, type, name, desc, leader, kind, start, finish, group, lvl (lowest level, nil = all), status ("planned"/"running"/"done"/"cancelled"), signups, attended, goals` |
 | `API.IsSigned(event, [name])` | |
 
 ### Callbacks – `API.On(name, fn)`

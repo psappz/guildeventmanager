@@ -1,5 +1,17 @@
 # GuildEventManager
 
+## 0.7.1 (in progress)
+
+### Added
+- **Invitation reminder:** every member who has not answered an event yet gets a notice under the bell and a line in the chat after login. In the week before the event a popup asks for an answer: "Open GuildEventManager" leads straight to the own sign-up (with a short glow around it), "Later" asks again after three hours. The popup never comes during combat or while the window is open; Escape counts as "Later". Answering yes, no or anything else ends the reminders.
+- **Level of an event:** the editor has a field "From level" (empty = all levels). Only characters of that level are reminded; the detail page shows the level. Raids use the highest player level by default. Event types can set `minLevel`.
+
+### Changed
+- Overview: "still without an answer" counts only the events you are asked to answer (declined ones and events above your level no longer count).
+
+### Fixed
+- Opening an event from a notice right after login showed the event list instead of the event.
+
 ## 0.7.0 – 2026-11-16 (beta test)
 
 ### Added

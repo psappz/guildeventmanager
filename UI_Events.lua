@@ -282,6 +282,7 @@ local function refreshDetail(p)
   if e.finish then facts[#facts + 1] = L.FACT_END:format(U.FormatTime(e.finish)) end
   local pr = ns.Profile.Get().pts
   facts[#facts + 1] = L.FACT_POINTS:format(tonumber(e.pts) or pr.participate, pr.lead, pr.leadMin)
+  if E.MinLevel(e) then facts[#facts + 1] = L.FACT_LEVEL:format(E.MinLevel(e)) end
   if e.status == "done" then
     local n = 0
     for _ in pairs(e.attended or {}) do n = n + 1 end
@@ -481,6 +482,14 @@ end
 local function addDays(day, n)
   local t = date("*t", day)
   return time({ year = t.year, month = t.month, day = t.day + n, hour = 0, min = 0, sec = 0 })
+end
+
+-- the level a type asks for by default (number or function), nil = all levels
+local function typeLevel(t)
+  local v = t and t.minLevel
+  if type(v) == "function" then local ok, r = pcall(v); v = ok and r or nil end
+  v = tonumber(v)
+  return (v and v > 1) and math.floor(v) or nil
 end
 
 -- editor state <-> event fields
@@ -689,7 +698,10 @@ local function buildEditor(p)
   ed.gmax = W.Edit(col, 60, 22); ed.gmax:SetNumeric(true); ed.gmax:SetMaxLetters(2)
   ed.lPts = W.Text(col, 10, "muted")
   ed.pts = W.Edit(col, 60, 22); ed.pts:SetNumeric(true); ed.pts:SetMaxLetters(3)
-  for _, e in ipairs({ ed.gmin, ed.gmax, ed.pts }) do
+  ed.lLvl = W.Text(col, 10, "muted"); ed.lLvl:SetText(L.ED_LEVEL)
+  ed.lvl = W.Edit(col, 60, 22); ed.lvl:SetNumeric(true); ed.lvl:SetMaxLetters(3)
+  ed.lvlHint = W.Text(col, 10, "muted"); ed.lvlHint:SetText(L.ED_LEVEL_HINT)
+  for _, e in ipairs({ ed.gmin, ed.gmax, ed.pts, ed.lvl }) do
     e:SetScript("OnTextChanged", function(_, user) if user and ed.f then V.EditorPreview() end end)
   end
 
@@ -864,6 +876,10 @@ function V.EditorRefresh()
   ed.lPts:SetText(L.ED_POINTS:format(pr.participate or 10))
   y = y + 14
   at(ed.gmin); at(ed.gmax, 80); at(ed.pts, 170)
+  y = y + 22 + 10
+  at(ed.lLvl); y = y + 14
+  at(ed.lvl)
+  ed.lvlHint:ClearAllPoints(); ed.lvlHint:SetPoint("LEFT", ed.lvl, "RIGHT", 10, 0); ed.lvlHint:SetPoint("RIGHT", col, "LEFT", LEFT_W, 0)
   y = y + 22 + 16
 
   -- 4 · goals
@@ -901,6 +917,8 @@ function V.EditorPickType(id)
       end
     end
     ed.gmin:SetText(f.gmin and tostring(f.gmin) or ""); ed.gmax:SetText(f.gmax and tostring(f.gmax) or "")
+    local lv = typeLevel(t)
+    ed.lvl:SetText(lv and tostring(lv) or "")
   end
   if not ed.goalsTouched then
     ed.goals = {}
@@ -937,6 +955,8 @@ function V.EditorPreview()
   local n = 0
   for _, g in ipairs(ed.goals or {}) do if g:gsub("%s", "") ~= "" then n = n + 1 end end
   if n > 0 then lines[#lines + 1] = L.ED_PREVIEW_GOALS:format(n, pr.goal or 5) end
+  local lv = tonumber(ed.lvl:GetText())
+  lines[#lines + 1] = (lv and lv > 1) and L.FACT_LEVEL:format(lv) or L.FACT_LEVEL_ALL
   ed.previewText:SetText(table.concat(lines, "\n"))
 end
 
@@ -955,6 +975,8 @@ function V.SaveEditor()
   f.gmax = tonumber(ed.gmax:GetText())
   if f.gmin and f.gmax and f.gmin > f.gmax then ed.err:SetText(L.ED_ERR_SIZE); return end
   f.pts = tonumber(ed.pts:GetText())
+  f.lvl = tonumber(ed.lvl:GetText())
+  if f.lvl and f.lvl <= 1 then f.lvl = nil end
   local old = {}
   for _, g in ipairs(f.goals or {}) do old[g.text] = g.done end
   local goals = {}
@@ -967,7 +989,7 @@ function V.SaveEditor()
   if ed.ev then
     e = E.Get(ed.ev.id)
     if not e then V.ShowList(); return end
-    for _, k in ipairs({ "type", "name", "desc", "kind", "start", "finish", "group", "gmin", "gmax", "pts", "goals", "fields" }) do e[k] = f[k] end
+    for _, k in ipairs({ "type", "name", "desc", "kind", "start", "finish", "group", "gmin", "gmax", "lvl", "pts", "goals", "fields" }) do e[k] = f[k] end
     if e.kind == "season" then e.start = ns.Points.SeasonStart(); e.finish = ns.Points.SeasonEnd() end
     E.Save(e)
   else
@@ -1029,6 +1051,8 @@ function V.OpenEditor(e, template, preset)
   ed.gmin:SetText(ed.f.gmin and tostring(ed.f.gmin) or "")
   ed.gmax:SetText(ed.f.gmax and tostring(ed.f.gmax) or "")
   ed.pts:SetText(ed.f.pts and tostring(ed.f.pts) or "")
+  if not src and ed.f.lvl == nil then ed.f.lvl = typeLevel(ns.Modules.Type(ed.f.type)) end
+  ed.lvl:SetText(ed.f.lvl and tostring(ed.f.lvl) or "")
   ed.goals = {}
   for _, g in ipairs(ed.f.goals or {}) do ed.goals[#ed.goals + 1] = g.text end
   ed.goalsTouched = src ~= nil
@@ -1132,11 +1156,45 @@ function V.ShowList() V.Mode("list") end
 function V.RefreshDetail() if V.panel and V.panel.mode == "detail" then refreshDetail(V.panel) end end
 
 function V.OpenDetail(e)
-  if not V.panel then UI.Show("events"); return end
+  -- first opening: the page is built with the next refresh, show the event then
+  if not V.panel then V.pending = e; UI.Show("events"); return end
   if not e then return V.ShowList() end
   if UI.Frame() == nil or not UI.Frame():IsShown() or UI.Frame().current ~= "events" then UI.Show("events") end
   V.panel.detail.ev = e
   V.Mode("detail")
+end
+
+-- Straight to the own sign-up of an event (from the invitation popup):
+-- the detail page with a short glow around "Your sign-up"
+function V.OpenSignup(e)
+  if not e then return end
+  local first = V.panel == nil
+  UI.Show("events")
+  V.OpenDetail(e)
+  if first then ns.Schedule("gemSignupGlow", 0.2, function() V.GlowSignup() end) else V.GlowSignup() end
+end
+
+function V.GlowSignup()
+  local d = V.panel and V.panel.detail
+  if not d or not d.my or not d.my:IsShown() then return end
+  if not d.glow then
+    local g = d.my:CreateTexture(nil, "OVERLAY")
+    g:SetPoint("TOPLEFT", -3, 3); g:SetPoint("BOTTOMRIGHT", 3, -3)
+    local c = T.Current().title
+    g:SetColorTexture(c[1], c[2], c[3], 0.22)
+    g:SetBlendMode("ADD")
+    g:SetAlpha(0)
+    local ag = g:CreateAnimationGroup()
+    local a1 = ag:CreateAnimation("Alpha"); a1:SetFromAlpha(0); a1:SetToAlpha(1); a1:SetDuration(0.35); a1:SetOrder(1)
+    local a2 = ag:CreateAnimation("Alpha"); a2:SetFromAlpha(1); a2:SetToAlpha(0); a2:SetDuration(0.6); a2:SetOrder(2)
+    ag:SetLoops("NONE")
+    local n = 0
+    ag:SetScript("OnFinished", function() n = n + 1; if n < 3 then ag:Play() end end)
+    d.glow, d.glowAnim = g, ag
+    d.glowReset = function() n = 0 end
+  end
+  d.glowReset()
+  d.glowAnim:Stop(); d.glowAnim:Play()
 end
 
 UI.RegisterView("events", {
@@ -1145,6 +1203,7 @@ UI.RegisterView("events", {
     V.panel = p
     buildList(p); buildDetail(p); buildEditor(p); buildAttendance(p)
     p.mode = "list"
+    if V.pending then p.detail.ev = V.pending; p.mode = "detail"; p.list:Hide(); p.detail:Show(); p.editor:Hide(); p.att:Hide(); V.pending = nil end
   end,
   refresh = function(p)
     if p.mode == "list" then refreshList(p)

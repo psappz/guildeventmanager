@@ -102,16 +102,17 @@ local function refresh(p)
     c2.info:SetText("")
   end
 
-  local open, signed = 0, 0
+  local open, signed, ask = 0, 0, 0
   for _, ev in ipairs(E.List(function(x) return E.IsOpen(x) and ns.Profile.IsTypeActive(x.type) end)) do
     open = open + 1
     local st = E.Status(ev)
     if st and st ~= "out" then signed = signed + 1 end
+    if E.NeedsAnswer(ev) then ask = ask + 1 end
   end
   local c3 = p.cards[3]
   c3.label:SetText(L.HOME_MINE)
   c3.value:SetText(L.HOME_MINE_VAL:format(signed, open))
-  c3.info:SetText(open > signed and L.HOME_MINE_OPEN:format(open - signed) or "")
+  c3.info:SetText(ask > 0 and L.HOME_MINE_OPEN:format(ask) or "")
 
   local list = Pts.Entries()
   local n = 0
