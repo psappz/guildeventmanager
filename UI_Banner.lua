@@ -40,7 +40,7 @@ local function build(p)
   scene:SetSize(250, V.ART_SIZE); scene:SetPoint("TOP", 0, -2)
   card.scene = scene
   -- the guild banner from the tabard (UI_GuildBanner.lua)
-  scene.gb = UI.GuildBanner(card, 282)
+  scene.gb = UI.GuildBanner(card, 282, true)
   scene.gb:SetPoint("TOP", card, "TOP", 0, -4)
   -- painted banner (Media\\banner_<faction>_<stage>.tga) where it exists for this faction
   scene.art = scene:CreateTexture(nil, "ARTWORK", nil, 2)
