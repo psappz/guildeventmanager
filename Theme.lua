@@ -59,3 +59,10 @@ end
 function T.Hex(c)
   return string.format("ff%02x%02x%02x", (c[1] or 1) * 255, (c[2] or 1) * 255, (c[3] or 1) * 255)
 end
+
+-- names of the banner levels, per faction (Horde: forged, tempered, feared,
+-- legendary; Alliance: armed, proven, celebrated, legendary)
+function T.Tier(n)
+  local L = ns.L
+  return L[(T.Faction() == "alliance" and "TIER_A_" or "TIER_H_") .. tostring(n)] or L["TIER_" .. tostring(n)] or tostring(n)
+end

@@ -145,7 +145,7 @@ local function build(p)
     end)
     t:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_TOP")
-      GameTooltip:SetText(L["TIER_" .. self.level], 1, 0.82, 0)
+      GameTooltip:SetText(T.Tier(self.level), 1, 0.82, 0)
       GameTooltip:AddLine(L["TIER_" .. self.level .. "_DESC"], 1, 1, 1, true)
       GameTooltip:AddLine(L.BANNER_PREVIEW_TIP, 0.7, 0.7, 0.7, true)
       GameTooltip:Show()
@@ -268,7 +268,7 @@ local function refresh(p)
   local th = T.Current()
   local b = Pts.Banner()
   p.card.guild:SetText(G.Name() or "")
-  p.card.level:SetText(L.BANNER_LEVEL:format(T.Word("BANNER"), b.level, L["TIER_" .. b.level]))
+  p.card.level:SetText(L.BANNER_LEVEL:format(T.Word("BANNER"), b.level, T.Tier(b.level)))
   -- banner picture: the reached level, or the stage the manager clicked (preview)
   local lvl = V.preview or b.level
   local sc = p.card.scene
@@ -320,9 +320,9 @@ local function refresh(p)
   sc.trophyL:SetShown(show.trophies); sc.trophyR:SetShown(show.trophies)
   sc.flames:SetShown(show.flames)
   if show.flames then if not sc.flicker:IsPlaying() then sc.flicker:Play() end else sc.flicker:Stop() end
-  sc.preview:SetText(V.preview and L.BANNER_PREVIEW:format(L["TIER_" .. V.preview]) or "")
+  sc.preview:SetText(V.preview and L.BANNER_PREVIEW:format(T.Tier(V.preview)) or "")
   for i, t in ipairs(p.card.tiers) do
-    t.name:SetText(L["TIER_" .. i])
+    t.name:SetText(T.Tier(i))
     if not t.mini then
       t.mini = UI.GuildBanner(t, 54)
       t.mini:SetPoint("CENTER", t.icon, "CENTER", 0, 0)
@@ -336,7 +336,7 @@ local function refresh(p)
   end
   if b.nextAt then
     p.card.bar:SetValue(math.min(1, (b.value - b.from) / math.max(1, b.nextAt - b.from)))
-    p.card.next:SetText(L.BANNER_NEXT:format(b.nextAt - b.value, L["TIER_" .. (b.level + 1)]) .. "\n" .. L.BANNER_HOW)
+    p.card.next:SetText(L.BANNER_NEXT:format(b.nextAt - b.value, T.Tier((b.level + 1))) .. "\n" .. L.BANNER_HOW)
   else
     p.card.bar:SetValue(1)
     p.card.next:SetText(L.BANNER_MAX .. "\n" .. L.BANNER_HOW)

@@ -29,7 +29,7 @@ function MM.StatusLines()
   lines[#lines + 1] = { L.STATUS_EVENTS:format(running, planned), 1, 1, 1 }
   if nextE then lines[#lines + 1] = { L.STATUS_NEXT:format(nextE.name, U.FormatTime(nextE.start)), 1, 0.82, 0 } end
   local b = ns.Points.Banner()
-  lines[#lines + 1] = { L.BANNER_LEVEL:format(T.Word("BANNER"), b.level, L["TIER_" .. b.level]), 0.9, 0.73, 0.36 }
+  lines[#lines + 1] = { L.BANNER_LEVEL:format(T.Word("BANNER"), b.level, T.Tier(b.level)), 0.9, 0.73, 0.36 }
   local me = ns.Points.Totals("season")[G.MyKey()]
   lines[#lines + 1] = { L.STATUS_ME:format(me and math.floor(me.total) or 0), 0.56, 0.89, 0.62 }
   return lines
