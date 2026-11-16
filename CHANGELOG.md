@@ -11,6 +11,7 @@
 
 ### Fixed
 - Opening an event from a notice right after login showed the event list instead of the event.
+- Addon messages from players outside the guild are now ignored on every channel. Before, a stranger could whisper sign-ups or points to a member.
 
 ## 0.7.0 – 2026-11-16 (beta test)
 
