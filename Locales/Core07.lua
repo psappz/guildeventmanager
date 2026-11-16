@@ -61,6 +61,11 @@ ns.AddLocale("enUS", {
   SETTINGS_GENERAL = "General",
   EVT_END_NO_POINTS = "Event closed. Points are booked only by the guild's event managers.",
   HEADER_SUB2 = "GuildEventManager · %s · season %s",
+  TABARD_NONE = "No guild tabard found (not in a guild, or no tabard designed yet).",
+  TABARD_TEST = "Guild tabard – test drawing",
+  TABARD_PARTS = "from the parts",
+  TABARD_GAME = "as the game draws it",
+  TABARD_GAME_NONE = "(client has no helper)",
   PROBE_HEAD = "GEM probe · what this client offers:",
 })
 ns.AddLocale("deDE", {
@@ -124,6 +129,11 @@ ns.AddLocale("deDE", {
   SETTINGS_GENERAL = "Allgemein",
   EVT_END_NO_POINTS = "Event abgeschlossen. Punkte buchen nur die Eventmanager der Gilde.",
   HEADER_SUB2 = "GuildEventManager · %s · Saison %s",
+  TABARD_NONE = "Kein Gildenwappen gefunden (keine Gilde oder noch kein Wappenrock entworfen).",
+  TABARD_TEST = "Gildenwappen – Testzeichnung",
+  TABARD_PARTS = "aus den Einzelteilen",
+  TABARD_GAME = "wie das Spiel es zeichnet",
+  TABARD_GAME_NONE = "(Client hat keine Hilfsfunktion)",
   PROBE_HEAD = "GEM-Prüfung · was dieser Client bietet:",
 })
 ns.AddLocale("frFR", {
@@ -187,6 +197,11 @@ ns.AddLocale("frFR", {
   SETTINGS_GENERAL = "Général",
   EVT_END_NO_POINTS = "Événement clos. Seuls les gestionnaires d'événements de la guilde attribuent des points.",
   HEADER_SUB2 = "GuildEventManager · %s · saison %s",
+  TABARD_NONE = "Aucun blason de guilde trouvé (pas de guilde ou pas encore de tabard).",
+  TABARD_TEST = "Blason de guilde – dessin test",
+  TABARD_PARTS = "à partir des éléments",
+  TABARD_GAME = "tel que le jeu le dessine",
+  TABARD_GAME_NONE = "(le client n'a pas d'aide)",
   PROBE_HEAD = "Test GEM · ce que ce client propose :",
 })
 ns.AddLocale("esES", {
@@ -250,6 +265,11 @@ ns.AddLocale("esES", {
   SETTINGS_GENERAL = "General",
   EVT_END_NO_POINTS = "Evento cerrado. Solo los gestores de eventos de la hermandad asignan puntos.",
   HEADER_SUB2 = "GuildEventManager · %s · temporada %s",
+  TABARD_NONE = "No se encontró el emblema (sin hermandad o sin tabardo diseñado).",
+  TABARD_TEST = "Emblema de hermandad: dibujo de prueba",
+  TABARD_PARTS = "a partir de las partes",
+  TABARD_GAME = "como lo dibuja el juego",
+  TABARD_GAME_NONE = "(el cliente no tiene ayuda)",
   PROBE_HEAD = "Prueba GEM · lo que ofrece este cliente:",
 })
 ns.AddLocale("itIT", {
@@ -313,6 +333,11 @@ ns.AddLocale("itIT", {
   SETTINGS_GENERAL = "Generale",
   EVT_END_NO_POINTS = "Evento chiuso. Solo i gestori eventi della gilda assegnano punti.",
   HEADER_SUB2 = "GuildEventManager · %s · stagione %s",
+  TABARD_NONE = "Nessuno stemma di gilda trovato (nessuna gilda o tabarda non ancora creata).",
+  TABARD_TEST = "Stemma di gilda – disegno di prova",
+  TABARD_PARTS = "dalle singole parti",
+  TABARD_GAME = "come lo disegna il gioco",
+  TABARD_GAME_NONE = "(il client non ha l'aiuto)",
   PROBE_HEAD = "Verifica GEM · cosa offre questo client:",
 })
 ns.AddLocale("ptBR", {
@@ -376,5 +401,10 @@ ns.AddLocale("ptBR", {
   SETTINGS_GENERAL = "Geral",
   EVT_END_NO_POINTS = "Evento encerrado. Só os gestores de eventos da guilda lançam pontos.",
   HEADER_SUB2 = "GuildEventManager · %s · temporada %s",
+  TABARD_NONE = "Nenhum brasão de guilda encontrado (sem guilda ou tabardo ainda não criado).",
+  TABARD_TEST = "Brasão da guilda – desenho de teste",
+  TABARD_PARTS = "a partir das partes",
+  TABARD_GAME = "como o jogo desenha",
+  TABARD_GAME_NONE = "(o cliente não tem a função)",
   PROBE_HEAD = "Teste GEM · o que este cliente oferece:",
 })
