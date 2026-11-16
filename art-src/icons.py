@@ -84,3 +84,16 @@ for i, n in enumerate(names):
     sheet.alpha_composite(im, (i * 72 + 4, 4))
 sheet.save(os.path.join(PNG, "_preview.png"))
 print(len(names), "icons")
+
+# capsule for chips: fill and outline (3-sliced in the game: 16 | 1 | 16 px of 64)
+PILL = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 32" width="128" height="64"><rect x="{o}" y="{o}" width="{w}" height="{h}" rx="{r}" {a}/></svg>'
+for name, attrs, o in (("pill", 'fill="#ffffff"', 1), ("pill_line", 'fill="none" stroke="#ffffff" stroke-width="1.6"', 1.2)):
+    s = PILL.format(o=o, w=64 - 2 * o, h=32 - 2 * o, r=16 - o, a=attrs)
+    png = cairosvg.svg2png(bytestring=s.encode(), output_width=64, output_height=32)
+    im = Image.open(io.BytesIO(png)).convert("RGBA")
+    im.save(os.path.join(PNG, name + ".png")); im.save(os.path.join(OUT, name + ".tga"))
+
+# shield for the guild emblem in the window header: fill (tinted) and gold rim
+SH = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="128" height="128"><path d="M24 3 L41 8 V22 C41 33 33.5 40.5 24 45 C14.5 40.5 7 33 7 22 V8 Z" {a}/></svg>'
+write("shield_fill", SH.format(a='fill="#ffffff"'), 128)
+write("shield_rim", SH.format(a='fill="none" stroke="#d9b45f" stroke-width="2.2" stroke-linejoin="round"'), 128)

@@ -197,6 +197,26 @@ local function buildWindow()
   local crest = crestBtn:CreateTexture(nil, "ARTWORK")
   crest:SetAllPoints()
   crest:SetTexture(W.Icon("crest_" .. th.key))
+  -- the guild's own emblem on a shield in the tabard colour (when the guild has a tabard)
+  crestBtn.fill = crestBtn:CreateTexture(nil, "ARTWORK", nil, 1); crestBtn.fill:SetAllPoints(); crestBtn.fill:SetTexture(W.Icon("shield_fill"))
+  crestBtn.emblem = crestBtn:CreateTexture(nil, "ARTWORK", nil, 2); crestBtn.emblem:SetSize(28, 28); crestBtn.emblem:SetPoint("CENTER", 0, 1)
+  crestBtn.rim = crestBtn:CreateTexture(nil, "ARTWORK", nil, 3); crestBtn.rim:SetAllPoints(); crestBtn.rim:SetTexture(W.Icon("shield_rim"))
+  crestBtn.hidden = CreateFrame("Frame", nil, crestBtn); crestBtn.hidden:Hide()
+  crestBtn.dBg = crestBtn.hidden:CreateTexture(); crestBtn.dBo = crestBtn.hidden:CreateTexture()
+  crestBtn.crest = crest
+  function crestBtn:Update()
+    local t = ns.Tabard and ns.Tabard.Read()
+    local ok = false
+    if t and t.bg and SetLargeGuildTabardTextures then
+      ok = pcall(SetLargeGuildTabardTextures, "player", self.emblem, self.dBg, self.dBo)
+      local c = t.bg
+      -- a little lighter than the cloth so a dark tabard still shows on the dark header
+      self.fill:SetVertexColor(math.min(1, c[1] * 1.3 + 0.08), math.min(1, c[2] * 1.3 + 0.08), math.min(1, c[3] * 1.3 + 0.08))
+    end
+    self.fill:SetShown(ok); self.emblem:SetShown(ok); self.rim:SetShown(ok)
+    self.crest:SetShown(not ok)
+  end
+  f.crestBtn = crestBtn
   crestBtn:SetScript("OnClick", function() UI.Show("banner") end)
   crestBtn.tip = { ns.L.TAB_BANNER }
   f.title = W.Text(head, 19, "title")
@@ -390,6 +410,7 @@ function UI.Refresh()
     if not win:IsShown() then return end
     local season = date("%d.%m.", ns.Points.SeasonStart()) .. " – " .. date("%d.%m.", ns.Points.SeasonEnd() - 1)
     win.title:SetText(G.InGuild() and (G.Name() or "?") or "GuildEventManager")
+    if win.crestBtn then win.crestBtn:Update() end
     win.sub:SetText(G.InGuild()
       and ns.L.HEADER_SUB2:format(T.Word("GUILD"), season)
       or ns.L.NO_GUILD_SHORT)
@@ -520,7 +541,7 @@ function UI.ChipRow(parent, getOpts, getValue, onPick, w)
       end
       c.value = o[1]
       W.SetLabel(c, o[2])
-      if not w then c:SetWidth(c.label:GetStringWidth() + 20) end
+      if not w then c:SetWidth(c.label:GetStringWidth() + 24) end
       c:SetSelected(getValue() == o[1])
       c:ClearAllPoints()
       if prev then c:SetPoint("LEFT", prev, "RIGHT", 4, 0) else c:SetPoint("LEFT", 0, 0) end

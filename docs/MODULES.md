@@ -276,7 +276,7 @@ Every change to `GuildEventManagerAPI` and `GuildEventManagerAPI.PvP`, newest fi
 - Ledger entries, achievement ids and message kinds of a released module are never reused with another meaning: old entries in the guild ledger stay readable.
 - Before 1.0 (0.x betas) the same rules apply as far as possible; breaking changes, if unavoidable, are listed here with a migration note.
 
-### API 5 · PvP API 4 – unreleased (0.7.0)
+### API 5 · PvP API 4 – 0.7.0
 
 - **Window:** side bar with entries and sub tabs. `API.AddModule`, `API.AddSettingsPage`, `API.AddTab` with `parent`, `API.AddNotice` / `API.RemoveNotice`, `API.AddLedgerFormat`, `API.AddProbe` (see *UI*). Tabs registered with `API.AddTab` without `parent` keep working as own entries.
 - **Sign-ups:** a sign-up now has a state – `"in"` (yes), `"tent"` (tentative), `"late"`, `"bench"`, `"out"` (no) –, a comment and answers. `API.SignupStatus(e, name)`, `API.GetSignups(e)` → `{ { key, st, c, f, t } }` by time, `API.SetSignup(e, { st, c, f })`, `API.InviteAll(e)`. `API.IsSigned` is true for yes and late. Callback `SIGNUP_CHANGED (e, key, signup)`.
@@ -285,7 +285,7 @@ Every change to `GuildEventManagerAPI` and `GuildEventManagerAPI.PvP`, newest fi
 - `API.CreateEvent(fields)`, `API.SaveEvent(e)`. Fields of a module on the event (for example `e.pve`) travel with the event.
 - The guild roster has the class of every member (`class`, the English file name such as `"PRIEST"`).
 
-### API 4 · PvP API 4 – 0.7.0
+### API 4 · PvP API 4 – 0.7.0 (development steps, released together with API 5)
 
 Core (`api = 4`):
 - Callback `WINDOW_OPENED` when the player opens the window.

@@ -83,28 +83,52 @@ function W.Button(parent, text, primary, h)
 end
 
 -- Choice chip: a small button that can be selected (one of several options)
+-- a capsule button (rounded ends, like the mockup): fill + outline, 3-sliced
+local function capsule(b)
+  local parts = {}
+  for _, kind in ipairs({ "pill", "pill_line" }) do
+    local layer = kind == "pill" and "BACKGROUND" or "BORDER"
+    local L = b:CreateTexture(nil, layer); L:SetTexture(W.ICONS .. kind); L:SetTexCoord(0, 0.25, 0, 1)
+    local M = b:CreateTexture(nil, layer); M:SetTexture(W.ICONS .. kind); M:SetTexCoord(0.25, 0.75, 0, 1)
+    local R = b:CreateTexture(nil, layer); R:SetTexture(W.ICONS .. kind); R:SetTexCoord(0.75, 1, 0, 1)
+    L:SetPoint("TOPLEFT"); L:SetPoint("BOTTOMLEFT")
+    R:SetPoint("TOPRIGHT"); R:SetPoint("BOTTOMRIGHT")
+    M:SetPoint("TOPLEFT", L, "TOPRIGHT"); M:SetPoint("BOTTOMRIGHT", R, "BOTTOMLEFT")
+    parts[kind] = { L, M, R }
+  end
+  local function size()
+    local h = b:GetHeight()
+    for _, set in pairs(parts) do set[1]:SetWidth(h / 2); set[3]:SetWidth(h / 2) end
+  end
+  b:HookScript("OnSizeChanged", size)
+  size()
+  function b:SetCapsuleColors(fill, line)
+    for _, t in ipairs(parts.pill) do t:SetVertexColor(fill[1], fill[2], fill[3], fill[4] or 1) end
+    for _, t in ipairs(parts.pill_line) do t:SetVertexColor(line[1], line[2], line[3], line[4] or 1) end
+  end
+end
+
 function W.Chip(parent, text, w, h)
   local th = W.C()
-  local b = CreateFrame("Button", nil, parent, "BackdropTemplate")
+  local b = CreateFrame("Button", nil, parent)
   b:SetSize(w or 60, h or 22)
-  paint(b, th.panel2, th.line)
+  capsule(b)
   local fs = b:CreateFontString(nil, "OVERLAY")
   fs:SetFont("Fonts\\FRIZQT__.TTF", 10, "")
-  fs:SetPoint("LEFT", 4, 0); fs:SetPoint("RIGHT", -4, 0)
+  fs:SetPoint("LEFT", 8, 0); fs:SetPoint("RIGHT", -8, 0)
   fs:SetWordWrap(false)
   fs:SetText(text or "")
   b.label = fs
   function b:SetSelected(on)
     self.selected = on and true or false
     local bg = self.selected and th.accent or th.panel2
-    local bd = self.selected and th.border or th.line
-    self:SetBackdropColor(bg[1], bg[2], bg[3], bg[4] or 1)
-    self:SetBackdropBorderColor(bd[1], bd[2], bd[3], bd[4] or 1)
+    local bd = self.selected and th.title or th.line
+    self:SetCapsuleColors(bg, bd)
     local tc = self.selected and { 1, 0.95, 0.85 } or th.text
     fs:SetTextColor(tc[1], tc[2], tc[3])
   end
   b:SetScript("OnEnter", function(self)
-    self:SetBackdropBorderColor(th.title[1], th.title[2], th.title[3], 1)
+    self:SetCapsuleColors(self.selected and th.accent or th.panel2, th.title)
     if self.tip then
       GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
       GameTooltip:SetText(self.tip[1], 1, 0.82, 0)

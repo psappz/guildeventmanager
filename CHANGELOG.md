@@ -1,6 +1,6 @@
 # GuildEventManager
 
-## Unreleased (0.7.0)
+## 0.7.0 – 2026-11-16 (beta test)
 
 ### Added
 - **New window layout:** a side bar with the guild's areas (Overview, Events, Honor book, My achievements, Banner) and the modules (Raids, PvP), each module with its sub tabs. The gear opens the settings – with the rule pages of the modules (PvP rules, target alarm, raids) as sub tabs –, the bell shows notices (new events, raid groups, sightings), the guild crest opens the banner. Core API 5: `API.AddModule(id, { label, icon, order, badge, tabs })`, `API.AddSettingsPage`, `API.AddNotice`; `API.AddTab` with `parent` puts a tab into a module entry.
@@ -12,7 +12,8 @@
 - **Raids – new module GuildEventManager_PvE, part of the package** (entry "Raids"):
   - Raid events for The Barrow Deeps (10, 2 groups, 8 bosses), Hyjal Summit (20, 4 groups, 13 bosses) and Onyxia's Lair (40, 8 groups, Drakefire Amulet). Raids are data, more can be added.
   - Who may create and lead raids: the event managers plus every rank down to the one set in the settings (default: the rank below the guild master). Raid leads below the event-manager rank plan, invite and sort; honor for a raid is booked by an event manager when closing it.
-  - Sign-up with role (main tank, 2nd tank, melee, range, healer) and second role. Dual spec: read from the talents where the client allows it, otherwise saved once per member for the guild ("My specs"); the raid lead may correct it.
+  - Sign-up with role (main tank, 2nd tank, melee, range, healer) and second role, only the roles the class can play (no range paladins, no tank priests). A sign-up without a role stays "role open" instead of being guessed; the raid lead sets roles per raid with a right-click in the line-up.
+  - Specs ("My specs"): on WoW Forever every class has one talent tree with the classic trees side by side. The main spec is "Automatic" – the tree with the most points, following the talents – or chosen by hand; the second spec comes from the second talent group or is chosen by hand. The talent points are shown (e.g. Discipline 17 · Holy 0 · Shadow 15). Specs are sent to the guild; the raid lead may correct them.
   - Overview of the sign-ups by role with the wanted numbers per raid (settings), tentative and bench below.
   - Line-up: groups with drag & drop – into another group moves, onto a player of another group swaps, inside a group reorders; click and click the target works too. Tanks always stand on top of their group. Role icons (shield, healing, sword, bow) on every slot. "Fill groups" spreads tanks and healers.
   - Boss setups: per boss a member can play his second role (right-click); the boss list switches the line-up.
@@ -26,6 +27,7 @@
 
 ### Changed
 - **Guild banner from the guild tabard:** the banner is painted per faction (Horde: dark wood, leather, iron and tusks; Alliance: pale wood, steel and gold) and grows with the level – 1 pennant, 2 full banner with the guild emblem, 3 trim and tassels, 4 finial and sheen. The cloth takes the tabard's background colour, the hem its border colour, and the emblem is drawn by the game exactly as on the tabard. `/gem tabard` shows a test drawing, `/gem probe` the tabard data.
+- **Guild emblem in the window header:** the guild's own emblem on a shield in the tabard colour (the faction crest when the guild has no tabard). Choice buttons are capsules like in the mockup.
 - **New look:** own icons for the side bar, bell (with a red count), gear and close; the guild crest per faction and the guild name as the window title; coloured tags for modules (PvP red, Raids gold) and sign-up states; date tiles in the event list and on the event page; check and cross as icons; role symbols (shield, cross, sword, bow) and two-line slots with spec and second role in the raid line-up; buffs per group as coloured capsules.
 - **Achievements are now "My achievements":** they are earned by you alone and bring honor to you. Guild achievements, won together for the banner, and trophies follow in 0.9.0.
 - The PvP tabs are sub tabs of "PvP" (Overview, Kills, Duels & Oaths, Bounties); the PvP rules moved to the settings.
