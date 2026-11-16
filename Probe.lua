@@ -107,7 +107,10 @@ function Pr.Run()
   U.Print(ns.L.PROBE_HEAD)
   for _, l in ipairs(lines) do
     while #l > 240 do
-      local cut = l:sub(1, 240):match("^.*(), ") or 240
+      local head = l:sub(1, 240)
+      local cut = head:match("^.*(), ") or head:match("^.*() \194\183 ") or 240
+      -- never cut inside a UTF-8 character
+      while cut > 1 and (l:byte(cut + 1) or 0) >= 128 and (l:byte(cut + 1) or 0) < 192 do cut = cut - 1 end
       print("  " .. l:sub(1, cut)); l = "      " .. l:sub(cut + 1)
     end
     print("  " .. l)

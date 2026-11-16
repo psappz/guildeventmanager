@@ -1013,4 +1013,58 @@ API.AddProbe("pve", function()
     { "C_Item.GetItemCount / GetItemCount", P.Has(C_Item and C_Item.GetItemCount) .. " / " .. P.Has(GetItemCount) .. " · test (Hearthstone 6948): " .. (((C_Item and C_Item.GetItemCount) or GetItemCount) and P.Try((C_Item and C_Item.GetItemCount) or GetItemCount, 6948) or "–") },
   }
 end)
+-- Raid spells for the assignments (0.8.0): which classic spells this client
+-- still knows (by spell ID, shows the name in the client language) and every
+-- spell in the own spell book.
+local PROBE_SPELLS = {
+  { "paladin", { 19740, 19742, 20217, 20911, 19977, 1038, 25895, 1912, 25782, 25894, 25898, 25899, 25890, 465, 7294, 19746, 19876, 19888, 19891 } },
+  { "warlock", { 1490, 17862, 704, 1714, 702, 980, 603, 18223 } },
+  { "shaman", { 8512, 8075, 8835, 5675, 5394, 8227, 8190, 8143, 8170, 8166, 8184, 10595, 8177, 25908, 3738 } },
+  { "priest", { 6346, 1243, 14752, 976, 21562 } },
+  { "druid/mage/hunter/warrior", { 1126, 21849, 1459, 23028, 604, 1008, 13159, 20043, 6673, 469, 7386, 770, 11198 } },
+}
+local function spellName(id)
+  if C_Spell and C_Spell.GetSpellInfo then
+    local ok, i = pcall(C_Spell.GetSpellInfo, id)
+    if ok and type(i) == "table" then return i.name end
+  end
+  if GetSpellInfo then local ok, n = pcall(GetSpellInfo, id); if ok then return n end end
+end
+local function spellBook()
+  local out = {}
+  if C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines then
+    for i = 1, C_SpellBook.GetNumSpellBookSkillLines() do
+      local li = C_SpellBook.GetSpellBookSkillLineInfo(i)
+      if li then
+        for j = li.itemIndexOffset + 1, li.itemIndexOffset + li.numSpellBookItems do
+          local ok, n = pcall(C_SpellBook.GetSpellBookItemName, j, Enum and Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0)
+          if ok and n then out[#out + 1] = n end
+        end
+      end
+    end
+  elseif GetNumSpellTabs and GetSpellTabInfo and GetSpellBookItemName then
+    for t = 1, GetNumSpellTabs() do
+      local _, _, off, num = GetSpellTabInfo(t)
+      for j = off + 1, off + num do
+        local ok, n = pcall(GetSpellBookItemName, j, BOOKTYPE_SPELL or "spell")
+        if ok and n then out[#out + 1] = n end
+      end
+    end
+  end
+  local seen, uniq = {}, {}
+  for _, n in ipairs(out) do if not seen[n] then seen[n] = true; uniq[#uniq + 1] = n end end
+  return uniq
+end
+API.AddProbe("raidspells", function()
+  local rows = {}
+  for _, g in ipairs(PROBE_SPELLS) do
+    local t = {}
+    for _, id in ipairs(g[2]) do t[#t + 1] = id .. "=" .. (spellName(id) or "–") end
+    rows[#rows + 1] = { "spells " .. g[1], table.concat(t, " · ") }
+  end
+  local book = spellBook()
+  rows[#rows + 1] = { "own spell book (" .. #book .. ")", #book > 0 and table.concat(book, " · ") or "not readable" }
+  return rows
+end)
+
 core.HelpExt = (core.HelpExt or "") .. " · /gem raid [an|vorläufig|spät|bank|ab|import]"
