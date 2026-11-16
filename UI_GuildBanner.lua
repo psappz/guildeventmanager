@@ -25,6 +25,8 @@ local LAYERS = {
 
 -- sparkles on stage 4: positions on the canvas (x, y, size) and start delays
 local SPARKLES = { { 262, 190, 70, 0 }, { 880, 520, 55, 0.7 }, { 262, 1180, 60, 1.5 }, { 870, 1520, 80, 2.1 }, { 150, 95, 90, 2.8 }, { 560, 1690, 50, 3.4 } }
+-- the alliance cloth ends higher in the middle (swallow-tail): its lowest sparkle sits on the tip
+local SPARKLE_FACTION = { alliance = { [6] = { 560, 1600 } } }
 local GOLD = { 0.95, 0.72, 0.32 }
 
 local function pulse(region, from, to, dur, delay)
@@ -99,6 +101,11 @@ local function showEffects(f, on, faction, emblemShown)
   for _, r in ipairs({ fx.glow, fx.sheen, fx.shine }) do r:SetShown(on) end
   for _, t in ipairs(fx.sparkles) do t:SetShown(on) end
   if fx.mask then fx.mask:SetTexture(PATH .. "cloth_" .. faction .. "_4", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE") end
+  local w, h = f:GetWidth(), f:GetHeight()
+  for i, t in ipairs(fx.sparkles) do
+    local pos = (SPARKLE_FACTION[faction] and SPARKLE_FACTION[faction][i]) or SPARKLES[i]
+    t:ClearAllPoints(); t:SetPoint("CENTER", f, "TOPLEFT", pos[1] / 1024 * w, -pos[2] / 2048 * h)
+  end
   fx.emblem:SetShown(on and emblemShown)
   if on and emblemShown and SetLargeGuildTabardTextures then
     pcall(SetLargeGuildTabardTextures, "player", fx.emblem, f.dummyBg, f.dummyBorder)
