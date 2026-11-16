@@ -286,7 +286,7 @@ end
 
 UI.AddModule("pvp", {
   label = function() return L.TAB_PVP end,
-  icon = "Interface\\Icons\\Achievement_PVP_H_01",
+  icon = core.W.Icon("pvp"),
   category = "module",
   order = 10,
   badge = function()

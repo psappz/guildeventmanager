@@ -57,8 +57,7 @@ end
 
 local function roleIcon(parent)
   local tx = parent:CreateTexture(nil, "OVERLAY")
-  tx:SetSize(14, 14)
-  tx:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  tx:SetSize(15, 15)
   return tx
 end
 
@@ -337,6 +336,8 @@ local function slotButton(parent)
   b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   b:RegisterForDrag("LeftButton")
   b.text = W.Text(b, 11, "text"); b.text:SetPoint("LEFT", 6, 0); b.text:SetPoint("RIGHT", -22, 0); b.text:SetWordWrap(false)
+  b.sub = W.Text(b, 9, "muted"); b.sub:SetPoint("BOTTOMLEFT", 6, 3); b.sub:SetPoint("RIGHT", -22, 0); b.sub:SetWordWrap(false)
+  b.sub:Hide()
   b.icon = roleIcon(b); b.icon:SetPoint("RIGHT", -4, 0)
   b:SetScript("OnDragStart", function(self)
     local e = current()
@@ -396,9 +397,18 @@ end
 
 local function fillSlot(b, x, th, e, drop)
   b.x, b.key, b.drop = x, x and x.key, drop
+  b.text:ClearAllPoints(); b.text:SetPoint("RIGHT", -22, 0)
+  if b.two and x then b.text:SetPoint("TOPLEFT", 6, -3) else b.text:SetPoint("LEFT", 6, 0) end
+  b.sub:SetShown(b.two and x ~= nil)
   if x then
     b.text:SetText(nameOf(x) .. (x.swapped and U.Color("ffe3b45b", " *") or "") .. (x.st == "late" and U.Color(T.Hex(th.muted), " (" .. L.ST_late .. ")") or ""))
     b.icon:SetTexture(R.ROLE_ICON[x.kind or "range"]); b.icon:Show()
+    if b.two then
+      local bits = { R.RoleName(x.role) }
+      if x.class and x.tree then bits[#bits + 1] = R.SpecName(x.class, x.tree) end
+      if x.off and x.off ~= x.role then bits[#bits + 1] = L.RAID_CAN:format(R.RoleName(x.swapped and x.main or x.off)) end
+      b.sub:SetText(table.concat(bits, " · "))
+    end
   else
     b.text:SetText(U.Color(T.Hex(th.muted), (V.pick or V.drag) and L.RAID_HERE or L.RAID_FREE))
     b.icon:Hide()
@@ -412,7 +422,13 @@ local function buildPlan(p)
     function() local e = current(); return e and R.Plan(e).b or 0 end,
     function(v) local e = current(); if e then if R.CanEdit(e) then R.SetBoss(e, v) else R.Plan(e).b = v end; UI.Refresh() end end)
   p.boss:SetPoint("TOPRIGHT", 0, 0)
-  p.counts = W.Text(p, 11, "text"); p.counts:SetPoint("TOPLEFT", 0, -32)
+  p.counts = W.Text(p, 11, "text"); p.counts:SetPoint("TOPLEFT", 0, -32); p.counts:Hide()
+  p.cpills = {}
+  for i = 1, 5 do
+    local pl = UI.Pill(p)
+    if i == 1 then pl:SetPoint("TOPLEFT", 0, -30) else pl:SetPoint("LEFT", p.cpills[i - 1], "RIGHT", 5, 0) end
+    p.cpills[i] = pl
+  end
   p.auto = W.Button(p, L.RAID_AUTOFILL, false, 20)
   p.auto:SetPoint("TOPRIGHT", p, "TOPRIGHT", -310, -30)
   p.auto:SetScript("OnClick", function() local e = current(); if e then R.AutoFill(e) end end)
@@ -424,7 +440,7 @@ local function buildPlan(p)
   end)
 
   p.grid = CreateFrame("Frame", nil, p)
-  p.grid:SetPoint("TOPLEFT", 0, -56); p.grid:SetPoint("BOTTOMRIGHT", -310, 18)
+  p.grid:SetPoint("TOPLEFT", 0, -56); p.grid:SetPoint("BOTTOMRIGHT", -310, 30)
   p.groups = {}
   for g = 1, 8 do
     local box = W.Box(p.grid, 10, 10, "panel2")
@@ -434,15 +450,17 @@ local function buildPlan(p)
     box.slots = {}
     for i = 1, 5 do
       local s = slotButton(box)
-      s:SetPoint("TOPLEFT", 2, -18 - (i - 1) * 22); s:SetPoint("RIGHT", box, "RIGHT", -2, 0)
+      s.two = true; s:SetHeight(28)
+      s:SetPoint("TOPLEFT", 2, -18 - (i - 1) * 28); s:SetPoint("RIGHT", box, "RIGHT", -2, 0)
       box.slots[i] = s
     end
+    box.tags = {}
     box.buffs = W.Text(box, 9, "muted"); box.buffs:SetPoint("BOTTOMLEFT", 6, 4); box.buffs:SetPoint("RIGHT", -6, 0)
     box.buffs:SetWordWrap(false)
     p.groups[g] = box
   end
   p.hint = W.Text(p, 9, "muted"); p.hint:SetPoint("BOTTOMLEFT", 0, 0); p.hint:SetPoint("RIGHT", p, "RIGHT", -310, 0)
-  p.hint:SetWordWrap(false)
+  p.hint:SetJustifyH("LEFT"); p.hint:SetWordWrap(true)
 
   -- right column: waiting lists, then buffs / debuffs / utility
   p.side = W.Box(p, 300, 10, "panel2")
@@ -470,10 +488,12 @@ local function refreshPlan(p)
   local e = current()
   p.grid:SetShown(e ~= nil); p.side:SetShown(e ~= nil)
   if not e then
-    p.counts:SetText(L.RAID_NONE); p.auto:Hide(); p.clear:Hide(); p.hint:SetText("")
+    for _, pl in ipairs(p.cpills) do pl:Hide() end
+    p.counts:SetText(L.RAID_NONE); p.counts:Show(); p.auto:Hide(); p.clear:Hide(); p.hint:SetText("")
     return
   end
   local t = R.TemplateOf(e)
+  p.counts:Hide()
   local plan = R.Plan(e)
   local boss = plan.b
   local edit = R.CanEdit(e)
@@ -481,11 +501,14 @@ local function refreshPlan(p)
   local list = R.Lineup(e, boss)
   local n = R.RoleCounts(list)
   local need = R.Need(t)
-  local function part(k, want)
-    local txt = L["RAID_KIND_" .. k] .. " " .. n[k] .. (want and ("/" .. want) or "")
-    return (want and n[k] < want) and U.Color("fff0a08f", txt) or txt
+  local function pill(i, txt, short)
+    p.cpills[i]:Set(txt, false, short and UI.COLORS.out or nil)
   end
-  p.counts:SetText(L.RAID_IN_GROUPS:format(n.total, t.size) .. "   " .. part("tank", need.tank) .. " · " .. part("heal", need.heal) .. " · " .. part("melee") .. " · " .. part("range"))
+  pill(1, L.RAID_IN_GROUPS:format(n.total, t.size), n.total < t.size)
+  pill(2, L.RAID_KIND_tank .. " " .. n.tank .. "/" .. need.tank, n.tank < need.tank)
+  pill(3, L.RAID_KIND_heal .. " " .. n.heal .. "/" .. need.heal, n.heal < need.heal)
+  pill(4, L.RAID_KIND_melee .. " " .. n.melee)
+  pill(5, L.RAID_KIND_range .. " " .. n.range)
   p.hint:SetText(edit and L.RAID_PLAN_HINT or L.RAID_PLAN_READONLY)
 
   -- grid
@@ -493,7 +516,7 @@ local function refreshPlan(p)
   local rows = math.ceil(t.groups / cols)
   local gw = (p.grid:GetWidth() > 0 and p.grid:GetWidth() or 540)
   local w = (gw - (cols - 1) * 8) / cols
-  local h = 18 + 5 * 22 + 18
+  local h = 18 + 5 * 28 + 24
   for g = 1, 8 do
     local box = p.groups[g]
     if g <= t.groups then
@@ -503,10 +526,21 @@ local function refreshPlan(p)
       box.head:SetText(L.RAID_GROUP_N:format(g)); box.fill:SetText(#m .. "/5")
       for i = 1, 5 do fillSlot(box.slots[i], m[i], th, e, m[i] and { key = m[i].key } or { group = g }) end
       local have, miss = R.GroupBuffs(e, g, boss)
-      local bits = {}
-      for _, id in ipairs(have) do bits[#bits + 1] = U.Color("ff9fe0d4", L["RAID_B_" .. id]) end
-      for _, k in ipairs(miss) do bits[#bits + 1] = U.Color("fff0a08f", L[k]) end
-      box.buffs:SetText(table.concat(bits, " · "))
+      local tags = {}
+      for _, k in ipairs(miss) do tags[#tags + 1] = { L[k], UI.COLORS.out } end
+      for _, id in ipairs(have) do tags[#tags + 1] = { L["RAID_B_" .. id], UI.COLORS["in"] } end
+      box.buffs:SetText("")
+      local xoff, used = 4, 0
+      for i, tg in ipairs(tags) do
+        local pl = box.tags[i]
+        if not pl then pl = UI.Pill(box); box.tags[i] = pl end
+        pl:Set(tg[1], false, tg[2])
+        pl:ClearAllPoints()
+        if xoff + pl:GetWidth() > w - 4 then pl:Hide() else
+          pl:SetPoint("BOTTOMLEFT", xoff, 3); xoff = xoff + pl:GetWidth() + 4; used = i
+        end
+      end
+      for i = #tags + 1, #box.tags do box.tags[i]:Hide() end
       box:Show()
     else
       box:Hide()
@@ -534,7 +568,7 @@ local function refreshPlan(p)
     local r = p.buffRows:Get(nb)
     r.id = id
     r:ClearAllPoints(); r:SetPoint("TOPLEFT", 0, -y); r:SetPoint("RIGHT", c, "RIGHT", 0, 0)
-    r.mark:SetText(ok == nil and U.Color("ffe3b45b", "?") or (ok and U.Color("ff9fe0d4", "✓") or U.Color("fff0a08f", "✗")))
+    r.mark:SetText(ok == nil and W.InlineIcon("unknown", 13) or W.Mark(ok, 13))
     r.label:SetText(label); r.who:SetText(who or "")
     if V.hl == id then r:SetBackdropColor(0.24, 0.19, 0.09, 1); r:SetBackdropBorderColor(0.89, 0.71, 0.36, 1)
     else r:SetBackdropColor(0, 0, 0, 0); r:SetBackdropBorderColor(0, 0, 0, 0) end
@@ -636,7 +670,7 @@ local function buildNight(p)
   p.hint = W.Text(p, 9, "muted"); p.hint:SetPoint("BOTTOMLEFT", 0, 0); p.hint:SetText(L.RAID_NIGHT_HINT)
 end
 
-local function yes(v) if v == nil then return U.Color("ff8a8078", "–") end return v and U.Color("ff9fe0d4", "✓") or U.Color("fff0a08f", "✗") end
+local function yes(v) return W.Mark(v, 13) end
 
 local function refreshNight(p)
   p.chips:Refresh(); p.boss:Refresh()
@@ -840,7 +874,7 @@ end
 ---------------------------------------------------------------------------
 UI.AddModule("raids", {
   label = function() return L.TAB_RAIDS end,
-  icon = "Interface\\Icons\\INV_Misc_Head_Dragon_01",
+  icon = W.Icon("raids"),
   category = "module",
   order = 5,
   badge = function()

@@ -11,11 +11,11 @@ local I = "Interface\\Icons\\"
 -- Roles in display order. tank = main tank or 2nd tank.
 R.ROLES = { "mt", "ot", "melee", "range", "heal" }
 R.ROLE_KIND = { mt = "tank", ot = "tank", melee = "melee", range = "range", heal = "heal" }
-R.ROLE_ICON = {
-  tank = I .. "INV_Shield_06",            -- shield
-  heal = I .. "Spell_Holy_HolyBolt",      -- healing cross / light
-  melee = I .. "INV_Sword_04",            -- sword
-  range = I .. "INV_Weapon_Bow_02",       -- bow and arrow
+R.ROLE_ICON = {   -- shield, healing cross, sword, bow (Media/Icons, coloured)
+  tank = core.W.Icon("role_tank"),
+  heal = core.W.Icon("role_heal"),
+  melee = core.W.Icon("role_melee"),
+  range = core.W.Icon("role_range"),
 }
 
 -- Raid templates. Boss names as published for WoW Forever (order may differ in

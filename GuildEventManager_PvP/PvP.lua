@@ -115,6 +115,7 @@ achs[#achs + 1] = { id = "sword", nameKey = "PVP_ACH_SWORD", faction = true, met
 
 GuildEventManagerAPI.RegisterModule({
   id = "pvp", nameKey = "MOD_PVP", version = 1,
+  tag = { key = "TAB_PVP" },
   pots = { { id = "honor", nameKey = "POT_HONOR" } },
   eventTypes = {
     { id = "warband", nameKey = "TYPE_WARBAND", descKey = "TYPE_WARBAND_DESC", kind = "short", group = "raid",

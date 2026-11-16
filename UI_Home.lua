@@ -120,8 +120,8 @@ local function refresh(p)
     if n > 10 then break end
     local r = p.ledRows:Get(n)
     r:ClearAllPoints(); r:SetPoint("TOPLEFT", 0, -6 - (n - 1) * 22); r:SetPoint("RIGHT", p.ledBox, "RIGHT", 0, 0)
-    local _, tag = Lg.Tag(x)
-    r.tag:Set(tag, false)
+    local _, tag, tcol = Lg.Tag(x)
+    r.tag:Set(tag, false, tcol)
     r.text:SetText(G.Display(x.who) .. U.Color(T.Hex(th.muted), " · " .. Lg.Text(x)))
     r.pts:SetText((x.amt > 0 and "+" or "") .. x.amt)
   end

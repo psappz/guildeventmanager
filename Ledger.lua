@@ -24,9 +24,11 @@ function Lg.FormatOf(e)
   end
 end
 
+-- id, label, color
 function Lg.Tag(e)
   local id, f = Lg.FormatOf(e)
-  return id, f and f.label and f.label() or id or "?"
+  local col = f and f.color or (ns.UI and ns.UI.COLORS and ns.UI.COLORS[id == "core" and "events" or id])
+  return id, f and f.label and f.label() or id or "?", col
 end
 
 function Lg.Text(e)

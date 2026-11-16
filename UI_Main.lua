@@ -20,12 +20,9 @@ local W_WIDTH, W_HEIGHT, SIDE = 1080, 620, 184
 -- the guild's own areas, in this order
 local CORE = { "home", "events", "ledger", "ach", "banner" }
 local CORE_ICONS = {
-  home = "Interface\\Icons\\INV_Misc_Map_01",
-  events = "Interface\\Icons\\INV_Misc_Note_06",
-  ledger = "Interface\\Icons\\INV_Misc_Book_11",
-  ach = "Interface\\Icons\\Achievement_General",
-  banner = "Interface\\Icons\\INV_BannerPVP_02",
+  home = "home", events = "events", ledger = "ledger", ach = "ach", banner = "banner",
 }
+for k, v in pairs(CORE_ICONS) do CORE_ICONS[k] = ns.W.Icon(v) end
 -- sidebar groups in this order; modules pick one with def.category
 UI.GROUPS = { "guild", "module", "holiday" }
 
@@ -102,13 +99,16 @@ local function navButton(parent)
   b:SetHeight(28)
   W.Paint(b, { 0, 0, 0, 0 }, { 0, 0, 0, 0 })
   b.icon = b:CreateTexture(nil, "ARTWORK")
-  b.icon:SetSize(18, 18); b.icon:SetPoint("LEFT", 8, 0)
-  b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  b.icon:SetSize(17, 17); b.icon:SetPoint("LEFT", 9, 0)
   b.text = W.Text(b, 12, "text")
   b.text:SetPoint("LEFT", b.icon, "RIGHT", 8, 0)
-  b.badge = W.Text(b, 10, "title")
-  b.badge:SetPoint("RIGHT", -8, 0)
-  b.text:SetPoint("RIGHT", b.badge, "LEFT", -4, 0)
+  b.badgeBg = CreateFrame("Frame", nil, b, "BackdropTemplate")
+  b.badgeBg:SetHeight(16)
+  b.badgeBg:SetPoint("RIGHT", -6, 0)
+  W.Paint(b.badgeBg, { th.title[1] * 0.3, th.title[2] * 0.3, th.title[3] * 0.3, 1 }, { th.title[1] * 0.55, th.title[2] * 0.55, th.title[3] * 0.55, 1 })
+  b.badge = W.Text(b.badgeBg, 9, "title")
+  b.badge:SetPoint("CENTER", 0, 0)
+  b.text:SetPoint("RIGHT", b.badgeBg, "LEFT", -4, 0)
   b.text:SetWordWrap(false)
   b:SetScript("OnEnter", function(self) if not self.active then self:SetBackdropColor(th.panel2[1], th.panel2[2], th.panel2[3], 0.8) end end)
   b:SetScript("OnLeave", function(self) if not self.active then self:SetBackdropColor(0, 0, 0, 0) end end)
@@ -149,7 +149,9 @@ local function buildNav()
         win.navBtns[nb] = b
         b.entry = e.id
         b:ClearAllPoints(); b:SetPoint("TOPLEFT", 6, y); b:SetPoint("RIGHT", side, "RIGHT", -6, 0)
-        b.icon:SetTexture(e.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+        b.icon:SetTexture(e.icon or W.Icon("chevron"))
+        b.ownIcon = W.IsOwnIcon(e.icon) or not e.icon
+        if b.ownIcon then b.icon:SetTexCoord(0, 1, 0, 1) else b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92); b.icon:SetVertexColor(1, 1, 1) end
         b:Show()
         y = y - 30
       end
@@ -194,23 +196,25 @@ local function buildWindow()
   crestBtn:SetSize(44, 44); crestBtn:SetPoint("LEFT", 12, -2)
   local crest = crestBtn:CreateTexture(nil, "ARTWORK")
   crest:SetAllPoints()
-  crest:SetTexture(th.crest)
+  crest:SetTexture(W.Icon("crest_" .. th.key))
   crestBtn:SetScript("OnClick", function() UI.Show("banner") end)
   crestBtn.tip = { ns.L.TAB_BANNER }
-  f.title = W.Text(head, 17, "title")
-  f.title:SetPoint("TOPLEFT", crestBtn, "TOPRIGHT", 8, -4)
+  f.title = W.Text(head, 19, "title")
+  f.title:SetFont("Fonts\\MORPHEUS.TTF", 21, "")
+  f.title:SetPoint("TOPLEFT", crestBtn, "TOPRIGHT", 10, -2)
   f.title:SetText("GuildEventManager")
   f.sub = W.Text(head, 11, { 0.85, 0.80, 0.72 })
   f.sub:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", 0, -4)
   local line = head:CreateTexture(nil, "ARTWORK")
   line:SetColorTexture(th.border[1], th.border[2], th.border[3], 1)
   line:SetHeight(1); line:SetPoint("BOTTOMLEFT"); line:SetPoint("BOTTOMRIGHT")
-  W.Close(f)
-  f.gear = W.Button(head, ns.L.TAB_SETTINGS, false, 24)
-  f.gear:SetPoint("RIGHT", -44, 0)
+  local close = W.Close(f)
+  close:ClearAllPoints(); close:SetPoint("RIGHT", head, "RIGHT", -12, 0)
+  f.gear = W.IconButton(head, "settings", 30, ns.L.TAB_SETTINGS)
+  f.gear:SetPoint("RIGHT", close, "LEFT", -8, 0)
   f.gear:SetScript("OnClick", function() UI.Show("settings") end)
-  f.bell = W.Button(head, ns.L.NOTICES, false, 24)
-  f.bell:SetPoint("RIGHT", f.gear, "LEFT", -6, 0)
+  f.bell = W.IconButton(head, "bell", 30, ns.L.NOTICES)
+  f.bell:SetPoint("RIGHT", f.gear, "LEFT", -4, 0)
   f.bell:SetScript("OnClick", function() UI.ToggleNotices() end)
 
   -- sidebar
@@ -338,12 +342,16 @@ local function refreshChrome()
       b.text:SetText(e.label and e.label() or e.id)
       local badge = e.badge and e.badge()
       b.badge:SetText(badge or "")
+      b.badgeBg:SetShown(badge ~= nil and badge ~= "")
+      b.badgeBg:SetWidth(math.max(16, b.badge:GetStringWidth() + 10))
       if active then
         b:SetBackdropColor(th.accent[1], th.accent[2], th.accent[3], 1)
         b.text:SetTextColor(1, 0.95, 0.85)
+        if b.ownIcon then b.icon:SetVertexColor(1, 0.95, 0.85) end
       else
         b:SetBackdropColor(0, 0, 0, 0)
         b.text:SetTextColor(th.text[1], th.text[2], th.text[3])
+        if b.ownIcon then b.icon:SetVertexColor(th.muted[1], th.muted[2], th.muted[3]) end
       end
     end
   end
@@ -373,7 +381,7 @@ local function refreshChrome()
   win.hasTabs = #tabs > 0
   -- bell: unread count
   local unread = ns.Notices and ns.Notices.Unread() or 0
-  W.SetLabel(win.bell, unread > 0 and (ns.L.NOTICES .. " (" .. unread .. ")") or ns.L.NOTICES)
+  win.bell:SetCount(unread)
 end
 
 function UI.Refresh()
@@ -381,8 +389,9 @@ function UI.Refresh()
   ns.Schedule("gemUIRefresh", 0.05, function()
     if not win:IsShown() then return end
     local season = date("%d.%m.", ns.Points.SeasonStart()) .. " – " .. date("%d.%m.", ns.Points.SeasonEnd() - 1)
+    win.title:SetText(G.InGuild() and (G.Name() or "?") or "GuildEventManager")
     win.sub:SetText(G.InGuild()
-      and ns.L.HEADER_SUB:format(G.Name() or "?", T.Word("GUILD"), season)
+      and ns.L.HEADER_SUB2:format(T.Word("GUILD"), season)
       or ns.L.NO_GUILD_SHORT)
     win.family:Refresh()
     refreshChrome()
@@ -428,24 +437,70 @@ function UI.Section(parent, text)
 end
 
 -- Small coloured label ("pill")
+-- colours for module tags and sign-up states
+UI.COLORS = {
+  events = { 0.85, 0.70, 0.32 }, pvp = { 0.86, 0.33, 0.27 }, pve = { 0.90, 0.72, 0.30 }, holiday = { 0.35, 0.75, 0.68 },
+  ["in"] = { 0.40, 0.75, 0.52 }, late = { 0.40, 0.75, 0.52 }, tent = { 0.90, 0.72, 0.30 }, bench = { 0.50, 0.62, 0.85 },
+  out = { 0.86, 0.40, 0.33 }, none = { 0.55, 0.50, 0.46 },
+}
+
 function UI.Pill(parent)
   local b = W.Box(parent, 40, 18, "panel2")
   b.text = W.Text(b, 10, "muted")
   b.text:SetPoint("CENTER")
-  function b:Set(text, live)
+  -- color = { r, g, b }: a tinted tag (module or state)
+  function b:Set(text, live, color)
     self.text:SetText(text or "")
     local th = T.Current()
-    if live then
+    if color then
+      self:SetBackdropColor(color[1] * 0.32, color[2] * 0.32, color[3] * 0.32, 1)
+      self:SetBackdropBorderColor(color[1] * 0.6, color[2] * 0.6, color[3] * 0.6, 1)
+      self.text:SetTextColor(math.min(1, color[1] * 1.15), math.min(1, color[2] * 1.15), math.min(1, color[3] * 1.15))
+    elseif live then
       self:SetBackdropColor(th.accent[1], th.accent[2], th.accent[3], 1)
+      self:SetBackdropBorderColor(th.line[1], th.line[2], th.line[3], 1)
       self.text:SetTextColor(1, 0.95, 0.85)
     else
       self:SetBackdropColor(th.panel2[1], th.panel2[2], th.panel2[3], 1)
+      self:SetBackdropBorderColor(th.line[1], th.line[2], th.line[3], 1)
       self.text:SetTextColor(th.muted[1], th.muted[2], th.muted[3])
     end
     self:SetWidth(self.text:GetStringWidth() + 14)
     self:SetShown(text ~= nil and text ~= "")
   end
   return b
+end
+
+-- tag of an event type's module: label, color (nil for the core's own types)
+function UI.ModuleTag(typeId)
+  local t = typeId and ns.Modules.Type(typeId)
+  local mod = t and t.module and ns.Modules.modules[t.module]
+  if not mod or not mod.tag then return nil end
+  local label = mod.tag.key and ns.L[mod.tag.key] or mod.tag.label
+  return label, mod.tag.color or UI.COLORS[t.module]
+end
+
+-- a sign-up state as tag: text, color
+function UI.StateTag(st)
+  if not st then return ns.L.HOME_NOT_SIGNED, UI.COLORS.none end
+  return ns.L.YOU_ST:format(ns.L["ST_" .. st]), UI.COLORS[st]
+end
+
+-- date tile: weekday small, day and month big
+function UI.DateTile(parent, w, h)
+  local th = T.Current()
+  local d = W.Box(parent, w or 40, h or 36, "panel")
+  d.wd = W.Text(d, 9, "muted"); d.wd:SetPoint("TOP", 0, -4)
+  d.day = W.Text(d, 13, "title"); d.day:SetPoint("BOTTOM", 0, 5)
+  d.day:SetFont("Fonts\\MORPHEUS.TTF", 14, "")
+  function d:Set(ts)
+    if not ts then self:Hide(); return end
+    local wd = tonumber(date("%w", ts)) + 1
+    self.wd:SetText(ns.L["WD_" .. wd] or date("%a", ts))
+    self.day:SetText(date("%d.%m.", ts))
+    self:Show()
+  end
+  return d
 end
 
 -- Row of chips to pick one value: opts = { { value, label }, ... }

@@ -61,8 +61,8 @@ local function refresh(p)
     local row = p.rows:Get(n)
     row.entry = e
     row:ClearAllPoints(); row:SetPoint("TOPLEFT", 0, -(n - 1) * 22); row:SetPoint("RIGHT", p.scroll.content, "RIGHT", 0, 0)
-    local _, tag = Lg.Tag(e)
-    row.tag:Set(tag, false)
+    local _, tag, tcol = Lg.Tag(e)
+    row.tag:Set(tag, false, tcol)
     local deed = Lg.Text(e)
     local txt = G.Display(e.who) .. U.Color(T.Hex(th.muted), " · " .. deed .. ((e.zone and e.zone ~= "") and (" · " .. e.zone) or ""))
     if e.reverted then txt = U.Color("ff808080", G.Display(e.who) .. " · " .. deed .. " · " .. L.LEDGER_REVERTED) end

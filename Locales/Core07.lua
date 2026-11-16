@@ -60,6 +60,7 @@ ns.AddLocale("enUS", {
   ACH_GUILD_SOON = "Guild achievements, won together for the banner, follow in 0.9.0.",
   SETTINGS_GENERAL = "General",
   EVT_END_NO_POINTS = "Event closed. Points are booked only by the guild's event managers.",
+  HEADER_SUB2 = "GuildEventManager · %s · season %s",
   PROBE_HEAD = "GEM probe · what this client offers:",
 })
 ns.AddLocale("deDE", {
@@ -122,6 +123,7 @@ ns.AddLocale("deDE", {
   ACH_GUILD_SOON = "Gildenerfolge, gemeinsam für das Banner errungen, folgen in 0.9.0.",
   SETTINGS_GENERAL = "Allgemein",
   EVT_END_NO_POINTS = "Event abgeschlossen. Punkte buchen nur die Eventmanager der Gilde.",
+  HEADER_SUB2 = "GuildEventManager · %s · Saison %s",
   PROBE_HEAD = "GEM-Prüfung · was dieser Client bietet:",
 })
 ns.AddLocale("frFR", {
@@ -184,6 +186,7 @@ ns.AddLocale("frFR", {
   ACH_GUILD_SOON = "Les hauts faits de guilde, gagnés ensemble pour la bannière, arrivent en 0.9.0.",
   SETTINGS_GENERAL = "Général",
   EVT_END_NO_POINTS = "Événement clos. Seuls les gestionnaires d'événements de la guilde attribuent des points.",
+  HEADER_SUB2 = "GuildEventManager · %s · saison %s",
   PROBE_HEAD = "Test GEM · ce que ce client propose :",
 })
 ns.AddLocale("esES", {
@@ -246,6 +249,7 @@ ns.AddLocale("esES", {
   ACH_GUILD_SOON = "Los logros de hermandad, ganados juntos para el estandarte, llegan en 0.9.0.",
   SETTINGS_GENERAL = "General",
   EVT_END_NO_POINTS = "Evento cerrado. Solo los gestores de eventos de la hermandad asignan puntos.",
+  HEADER_SUB2 = "GuildEventManager · %s · temporada %s",
   PROBE_HEAD = "Prueba GEM · lo que ofrece este cliente:",
 })
 ns.AddLocale("itIT", {
@@ -308,6 +312,7 @@ ns.AddLocale("itIT", {
   ACH_GUILD_SOON = "Le imprese di gilda, vinte insieme per lo stendardo, arrivano nella 0.9.0.",
   SETTINGS_GENERAL = "Generale",
   EVT_END_NO_POINTS = "Evento chiuso. Solo i gestori eventi della gilda assegnano punti.",
+  HEADER_SUB2 = "GuildEventManager · %s · stagione %s",
   PROBE_HEAD = "Verifica GEM · cosa offre questo client:",
 })
 ns.AddLocale("ptBR", {
@@ -370,5 +375,6 @@ ns.AddLocale("ptBR", {
   ACH_GUILD_SOON = "As conquistas da guilda, ganhas juntas para o estandarte, chegam na 0.9.0.",
   SETTINGS_GENERAL = "Geral",
   EVT_END_NO_POINTS = "Evento encerrado. Só os gestores de eventos da guilda lançam pontos.",
+  HEADER_SUB2 = "GuildEventManager · %s · temporada %s",
   PROBE_HEAD = "Teste GEM · o que este cliente oferece:",
 })

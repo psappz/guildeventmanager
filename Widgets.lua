@@ -124,9 +124,76 @@ function W.SetLabel(b, text)
   b:SetWidth(math.max(40, b.label:GetStringWidth() + 22))
 end
 
+---------------------------------------------------------------------------
+-- Icons (Media/Icons, own drawings): white ones are tinted, the coloured
+-- ones (check, cross, unknown, dash, role_*) are used as they are.
+---------------------------------------------------------------------------
+W.ICONS = "Interface\\AddOns\\GuildEventManager\\Media\\Icons\\"
+function W.Icon(name) return W.ICONS .. name end
+function W.IsOwnIcon(path) return type(path) == "string" and path:sub(1, #W.ICONS) == W.ICONS end
+-- an icon inside a text: W.InlineIcon("check", 12)
+function W.InlineIcon(name, size)
+  size = size or 12
+  return "|T" .. W.ICONS .. name .. ":" .. size .. ":" .. size .. "|t"
+end
+-- yes / no / unknown as an inline icon
+function W.Mark(v, size)
+  if v == nil then return W.InlineIcon("dash", size) end
+  return W.InlineIcon(v and "check" or "cross", size)
+end
+
+-- a texture for an icon, tinted with a theme colour key (or { r, g, b })
+function W.IconTex(parent, name, size, color, layer)
+  local t = parent:CreateTexture(nil, layer or "ARTWORK")
+  t:SetSize(size or 16, size or 16)
+  t:SetTexture(W.ICONS .. name)
+  local c = type(color) == "table" and color or W.C()[color or "muted"]
+  if c then t:SetVertexColor(c[1], c[2], c[3], c[4] or 1) end
+  return t
+end
+
+-- a flat button with an icon; :SetCount(n) shows a red dot with a number
+function W.IconButton(parent, name, size, tip)
+  local th = W.C()
+  size = size or 28
+  local b = CreateFrame("Button", nil, parent, "BackdropTemplate")
+  b:SetSize(size, size)
+  paint(b, { 0, 0, 0, 0 }, { 0, 0, 0, 0 })
+  b.icon = W.IconTex(b, name, math.floor(size * 0.68), "muted")
+  b.icon:SetPoint("CENTER")
+  b:SetScript("OnEnter", function(self)
+    self:SetBackdropColor(th.panel2[1], th.panel2[2], th.panel2[3], 0.9)
+    self.icon:SetVertexColor(th.title[1], th.title[2], th.title[3])
+    if self.tip then
+      GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+      GameTooltip:SetText(type(self.tip) == "function" and self.tip() or self.tip)
+      GameTooltip:Show()
+    end
+  end)
+  b:SetScript("OnLeave", function(self)
+    self:SetBackdropColor(0, 0, 0, 0)
+    self.icon:SetVertexColor(th.muted[1], th.muted[2], th.muted[3])
+    GameTooltip:Hide()
+  end)
+  b.tip = tip
+  b.dot = b:CreateTexture(nil, "OVERLAY")
+  b.dot:SetSize(15, 15); b.dot:SetPoint("TOPRIGHT", 1, 1)
+  b.dot:SetTexture(W.ICONS .. "dot"); b.dot:SetVertexColor(0.80, 0.22, 0.16)
+  b.count = b:CreateFontString(nil, "OVERLAY")
+  b.count:SetFont("Fonts\\ARIALN.TTF", 9, "")
+  b.count:SetPoint("CENTER", b.dot, "CENTER", 0, 0)
+  b.count:SetTextColor(1, 1, 1)
+  function b:SetCount(n)
+    n = tonumber(n) or 0
+    self.dot:SetShown(n > 0); self.count:SetShown(n > 0)
+    self.count:SetText(n > 9 and "9+" or tostring(n))
+  end
+  b:SetCount(0)
+  return b
+end
+
 function W.Close(parent, onClick)
-  local b = W.Button(parent, "x", false, 20)
-  b:SetWidth(20)
+  local b = W.IconButton(parent, "close", 22)
   b:SetPoint("TOPRIGHT", -6, -6)
   b:SetScript("OnClick", onClick or function() parent:Hide() end)
   return b

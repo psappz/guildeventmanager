@@ -875,6 +875,7 @@ end
 
 API.RegisterModule({
   id = "pve", nameKey = "MOD_PVE", version = R.version,
+  tag = { key = "TAB_RAIDS" },
   requires = { api = 5 },
   eventTypes = types,
 })

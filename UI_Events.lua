@@ -48,17 +48,22 @@ local function makeRow(parent)
   local r = CreateFrame("Button", nil, parent, "BackdropTemplate")
   r:SetHeight(ROW_H - 4)
   W.Paint(r, th.panel2, th.line)
-  r.icon = r:CreateTexture(nil, "ARTWORK")
-  r.icon:SetSize(30, 30); r.icon:SetPoint("LEFT", 6, 0)
-  r.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+  r.icon = UI.DateTile(r, 42, 34)
+  r.icon:SetPoint("LEFT", 4, 0)
   r.name = W.Text(r, 12, "text")
-  r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 8, -1)
+  r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 10, -2)
   r.meta = W.Text(r, 10, "muted")
-  r.meta:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 8, 1)
-  r.action = W.Button(r, "", true, 22)
-  r.action:SetPoint("RIGHT", -8, 0)
+  r.meta:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 10, 2)
+  r.chev = W.IconTex(r, "chevron", 14, "muted")
+  r.chev:SetPoint("RIGHT", -8, 0)
+  r.count = W.Text(r, 10, "muted")
+  r.count:SetPoint("RIGHT", r.chev, "LEFT", -8, 0)
+  r.action = W.Button(r, "", true, 22)   -- kept for old code paths, not shown
+  r.action:Hide()
   r.pill = UI.Pill(r)
-  r.pill:SetPoint("RIGHT", r.action, "LEFT", -8, 0)
+  r.pill:SetPoint("RIGHT", r.count, "LEFT", -10, 0)
+  r.tag = UI.Pill(r)
+  r.tag:SetPoint("RIGHT", r.pill, "LEFT", -6, 0)
   r:SetScript("OnEnter", function(self) self:SetBackdropBorderColor(th.title[1], th.title[2], th.title[3], 1) end)
   r:SetScript("OnLeave", function(self) self:SetBackdropBorderColor(th.line[1], th.line[2], th.line[3], 1) end)
   r:SetScript("OnClick", function(self) V.OpenDetail(self.ev) end)
@@ -115,22 +120,22 @@ local function refreshList(p)
         local r = list.rows:Get(nr)
         r.ev = e
         r:ClearAllPoints(); r:SetPoint("TOPLEFT", 0, -y); r:SetPoint("RIGHT", content, "RIGHT", -2, 0)
-        r.icon:SetTexture(E.Icon(e))
+        r.icon:Set(e.start)
         r.name:SetText(e.name .. (E.TypeMissing(e) and ("  " .. U.Color(U.WARN, L.MODULE_MISSING)) or ""))
-        r.meta:SetText(table.concat({ ns.Modules.TypeName(e.type), kindText(e.kind), groupText(e), whenText(e),
-          L.SIGNED_N:format(E.SignCount(e)) }, " · "))
+        r.meta:SetText(table.concat({ ns.Modules.TypeName(e.type), kindText(e.kind), groupText(e), whenText(e) }, " · "))
+        r.count:SetText(L.SIGNED_N:format(E.SignCount(e)))
         local st = E.Status(e)
-        if E.IsOpen(e) then
-          r.pill:Set(st and L.YOU_ST:format(L["ST_" .. st]) or (e.status == "running" and statusText(e) or nil), e.status == "running")
-          W.SetLabel(r.action, st and L.SIGN_CHANGE or L.SIGN_ON)
-          r.action:Show()
-          r.action:SetScript("OnClick", function() V.OpenDetail(e) end)
+        if E.IsOpen(e) and e.status == "running" then
+          r.pill:Set(statusText(e), true)
+        elseif E.IsOpen(e) then
+          local text, col = UI.StateTag(st); r.pill:Set(text, false, col)
         else
           r.pill:Set(statusText(e), false)
-          r.action:Hide()
         end
-        r.pill:ClearAllPoints()
-        if r.action:IsShown() then r.pill:SetPoint("RIGHT", r.action, "LEFT", -8, 0) else r.pill:SetPoint("RIGHT", -8, 0) end
+        local tag, tcol = UI.ModuleTag(e.type)
+        r.tag:Set(tag, false, tcol)
+        r.tag:ClearAllPoints()
+        if r.pill:IsShown() then r.tag:SetPoint("RIGHT", r.pill, "LEFT", -6, 0) else r.tag:SetPoint("RIGHT", r.count, "LEFT", -10, 0) end
         y = y + ROW_H
       end
       y = y + 6
@@ -151,10 +156,10 @@ local function buildDetail(p)
   d:SetAllPoints()
   d:Hide()
   p.detail = d
-  d.icon = d:CreateTexture(nil, "ARTWORK")
-  d.icon:SetSize(40, 40); d.icon:SetPoint("TOPLEFT", 0, 0)
-  d.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+  d.icon = UI.DateTile(d, 46, 42)
+  d.icon:SetPoint("TOPLEFT", 0, 0)
   d.name = W.Text(d, 16, "title")
+  d.name:SetFont("Fonts\\MORPHEUS.TTF", 19, "")
   d.name:SetPoint("TOPLEFT", d.icon, "TOPRIGHT", 10, -2)
   d.pills = {}
   for i = 1, 6 do
@@ -256,19 +261,20 @@ local function refreshDetail(p)
   local e = d.ev and E.Get(d.ev.id) or d.ev
   if not e then V.ShowList(); return end
   d.ev = e
-  d.icon:SetTexture(E.Icon(e))
+  d.icon:Set(e.start)
   d.name:SetText(e.name)
   local t = ns.Modules.Type(e.type)
   local mod = t and ns.Modules.modules[t.module]
+  local tag, tcol = UI.ModuleTag(e.type)
   local vals = {
     { ns.Modules.TypeName(e.type) },
-    { mod and (mod.name or L[mod.nameKey]) or L.MODULE_MISSING },
+    { tag or (mod and (mod.name or L[mod.nameKey])) or L.MODULE_MISSING, false, tcol },
     { groupText(e) },
     { L.LEADER:format(G.Display(e.leader)) },
     { statusText(e), e.status == "running" },
     { kindText(e.kind) },
   }
-  for i, pl in ipairs(d.pills) do pl:Set(vals[i][1], vals[i][2]) end
+  for i, pl in ipairs(d.pills) do pl:Set(vals[i][1], vals[i][2], vals[i][3]) end
   d.desc:SetText((e.desc and e.desc ~= "") and e.desc or (t and t.descKey and L[t.descKey]) or "")
   local facts = {
     L.FACT_START:format(U.FormatTime(e.start)),
