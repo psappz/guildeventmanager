@@ -116,7 +116,7 @@ local function build(p)
   scene.preview:SetPoint("TOPRIGHT", card, "TOPRIGHT", -8, -6)
 
   card.guild = W.Text(card, 16, "title")
-  card.guild:SetPoint("TOP", scene, "BOTTOM", 0, -6)
+  card.guild:SetPoint("TOP", card, "TOP", 0, -292)   -- below the guild banner (282 px from -4)
   card.guild:SetJustifyH("CENTER")
   card.level = W.Text(card, 13, "title")
   card.level:SetPoint("TOP", card.guild, "BOTTOM", 0, -8)
@@ -127,7 +127,7 @@ local function build(p)
   for i = 1, 4 do
     local t = CreateFrame("Button", nil, card)
     t:SetSize(56, 62)
-    t:SetPoint("TOPLEFT", card, "TOPLEFT", 14 + (i - 1) * 64, -292)
+    t:SetPoint("TOPLEFT", card, "TOPLEFT", 14 + (i - 1) * 64, -352)
     t.icon = t:CreateTexture(nil, "ARTWORK")
     t.icon:SetPoint("TOP"); t.icon:SetSize(44, 44)
     t.fallback = TIER_ICON[i]
@@ -154,7 +154,7 @@ local function build(p)
     card.tiers[i] = t
   end
   card.bar = W.Bar(card, 8)
-  card.bar:SetPoint("TOPLEFT", 16, -364); card.bar:SetPoint("RIGHT", -16, 0)
+  card.bar:SetPoint("TOPLEFT", 16, -424); card.bar:SetPoint("RIGHT", -16, 0)
   card.next = W.Text(card, 10, "muted")
   card.next:SetPoint("TOPLEFT", card.bar, "BOTTOMLEFT", 0, -6); card.next:SetPoint("RIGHT", card, "RIGHT", -16, 0)
   card.next:SetJustifyH("CENTER")
