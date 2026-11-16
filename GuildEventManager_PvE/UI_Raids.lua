@@ -9,7 +9,7 @@ local API = GuildEventManagerAPI
 local V = { sel = nil, hl = nil, pick = nil }
 R.V = V
 
-local KIND_ORDER = { "tank", "heal", "melee", "range" }
+local KIND_ORDER = { "tank", "heal", "melee", "range", "unknown" }
 
 ---------------------------------------------------------------------------
 -- Shared helpers
@@ -252,7 +252,7 @@ local function refreshOverview(p)
   W.SetLabel(p.sign, st and L.SIGN_CHANGE or L.SIGN_ON)
 
   local need = R.Need(t)
-  local by = { tank = {}, heal = {}, melee = {}, range = {} }
+  local by = { tank = {}, heal = {}, melee = {}, range = {}, unknown = {} }
   local other = { tent = {}, late = {}, bench = {}, out = {} }
   local yes = 0
   for _, s in ipairs(E.SignupList(e)) do
@@ -261,7 +261,7 @@ local function refreshOverview(p)
       (x.off and (" · " .. L.RAID_CAN:format(R.RoleName(x.off))) or "") .. (x.c and ("  »" .. x.c .. "«") or "") .. (x.src == "rh" and "  [RH]" or ""))
     if s.st == "in" or s.st == "late" then
       yes = yes + 1
-      local k = x.kind or "range"
+      local k = x.kind or "unknown"
       by[k][#by[k] + 1] = (s.st == "late" and (U.Color("ffe3b45b", L.ST_late .. ": ")) or "") .. line
     else
       other[s.st][#other[s.st] + 1] = line
@@ -272,11 +272,13 @@ local function refreshOverview(p)
   for _, k in ipairs(KIND_ORDER) do
     local n = #by[k]
     local want = need[k]
-    local head = L["RAID_KIND_" .. k] .. " " .. n .. (want and ("/" .. want) or "")
-    local col = (want and n < want) and "fff0a08f" or T.Hex(th.title)
+    if k ~= "unknown" or n > 0 then
+    local head = L["RAID_KIND_" .. k] .. " " .. n .. (want and ("/" .. want) or "") .. (k == "unknown" and ("  " .. U.Color(T.Hex(th.muted), L.RAID_UNKNOWN_HINT)) or "")
+    local col = ((want and n < want) or k == "unknown") and "fff0a08f" or T.Hex(th.title)
     lines[#lines + 1] = " "
     lines[#lines + 1] = U.Color(col, head)
     for _, l in ipairs(by[k]) do lines[#lines + 1] = "   " .. l end
+    end
   end
   for _, s in ipairs({ "tent", "bench", "out" }) do
     if #other[s] > 0 then
@@ -355,6 +357,13 @@ local function slotButton(parent)
       local key, plan = self.key, R.Plan(e)
       W.OpenMenu(self, function(_, root)
         root:CreateTitle(G.Display(key))
+        local x = self.x
+        root:CreateTitle(L.RAID_MENU_ROLE)
+        for _, role in ipairs(R.RolesOf(x and x.class)) do
+          local label = R.RoleName(role) .. ((x and x.role == role) and "  " .. W.InlineIcon("check", 11) or "")
+          root:CreateButton(label, function() R.SetRole(e, key, role) end)
+        end
+        if x and x.byLead then root:CreateButton(L.RAID_MENU_ROLE_RESET, function() R.SetRole(e, key, nil) end) end
         if plan.b > 0 and self.x and self.x.off then
           root:CreateButton(self.x.swapped and L.RAID_MENU_MAIN or L.RAID_MENU_OFF:format(R.RoleName(self.x.off)), function() R.ToggleSwap(e, plan.b, key) end)
         end
@@ -374,7 +383,8 @@ local function slotButton(parent)
     if not self.x then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:AddLine(G.Display(self.x.key))
-    GameTooltip:AddLine(R.RoleName(self.x.role) .. (self.x.class and self.x.tree and (" · " .. R.SpecName(self.x.class, self.x.tree)) or ""), 1, 1, 1)
+    GameTooltip:AddLine((self.x.role and R.RoleName(self.x.role) or L.RAID_KIND_unknown) .. (self.x.class and self.x.tree and (" · " .. R.SpecName(self.x.class, self.x.tree)) or ""), 1, 1, 1)
+    if self.x.byLead then GameTooltip:AddLine(L.RAID_ROLE_BY_LEAD, 0.9, 0.7, 0.3) end
     if self.x.off then GameTooltip:AddLine(L.RAID_CAN:format(R.RoleName(self.x.off)), 0.8, 0.8, 0.8) end
     if self.x.c then GameTooltip:AddLine("»" .. self.x.c .. "«", 0.8, 0.8, 0.8, true) end
     GameTooltip:Show()
@@ -402,9 +412,9 @@ local function fillSlot(b, x, th, e, drop)
   b.sub:SetShown(b.two and x ~= nil)
   if x then
     b.text:SetText(nameOf(x) .. (x.swapped and U.Color("ffe3b45b", " *") or "") .. (x.st == "late" and U.Color(T.Hex(th.muted), " (" .. L.ST_late .. ")") or ""))
-    b.icon:SetTexture(R.ROLE_ICON[x.kind or "range"]); b.icon:Show()
+    b.icon:SetTexture(x.kind and R.ROLE_ICON[x.kind] or W.Icon("unknown")); b.icon:Show()
     if b.two then
-      local bits = { R.RoleName(x.role) }
+      local bits = { x.role and (R.RoleName(x.role) .. (x.byLead and "*" or "")) or U.Color("fff0a08f", L.RAID_KIND_unknown) }
       if x.class and x.tree then bits[#bits + 1] = R.SpecName(x.class, x.tree) end
       if x.off and x.off ~= x.role then bits[#bits + 1] = L.RAID_CAN:format(R.RoleName(x.swapped and x.main or x.off)) end
       b.sub:SetText(table.concat(bits, " · "))
@@ -424,7 +434,7 @@ local function buildPlan(p)
   p.boss:SetPoint("TOPRIGHT", 0, 0)
   p.counts = W.Text(p, 11, "text"); p.counts:SetPoint("TOPLEFT", 0, -32); p.counts:Hide()
   p.cpills = {}
-  for i = 1, 5 do
+  for i = 1, 6 do
     local pl = UI.Pill(p)
     if i == 1 then pl:SetPoint("TOPLEFT", 0, -30) else pl:SetPoint("LEFT", p.cpills[i - 1], "RIGHT", 5, 0) end
     p.cpills[i] = pl
@@ -509,6 +519,7 @@ local function refreshPlan(p)
   pill(3, L.RAID_KIND_heal .. " " .. n.heal .. "/" .. need.heal, n.heal < need.heal)
   pill(4, L.RAID_KIND_melee .. " " .. n.melee)
   pill(5, L.RAID_KIND_range .. " " .. n.range)
+  if n.unknown > 0 then pill(6, L.RAID_KIND_unknown .. " " .. n.unknown, true) else p.cpills[6]:Hide() end
   p.hint:SetText(edit and L.RAID_PLAN_HINT or L.RAID_PLAN_READONLY)
 
   -- grid
@@ -703,7 +714,7 @@ local function refreshNight(p)
     local c = r.cells
     c.name:SetText(nameOf(x) .. ((su.st ~= "in") and U.Color("ff8a8078", " · " .. L["ST_" .. su.st]) or ""))
     c.grp:SetText(plan.g[su.key] and tostring(plan.g[su.key]) or "–")
-    c.role:SetText(R.RoleName(x.role) .. (x.swapped and " *" or ""))
+    c.role:SetText((x.role and R.RoleName(x.role) or U.Color("fff0a08f", L.RAID_KIND_unknown)) .. ((x.swapped or x.byLead) and " *" or ""))
     c.on:SetText(yes(rd.online)); c.addon:SetText(yes(rd.addon))
     c.lock:SetText(rd.locked and U.Color("fff0a08f", L.RAID_LOCKED:format(rd.locked.p or "")) or (rd.addon and U.Color("ff9fe0d4", L.RAID_FREE_LOCK) or U.Color("ff8a8078", "?")))
     c.amu:SetText(t.amulet and yes(rd.amulet) or ""); c.amu:SetShown(t.amulet ~= nil)

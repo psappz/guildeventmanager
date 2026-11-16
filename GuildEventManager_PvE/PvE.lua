@@ -473,24 +473,62 @@ function R.Plan(e)
   return p
 end
 
+-- may this class play the role? (unknown class: yes)
+function R.RoleOk(class, role)
+  if not role or not R.ROLE_KIND[role] then return false end
+  local set = class and R.CLASS_ROLES[class]
+  return not set or set[role] == true
+end
+
+-- the only role a class can play (rogue, hunter, mage, warlock), else nil
+function R.OnlyRole(class)
+  local set = class and R.CLASS_ROLES[class]
+  if not set then return nil end
+  local one
+  for r in pairs(set) do if one then return nil end one = r end
+  return one
+end
+
+function R.RolesOf(class)
+  local out = {}
+  for _, r in ipairs(R.ROLES) do if R.RoleOk(class, r) then out[#out + 1] = r end end
+  return out
+end
+
+-- the raid lead sets a member's role for this raid (nil: back to the sign-up)
+function R.SetRole(e, key, role)
+  if not R.CanEdit(e) then return false end
+  local p = R.Plan(e)
+  p.r = p.r or {}
+  p.r[key] = role
+  R.Changed(e)
+  return true
+end
+
 function R.Player(e, key, boss)
   local su = E.Signup(e, key)
   local f = su and su.f or {}
   local sp = R.Spec(key) or {}
   local r = G.roster[key]
   local class = (r and r.class) or f.class or sp.class
-  local role = f.role or (sp.m and sp.m[2]) or R.DefaultRole(class, sp.m and sp.m[1])
+  local pl = R.Plan(e)
+  local lead = pl.r and pl.r[key]
+  local role
+  for _, cand in ipairs({ lead or false, f.role or false, (sp.m and sp.m[2]) or false, R.DefaultRole(class, sp.m and sp.m[1]) or false, R.OnlyRole(class) or false }) do
+    if cand and R.RoleOk(class, cand) then role = cand; break end
+  end
+  local byLead = lead ~= nil and role == lead
   local tree = tonumber(f.tree) or (sp.m and sp.m[1])
   local off = (f.off and f.off ~= "none" and f.off) or (sp.o and sp.o[2])
   local offTree = sp.o and sp.o[1]
-  if off == role then off = nil end
+  if off == role or not R.RoleOk(class, off) then off = nil end
   local p = R.Plan(e)
   boss = boss or p.b
   local swapped = boss and boss > 0 and p.sw[boss] and p.sw[boss][key] and off and true or false
   local main = role
   if swapped then role = off; tree = offTree or tree end
-  return { key = key, class = class, tree = tree, role = role, kind = R.ROLE_KIND[role], main = main, off = off,
-    swapped = swapped, st = E.Status(e, key), c = su and su.c, src = su and su.src }
+  return { key = key, class = class, tree = tree, role = role, kind = role and R.ROLE_KIND[role] or nil, main = main, off = off,
+    swapped = swapped, byLead = byLead, st = E.Status(e, key), c = su and su.c, src = su and su.src }
 end
 
 local function inRaid(st) return st == "in" or st == "late" end
@@ -548,8 +586,8 @@ function R.Lineup(e, boss)
 end
 
 function R.RoleCounts(list)
-  local n = { tank = 0, heal = 0, melee = 0, range = 0, total = #list }
-  for _, x in ipairs(list) do if x.kind then n[x.kind] = n[x.kind] + 1 end end
+  local n = { tank = 0, heal = 0, melee = 0, range = 0, unknown = 0, total = #list }
+  for _, x in ipairs(list) do local k = x.kind or "unknown"; n[k] = n[k] + 1 end
   return n
 end
 
@@ -819,7 +857,7 @@ function R.ExportText(e, boss)
   lines[#lines + 1] = L.RAID_EXPORT_COUNTS:format(n.tank, n.heal, n.melee, n.range)
   for g = 1, t.groups do
     local names = {}
-    for _, x in ipairs(R.Group(e, g, boss)) do names[#names + 1] = G.Display(x.key) .. " (" .. R.RoleName(x.role) .. ")" end
+    for _, x in ipairs(R.Group(e, g, boss)) do names[#names + 1] = G.Display(x.key) .. " (" .. (x.role and R.RoleName(x.role) or L.RAID_KIND_unknown) .. ")" end
     lines[#lines + 1] = L.RAID_GROUP_N:format(g) .. ": " .. (#names > 0 and table.concat(names, ", ") or "–")
   end
   for _, st in ipairs({ "tent", "late", "bench" }) do
@@ -838,19 +876,24 @@ end
 ---------------------------------------------------------------------------
 -- Event types and registration
 ---------------------------------------------------------------------------
-local function roleOptions(withNone)
+local function roleOptions(withNone, class)
   local o = {}
   if withNone then o[#o + 1] = { "none", "RAID_ROLE_none" } end
-  for _, r in ipairs(R.ROLES) do o[#o + 1] = { r, "RAID_ROLE_" .. r } end
+  for _, r in ipairs(R.ROLES) do if R.RoleOk(class, r) then o[#o + 1] = { r, "RAID_ROLE_" .. r } end end
   return o
 end
 
 local function fieldsFor(t)
   local f = {
-    { id = "role", kind = "choice", labelKey = "RAID_F_ROLE", short = L.RAID_F_ROLE_S, options = roleOptions(false), required = true,
-      default = function() local s = R.Spec(); return s and s.m and s.m[2] or R.DefaultRole(R.MyClass(), s and s.m and s.m[1]) end,
+    { id = "role", kind = "choice", labelKey = "RAID_F_ROLE", short = L.RAID_F_ROLE_S, options = function() return roleOptions(false, R.MyClass()) end, required = true,
+      default = function()
+        local s = R.Spec()
+        local r = s and s.m and s.m[2] or R.DefaultRole(R.MyClass(), s and s.m and s.m[1]) or R.OnlyRole(R.MyClass())
+        return R.RoleOk(R.MyClass(), r) and r or nil
+      end,
+      validate = function(v) if v and not R.RoleOk(R.MyClass(), v) then return L.RAID_ROLE_NOT_CLASS end end,
       format = function(v) return R.RoleName(v) end },
-    { id = "off", kind = "choice", labelKey = "RAID_F_OFF", short = L.RAID_F_OFF_S, options = roleOptions(true),
+    { id = "off", kind = "choice", labelKey = "RAID_F_OFF", short = L.RAID_F_OFF_S, options = function() return roleOptions(true, R.MyClass()) end,
       default = function() local s = R.Spec(); return s and s.o and s.o[2] or "none" end },
     { id = "class", kind = "auto", hidden = true, get = function() return R.MyClass() end },
     { id = "tree", kind = "auto", hidden = true, get = function() local s = R.Spec(); return s and s.m and s.m[1] end },

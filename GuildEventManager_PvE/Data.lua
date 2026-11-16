@@ -39,6 +39,19 @@ R.TEMPLATES = {
 R.TPL = {}
 for _, t in ipairs(R.TEMPLATES) do R.TPL[t.id] = t end
 
+-- Roles a class can play (no faction split: paladins and shamans on both sides)
+R.CLASS_ROLES = {
+  WARRIOR = { mt = true, ot = true, melee = true },
+  PALADIN = { mt = true, ot = true, melee = true, heal = true },
+  HUNTER  = { range = true },
+  ROGUE   = { melee = true },
+  PRIEST  = { heal = true, range = true },
+  SHAMAN  = { heal = true, range = true, melee = true },
+  MAGE    = { range = true },
+  WARLOCK = { range = true },
+  DRUID   = { mt = true, ot = true, melee = true, range = true, heal = true },
+}
+
 -- Talent trees per class: tree index -> spec label key and default role
 R.CLASSES = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
 R.SPECS = {

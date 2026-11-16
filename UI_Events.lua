@@ -342,7 +342,7 @@ local function refreshDetail(p)
         r.autoTag:Set(L.FIELD_AUTO, false)
       elseif kind == "choice" or kind == "multi" then
         r.opts = {}
-        for _, o in ipairs(f.options or {}) do
+        for _, o in ipairs((type(f.options) == "function" and f.options(e)) or f.options or {}) do
           local val, lab = o, o
           if type(o) == "table" then val, lab = o[1], o[2] or o[1] end
           if type(lab) == "string" and ns.L[lab] then lab = ns.L[lab] end
@@ -404,7 +404,7 @@ local function refreshDetail(p)
           local ok, fv = pcall(f.format, v); if ok and fv then v = fv end
         elseif f.kind == "choice" or f.kind == "multi" then
           local lab = {}
-          for _, o in ipairs(f.options or {}) do
+          for _, o in ipairs((type(f.options) == "function" and f.options(e)) or f.options or {}) do
             if type(o) == "table" then lab[o[1]] = (o[2] and ns.L[o[2]]) or o[2] or o[1] end
           end
           if type(v) == "table" then
