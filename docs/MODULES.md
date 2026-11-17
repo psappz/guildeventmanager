@@ -209,7 +209,7 @@ Only in an activated guild, throttled, split when long, dropped from senders out
 | `API.AddModule(id, { label = fn, icon, order, badge = fn, tabs = { { id, label = fn, build = fn(panel), refresh = fn(panel) }, ... } })` | an entry in the side bar (group "Modules") with sub tabs. `build` runs once per tab, `refresh` on every update. `badge` returns a short text (a count) or nil. API 5 |
 | `API.AddTab(id, { label = fn, build, refresh, parent = "entryId" })` | one more tab: with `parent` as a sub tab of a module entry, without it as an entry of its own (API 1 behaviour). |
 | `API.AddSettingsPage(id, { label = fn, build, refresh })` | a page behind the gear (the module's rules or options). API 5 |
-| `API.AddHelp(id, fn)` | help text for a view or a side bar entry, shown under the "?" in the header: `fn()` returns `title, text`. A view without its own text uses its entry's. 0.7.1 |
+| `API.AddHelp(id, fn)` | help text for a view or a side bar entry, shown under the "?" in the header: `fn()` returns `title, text`. A view without its own text uses its entry's. 0.8.0 |
 | `API.AddNotice({ key, group, text, view = "tabId" or ev = eventId or open = fn })`, `API.RemoveNotice(key)` | a notice behind the bell (one per `key`, kept 7 days). API 5 |
 | `API.AddLedgerFormat(id, { label = fn, match = fn(entry), text = fn(entry) })` | how your entries read in the honor book and which module tag they get. API 5 |
 | `API.AddProbe(id, fn)` | a check for `/gem probe`: `fn()` returns `{ { label, value }, ... }` – use it for client functions you are not sure about. API 5 |

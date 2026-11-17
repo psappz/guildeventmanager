@@ -1,6 +1,6 @@
 # GuildEventManager
 
-## 0.7.1 (in progress)
+## 0.8.0 (in progress)
 
 ### Added
 - **Invitation reminder:** every member who has not answered an event yet gets a notice under the bell and a line in the chat after login. In the week before the event a popup asks for an answer: "Open GuildEventManager" leads straight to the own sign-up (with a short glow around it), "Later" asks again after three hours. The popup never comes during combat or while the window is open; Escape counts as "Later". Answering yes, no or anything else ends the reminders.
