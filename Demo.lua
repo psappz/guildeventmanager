@@ -224,8 +224,8 @@ local function build()
   return { roster = roster, ranks = ranks, me = me, store = store, char = char, tx = tx }
 end
 
-function D.Start(faction)
-  if ns.demo then D.Stop() end
+function D.Start(faction, preview)
+  if ns.demo then D.Stop(true) end
   local data = build()
   D.saved = { roster = G.roster, ranks = G.rankNames, faction = T.forced }
   G.roster = data.roster
@@ -238,6 +238,7 @@ function D.Start(faction)
     if ns.UI and ns.UI.Frame() then U.Print(ns.L.DEMO_RELOAD); return end
     T.forced = faction
   end
+  ns.preview = preview and true or nil
   ns.demo = true
   ns.Achievements.Dirty()
   -- war drums of the PvP module
@@ -266,13 +267,15 @@ function D.Start(faction)
       o2 = { id = "o2", by = k("Morvok"), text = tx.oaths[3], lvl = 2, ts = now - 86400, state = "open", wit = {} },
     }
   end
+  if preview then return end
   U.Print(ns.L.DEMO_ON)
   if ns.UI then ns.UI.Show("pvp") end
 end
 
-function D.Stop()
+function D.Stop(quiet)
   if not ns.demo then return end
   ns.demo = false
+  ns.preview = nil
   G.roster = D.saved.roster
   G.rankNames = D.saved.ranks
   T.forced = D.saved.faction
@@ -282,8 +285,49 @@ function D.Stop()
   if P and D.savedHonor then P.maks, P.oaths = D.savedHonor[1], D.savedHonor[2]; D.savedHonor = nil end
   ns.Achievements.Dirty()
   G.RequestRoster()
-  U.Print(ns.L.DEMO_OFF)
+  if not quiet then U.Print(ns.L.DEMO_OFF) end
   if ns.UI then ns.UI.Refresh() end
+end
+
+---------------------------------------------------------------------------
+-- Preview: a member whose guild has not switched the addon on (or a player
+-- without a guild) sees the sample guild with a big hint instead of an empty
+-- window. The guild master gets the activation guide instead. Same rules as
+-- the demo: nothing is sent or saved; it ends by itself once the guild is on.
+---------------------------------------------------------------------------
+function D.PreviewWanted()
+  if not G.RealInGuild() then return true end
+  if G.RealIsLeader() then return false end
+  return not G.IsActivated()
+end
+
+-- start = may start it (the window is about to show); stopping always works
+function D.SyncPreview(start)
+  if ns.demo and not ns.preview then return end   -- screenshot demo running
+  local want = D.PreviewWanted()
+  if want and not ns.preview and start then
+    D.Start(nil, true)
+  elseif not want and ns.preview then
+    D.Stop(true)
+  end
+end
+
+-- "Tell the guild master": opens a whisper with a ready text (the member sends it)
+function D.TellGuildMaster()
+  local gm, online
+  local n = GetNumGuildMembers and GetNumGuildMembers() or 0
+  for i = 1, n do
+    local name, _, rankIndex, _, _, _, _, _, on = GetGuildRosterInfo(i)
+    if rankIndex == 0 then gm, online = G.StripRealm(name), on; break end
+  end
+  if not gm then U.Print(ns.L.PREVIEW_GM_UNKNOWN); return end
+  if not online then U.Print(ns.L.PREVIEW_GM_OFFLINE:format(gm)); return end
+  local open = ChatFrame_OpenChat or (ChatFrameUtil and ChatFrameUtil.OpenChat)
+  if open then
+    pcall(open, "/w " .. gm .. " " .. ns.L.PREVIEW_WHISPER)
+  else
+    U.Print(ns.L.PREVIEW_GM_OFFLINE:format(gm))
+  end
 end
 
 ns.SlashExt = ns.SlashExt or {}

@@ -16,6 +16,7 @@ UI.entryOf = {}    -- view id -> entry id
 local win
 
 local W_WIDTH, W_HEIGHT, SIDE = 1080, 620, 184
+local PREVIEW_H = 86   -- the hint above the sample guild (window grows by this)
 
 -- the guild's own areas, in this order
 local CORE = { "home", "events", "ledger", "ach", "banner" }
@@ -255,6 +256,30 @@ local function buildWindow()
   f.panels = {}
   f.subtabs = {}
 
+  -- preview: big hint above the sample guild
+  local pb = W.Box(f, 10, PREVIEW_H - 8, "panel2")
+  pb:SetPoint("TOPLEFT", SIDE + 10, -66); pb:SetPoint("RIGHT", -12, 0)
+  pb:SetBackdropBorderColor(th.title[1], th.title[2], th.title[3], 1)
+  pb.icon = W.IconTex(pb, "help", 30, "title")
+  pb.icon:SetPoint("TOPLEFT", 16, -14)
+  pb.head = W.Text(pb, 16, "title")
+  pb.head:SetFont("Fonts\\MORPHEUS.TTF", 18, "")
+  pb.head:SetPoint("TOPLEFT", pb.icon, "TOPRIGHT", 12, 2)
+  pb.text = W.Text(pb, 11, "text")
+  pb.text:SetPoint("TOPLEFT", pb.head, "BOTTOMLEFT", 0, -5)
+  pb.text:SetPoint("RIGHT", pb, "RIGHT", -230, 0)
+  pb.text:SetSpacing(2)
+  pb.how = W.Button(pb, ns.L.PREVIEW_HOW, false, 26)
+  pb.how:SetWidth(100)
+  pb.how:SetPoint("RIGHT", -14, 0)
+  pb.how:SetScript("OnClick", function() UI.ToggleHelp() end)
+  pb.tell = W.Button(pb, ns.L.PREVIEW_TELL, true, 26)
+  pb.tell:SetWidth(200)
+  pb.tell:SetPoint("BOTTOMRIGHT", pb.how, "TOPRIGHT", 0, 6)
+  pb.tell:SetScript("OnClick", function() if ns.Demo then ns.Demo.TellGuildMaster() end end)
+  pb:Hide()
+  f.previewBar = pb
+
   -- not activated / no guild
   f.notice = W.Text(f.body, 13, "text")
   f.notice:SetPoint("TOPLEFT", 24, -24); f.notice:SetPoint("RIGHT", -24, 0)
@@ -323,7 +348,30 @@ function UI.ToggleNotices()
 end
 
 -- id: a view id or an entry id (opens the entry's last view)
+-- preview on/off: the window grows by the hint so the pages keep their size
+local function applyPreview()
+  local on = ns.preview and true or false
+  local pb = win.previewBar
+  if on then
+    local guild = G.RealInGuild()
+    pb.head:SetText(guild and ns.L.PREVIEW_HEAD or ns.L.PREVIEW_HEAD_NOGUILD)
+    pb.text:SetText(guild and ns.L.PREVIEW_TEXT or ns.L.PREVIEW_TEXT_NOGUILD)
+    pb.tell:SetShown(guild)
+    pb.how:ClearAllPoints()
+    if guild then pb.how:SetPoint("BOTTOMRIGHT", -14, 14) else pb.how:SetPoint("RIGHT", -14, 0) end
+  end
+  if win.previewOn == on then return end
+  win.previewOn = on
+  win:SetHeight(W_HEIGHT + (on and PREVIEW_H or 0))
+  win.body:ClearAllPoints()
+  win.body:SetPoint("TOPLEFT", SIDE + 10, -66 - (on and PREVIEW_H or 0))
+  win.body:SetPoint("BOTTOMRIGHT", -12, 36)
+  pb:SetShown(on)
+  for _, p in pairs(win.panels) do p:SetAlpha(on and 0.8 or 1) end
+end
+
 function UI.Show(id)
+  if ns.Demo then ns.Demo.SyncPreview(true) end
   win = win or buildWindow()
   if win.navDirty then buildNav() end
   local entry = id and UI.entries[id]
@@ -350,6 +398,7 @@ end
 -- What may be shown: settings always (the guild master activates there),
 -- everything else only in an activated guild
 local function blockedText()
+  if ns.preview then return nil end   -- members see the sample guild with a hint
   if not G.InGuild() then return ns.L.NO_GUILD end
   if not G.IsActivated() then
     return G.IsLeader() and ns.L.NOT_ACTIVE_GM or ns.L.NOT_ACTIVE_MEMBER
@@ -417,9 +466,10 @@ function UI.Refresh()
   ns.Schedule("gemUIRefresh", 0.05, function()
     if not win:IsShown() then return end
     local season = date("%d.%m.", ns.Points.SeasonStart()) .. " – " .. date("%d.%m.", ns.Points.SeasonEnd() - 1)
-    win.title:SetText(G.InGuild() and (G.Name() or "?") or "GuildEventManager")
+    applyPreview()
+    win.title:SetText(G.InGuild() and ((G.Name() or "?") .. (ns.preview and ("  " .. U.Color(U.WARN, ns.L.PREVIEW_TAG)) or "")) or "GuildEventManager")
     if win.crestBtn then win.crestBtn:Update() end
-    win.sub:SetText(G.InGuild()
+    win.sub:SetText(ns.preview and ns.L.PREVIEW_SUB or G.InGuild()
       and ns.L.HEADER_SUB2:format(T.Word("GUILD"), season)
       or ns.L.NO_GUILD_SHORT)
     win.family:Refresh()
@@ -442,6 +492,7 @@ function UI.Refresh()
       win.panels[id] = p
       p:SetPoint("TOPLEFT", 12, top); p:SetPoint("BOTTOMRIGHT", -12, 12)
       v.build(p)
+      p:SetAlpha(win.previewOn and 0.8 or 1)
     else
       p:ClearAllPoints()
       p:SetPoint("TOPLEFT", 12, top); p:SetPoint("BOTTOMRIGHT", -12, 12)

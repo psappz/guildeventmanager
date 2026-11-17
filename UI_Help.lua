@@ -28,8 +28,11 @@ end
 for _, id in ipairs({ "home", "events", "ledger", "ach", "banner", "settings" }) do UI.AddHelp(id, core(id)) end
 
 -- needs the guild master?
+-- (also without a guild: the preview explains it there too; never during the
+-- screenshot demo)
 function H.NeedsActivation()
-  return G.InGuild() and not G.IsActivated()
+  if ns.demo and not ns.preview then return false end
+  return not G.RealInGuild() or not G.IsActivated()
 end
 
 ---------------------------------------------------------------------------
@@ -67,10 +70,11 @@ function UI.ToggleHelp()
   if win.noticeBox then win.noticeBox:Hide() end
 
   local title, text, btn, action
-  if not G.InGuild() then
+  local real = not (ns.demo and not ns.preview)
+  if real and not G.RealInGuild() then
     title, text = L.HELP_T_noguild, L.HELP_X_noguild
-  elseif not G.IsActivated() then
-    if G.IsLeader() then
+  elseif real and not G.IsActivated() then
+    if G.RealIsLeader() then
       title, text, btn = L.HELP_ACT_GM_T, L.HELP_ACT_GM_X, L.HELP_ACT_GO
       action = function() H.ShowGuide("on") end
     else

@@ -154,7 +154,7 @@ local function refresh(p)
 
   -- activation
   local marker = G.Marker()
-  if not G.InGuild() then
+  if not G.InGuild() or (ns.preview and not G.RealInGuild()) then
     p.actText:SetText(L.NO_GUILD)
     p.act:SetBackdropBorderColor(unpack(th.line))
   elseif marker then

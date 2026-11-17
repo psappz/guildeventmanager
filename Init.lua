@@ -18,6 +18,8 @@ end
 -- Activation follows the marker in the guild info. Until it is there the
 -- addon sends nothing and ignores nothing-but-reads.
 function ns.CheckActivation()
+  -- the preview ends as soon as the guild is switched on (before anything is sent)
+  if ns.Demo then ns.Demo.SyncPreview(ns.UI and ns.UI.Frame() and ns.UI.Frame():IsShown()) end
   local active = G.IsActivated()
   if active and not ns.wasActive then
     ns.wasActive = true

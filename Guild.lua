@@ -74,7 +74,16 @@ function G.MyKey()
   return G.Key(n)
 end
 
-function G.InGuild() return IsInGuild and IsInGuild() end
+-- The real guild state, also during the demo/preview (which shows the sample
+-- guild "Neocortex"): activation, the guild master check and the help use these.
+function G.RealInGuild() return IsInGuild and IsInGuild() or false end
+function G.RealName() return GetGuildInfo and GetGuildInfo("player") end
+function G.RealIsLeader() return IsGuildLeader and IsGuildLeader() or false end
+
+function G.InGuild()
+  if ns.demo then return true end
+  return G.RealInGuild()
+end
 
 function G.Name()
   if ns.demo then return ns.demoGuild end
@@ -82,9 +91,10 @@ function G.Name()
   return n
 end
 
--- Storage key of the current guild (guild + realm), nil without guild
-function G.StoreKey()
-  local n = G.Name()
+-- Storage key of the current guild (guild + realm), nil without guild;
+-- real = the real guild even while the sample guild is shown
+function G.StoreKey(real)
+  local n = real and G.RealName() or G.Name()
   if not n then return nil end
   local realm = (GetNormalizedRealmName and GetNormalizedRealmName()) or GetRealmName() or "?"
   return n .. "@" .. realm
@@ -132,8 +142,8 @@ local function inCombat()
 end
 
 function G.ReadMarker()
-  if inCombat() or not G.InGuild() then return false end
-  local key = G.StoreKey()
+  if inCombat() or not G.RealInGuild() then return false end
+  local key = G.StoreKey(true)
   if not key or not ns.db then return false end
   local text = GetGuildInfoText and GetGuildInfoText() or ""
   ns.db.markers = ns.db.markers or {}
@@ -149,7 +159,7 @@ function G.ReadMarker()
 end
 
 function G.Marker()
-  local key = G.StoreKey()
+  local key = G.StoreKey(true)
   if not key or not ns.db then return nil end
   local m = ns.db.markers and ns.db.markers[key]
   -- read once per session; while there is no code, look again every minute so
@@ -162,8 +172,10 @@ function G.Marker()
 end
 
 function G.IsActivated()
-  if ns.demo then return true end
-  if not G.InGuild() or not G.StoreKey() then
+  -- the screenshot demo acts as an active guild; the preview for members of a
+  -- guild that is not switched on yet keeps asking the real guild
+  if ns.demo and not ns.preview then return true end
+  if not G.RealInGuild() or not G.StoreKey(true) then
     -- during a reconnect or a loading screen the game briefly reports "no guild";
     -- stay active for two minutes before believing it
     if G.lastActive and GetTime() - G.lastActive < 120 then return true end
