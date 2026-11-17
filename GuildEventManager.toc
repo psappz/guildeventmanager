@@ -29,6 +29,7 @@ Locales\itIT.lua
 Locales\ptBR.lua
 Locales\Core07.lua
 Locales\Invite07.lua
+Locales\Help07.lua
 Util.lua
 Family.lua
 Theme.lua
@@ -52,6 +53,7 @@ UI_Banner.lua
 UI_Achievements.lua
 UI_Ledger.lua
 UI_Settings.lua
+UI_Help.lua
 Demo.lua
 Export.lua
 Probe.lua

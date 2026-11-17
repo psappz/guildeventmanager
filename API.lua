@@ -148,6 +148,7 @@ function API.AddTab(id, def) ns.UI.AddTab(id, def) end
 -- API 5: a side bar entry with sub tabs, settings pages, notices, honor book texts
 function API.AddModule(id, def) return ns.UI.AddModule(id, def) end
 function API.AddSettingsPage(id, def) ns.UI.AddSettingsPage(id, def) end
+function API.AddHelp(id, fn) ns.UI.AddHelp(id, fn) end    -- help for a view or entry: fn() -> title, text
 function API.AddNotice(n) ns.Notices.Add(n) end         -- { key, group, text, view | ev | open = fn }
 function API.RemoveNotice(key) ns.Notices.Remove(key) end
 function API.AddLedgerFormat(id, def) return ns.Ledger.AddFormat(id, def) end -- { label = fn, match = fn(e), text = fn(e) }

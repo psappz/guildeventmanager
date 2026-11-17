@@ -297,6 +297,9 @@ UI.AddModule("pvp", {
   tabs = { { id = "pvp", label = function() return core.L.TAB_HOME end, build = build, refresh = refresh } },
 })
 
+-- help ("?" in the header): the PvP entry and its tabs
+if UI.AddHelp then UI.AddHelp("pvp", function() return core.L.HELP_T_pvp, core.L.HELP_X_pvp end) end
+
 UI.AddSettingsPage("pvprules", {
   label = function() return L.PVP_RULES end,
   build = buildRules,

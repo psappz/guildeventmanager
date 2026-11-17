@@ -133,6 +133,17 @@ local function build(p)
   p.silent:SetPoint("TOPLEFT", p.minimap, "BOTTOMLEFT", 0, -8)
   p.notify = W.Check(right, L.SET_NOTIFY, function(self, on) ns.db.notify = on end)
   p.notify:SetPoint("TOPLEFT", p.silent, "BOTTOMLEFT", 0, -8)
+
+  -- bottom right: switch the addon off (guild master, while active)
+  p.offLink = CreateFrame("Button", nil, p)
+  p.offLink:SetPoint("BOTTOMRIGHT", 0, 0)
+  p.offLink.text = W.Text(p.offLink, 10, "muted")
+  p.offLink.text:SetPoint("RIGHT", 0, 0)
+  p.offLink.text:SetText(L.GUIDE_OFF_LINK)
+  p.offLink:SetSize(p.offLink.text:GetStringWidth() + 4, 18)
+  p.offLink:SetScript("OnEnter", function(self) local c = th.title; self.text:SetTextColor(c[1], c[2], c[3]) end)
+  p.offLink:SetScript("OnLeave", function(self) local c = th.muted; self.text:SetTextColor(c[1], c[2], c[3]) end)
+  p.offLink:SetScript("OnClick", function() if ns.UIHelp then ns.UIHelp.ShowGuide("off") end end)
 end
 
 local function refresh(p)
@@ -155,6 +166,7 @@ local function refresh(p)
   end
   p.act:SetHeight(p.actText:GetStringHeight() + 18)
   p.mkMarker:SetShown(leader)
+  p.offLink:SetShown(leader and marker ~= nil)
   p.recheck:ClearAllPoints()
   if leader then p.recheck:SetPoint("LEFT", p.mkMarker, "RIGHT", 6, 0) else p.recheck:SetPoint("TOPLEFT", p.act, "BOTTOMLEFT", 0, -6) end
 

@@ -901,6 +901,13 @@ UI.AddModule("raids", {
   },
 })
 
+-- help ("?" in the header)
+if UI.AddHelp then
+  for _, id in ipairs({ "raids", "raidplan", "raidnight", "raidimport" }) do
+    UI.AddHelp(id, function() return core.L["HELP_T_" .. id], core.L["HELP_X_" .. id] end)
+  end
+end
+
 UI.AddSettingsPage("raidsettings", {
   label = function() return L.TAB_RAIDS end,
   build = buildSettings,

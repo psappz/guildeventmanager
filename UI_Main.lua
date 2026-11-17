@@ -236,6 +236,9 @@ local function buildWindow()
   f.bell = W.IconButton(head, "bell", 30, ns.L.NOTICES)
   f.bell:SetPoint("RIGHT", f.gear, "LEFT", -4, 0)
   f.bell:SetScript("OnClick", function() UI.ToggleNotices() end)
+  f.help = W.IconButton(head, "help", 30, ns.L.HELP)
+  f.help:SetPoint("RIGHT", f.bell, "LEFT", -4, 0)
+  f.help:SetScript("OnClick", function() UI.ToggleHelp() end)
 
   -- sidebar
   f.side = CreateFrame("Frame", nil, f, "BackdropTemplate")
@@ -299,6 +302,7 @@ function UI.ToggleNotices()
   if not win then return end
   local box = win.noticeBox
   if box:IsShown() then box:Hide(); return end
+  if win.helpBox then win.helpBox:Hide() end
   local list = ns.Notices and ns.Notices.List() or {}
   local th = T.Current()
   for i, n in ipairs(list) do
@@ -328,6 +332,8 @@ function UI.Show(id)
   if not UI.views[id] then id = "home" end
   win.current = id
   local eid = UI.entryOf[id]
+  if win.guide and eid ~= "settings" then win.guide:Hide() end
+  if win.helpBox then win.helpBox:Hide() end
   if eid and UI.entries[eid] then UI.entries[eid].last = id end
   for vid, p in pairs(win.panels) do p:SetShown(vid == id) end
   win.noticeBox:Hide()
@@ -402,6 +408,8 @@ local function refreshChrome()
   -- bell: unread count
   local unread = ns.Notices and ns.Notices.Unread() or 0
   win.bell:SetCount(unread)
+  -- help: a red 1 while the guild master still has to switch the addon on
+  win.help:SetCount((ns.UIHelp and ns.UIHelp.NeedsActivation()) and 1 or 0)
 end
 
 function UI.Refresh()
