@@ -473,7 +473,12 @@ E.ASK_OPENED = 15 * 60       -- after "Open" give the member time to answer
 
 function E.MinLevel(e)
   local v = e and tonumber(e.lvl)
-  if v and v > 1 then return math.floor(v) end
+  if v and v > 1 then
+    v = math.floor(v)
+    -- TEST BUILD ONLY (remove before 0.8.0): raids ask from a lower level
+    if ns.TEST_RAID_LEVEL and type(e.type) == "string" and e.type:find("^raid_") then v = math.min(v, ns.TEST_RAID_LEVEL) end
+    return v
+  end
   return nil
 end
 function E.LevelOf(key)

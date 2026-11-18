@@ -4,6 +4,7 @@ local ADDON, R = ...
 -- The line-up travels with the event (e.pve), the specs and the readiness of
 -- every member travel in the module's own messages.
 local core = R.core
+core.TEST_RAID_LEVEL = 45   -- TEST BUILD ONLY (remove before 0.8.0): raids from level 45
 if not core then return end
 local API = GuildEventManagerAPI
 API.pve = R
@@ -911,7 +912,7 @@ for _, t in ipairs(R.TEMPLATES) do
   types[#types + 1] = {
     id = "raid_" .. t.id, nameKey = t.labelKey, descKey = "RAID_DESC_" .. t.id, kind = "short", group = "raid",
     gmax = t.size, icon = t.icon, raid = t.id,
-    minLevel = function() return (GetMaxPlayerLevel and GetMaxPlayerLevel()) or 60 end,
+    minLevel = function() return core.TEST_RAID_LEVEL or (GetMaxPlayerLevel and GetMaxPlayerLevel()) or 60 end,
     canCreate = function(key) return R.CanCreate(key) end,
     signupFields = fieldsFor(t),
   }
