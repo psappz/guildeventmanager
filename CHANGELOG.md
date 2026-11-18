@@ -10,6 +10,11 @@
 - **API:** `API.AddHelp(id, fn)` – help text for a module's views.
 - **Remind to sign up:** checkbox in the event editor, ticked by default for raids, off for the other types. The popup comes a few seconds after every login and /reload ("Later" only holds for the session) and right after a fight if it was held back.
 - **Raids: early sign-up below level 60** (raid settings, on by default): from level 45 a character may sign up if there are at least (60 − own level) ÷ levels a day days left (rounded down; levels a day set in the raid settings, default 1). Below that only declining works; the sign-up box says why. Optional bonus: early sign-ups who take part get the points for taking part × levels a day. Reminders only go to level 60 characters.
+- **Questions in the event editor:** up to 5 own questions per event (yes/no, choice, number, text), optionally required. Members answer them when signing up; the answers appear in the list of sign-ups.
+- **Raids: assignments** (new tab): blessings per class and an aura per paladin, a totem per element per shaman, curse and bane per warlock, fear ward per priest on a tank – only what Forever offers (no Salvation, no Blessing of Light, no Curse of Shadow; banes as their own kind). Names in the client language from the game. Gaps in yellow (class without a blessing, curse twice, melee group without Windfury). "Distribute automatically" makes a start, "Into the raid chat" posts it, "Your task" on top for everyone.
+- **Raids: boss order** (settings → Raid bosses): the guild puts the bosses in its own order by drag & drop or arrows; boss setups and dropdowns follow it.
+- **Raids: Raid-Helper compositions** can be imported: players are placed in their groups (field names are read tolerantly; please send us a comp JSON if something is missing).
+- `/gem probe` shows what the client knows about raid bosses (encounter journal, current instance, lockouts) – for boss names in the client language later.
 - **Level of an event:** the editor has a field "From level" (empty = all levels). Only characters of that level are reminded; the detail page shows the level. Raids use the highest player level by default. Event types can set `minLevel`.
 
 ### Changed

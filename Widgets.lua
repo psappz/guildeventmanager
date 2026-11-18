@@ -327,8 +327,6 @@ function W.Dropdown(parent, width, getOptions, getValue, onSelect)
   b:SetScript("OnClick", function(self)
     W.OpenMenu(self, function(_, root)
       local opts = getOptions()
-      -- long lists (raids planned months ahead) scroll instead of running off the screen
-      if #opts > 20 and root.SetScrollMode then pcall(root.SetScrollMode, root, 20 * 20) end
       for _, o in ipairs(opts) do
         root:CreateRadio(o[2], function() return getValue() == o[1] end, function() onSelect(o[1]); self:Refresh() end)
       end
@@ -497,11 +495,32 @@ local function getRow(f, i, depth)
   return r
 end
 
+-- long menus (raids planned months ahead) show MENU_MAX rows and scroll with the mouse wheel
+local MENU_MAX = 18
 showLevel = function(node, depth, anchor)
   hideFrom(depth)
   local f = getLevel(depth)
-  local width, y = 120, -6
-  for i, n in ipairs(node.items) do
+  local width, y = node.width or 120, -6
+  local all = node.items
+  local maxOff = math.max(0, #all - MENU_MAX)
+  node.off = math.min(maxOff, math.max(0, node.off or 0))
+  local items = all
+  if #all > MENU_MAX then
+    items = {}
+    for i = node.off + 1, node.off + MENU_MAX do items[#items + 1] = all[i] end
+  end
+  f:EnableMouseWheel(#all > MENU_MAX)
+  f:SetScript("OnMouseWheel", function(_, delta)
+    node.off = node.off - delta * 3
+    showLevel(node, depth, anchor)
+  end)
+  f.more = f.more or W.Text(f, 9, "muted")
+  f.more:SetShown(#all > MENU_MAX)
+  if #all > MENU_MAX then
+    f.more:ClearAllPoints(); f.more:SetPoint("BOTTOMRIGHT", -6, 3)
+    f.more:SetText((node.off + 1) .. "–" .. (node.off + #items) .. " / " .. #all)
+  end
+  for i, n in ipairs(items) do
     local r = getRow(f, i, depth)
     r.node = n
     r:ClearAllPoints()
@@ -521,8 +540,9 @@ showLevel = function(node, depth, anchor)
     width = math.max(width, (r.text:GetStringWidth() or 0) + 22 + 28)
     y = y - (isDiv and 8 or ROW_H)
   end
-  for i = #node.items + 1, #f.rows do f.rows[i]:Hide() end
-  f:SetSize(width, -y + 6)
+  for i = #items + 1, #f.rows do f.rows[i]:Hide() end
+  node.width = width
+  f:SetSize(width, -y + 6 + (#all > MENU_MAX and 12 or 0))
   f:ClearAllPoints()
   if depth == 1 then f:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
   else f:SetPoint("TOPLEFT", anchor, "TOPRIGHT", 2, 6) end

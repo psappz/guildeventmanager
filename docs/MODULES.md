@@ -122,6 +122,7 @@ API.RegisterModule({
 | `remind` | `true`: the editor's checkbox "Remind members to sign up" starts ticked (the PvE raids do this). Members of the right level who have not answered get a notice and, in the week before the event, a popup. |
 | `canSignUp` | optional `function(e, key) -> ok, reason`: may this character sign up (declining is always allowed)? The PvE raids use it for the early sign-up below the raid level. |
 | `pointsFactor` | optional `function(e, key) -> number`: multiplies the points for taking part when the event ends (the PvE raids: early sign-ups × levels a day). Every sign-up carries `lv`, the lowest level the character signed up with. |
+| `signupFields` per event | events can carry their own questions (`e.fields`, created in the event editor): `{ id = "q1", kind = "choice"|"number"|"text", label, options, required, yn }`. They are cleaned on receipt (`Events.CleanFields`). |
 | `minLevel` | optional default for the event's lowest level (number or function); only members of that level are asked to sign up. The manager can change it in the editor. The PvE raids use the highest player level. |
 | `icon` | texture path – shown on the type tile in the event editor, so choose a clear one |
 | `goalKeys` | locale keys of goals suggested in the editor; each reached goal gives event points to all participants |

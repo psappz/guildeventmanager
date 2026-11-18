@@ -1,5 +1,5 @@
 local ADDON, ns = ...
--- Strings for the help ("?" in the header) and the activation guides (0.7.1)
+-- Strings for the help ("?" in the header) and the activation guides (0.8.0)
 ns.AddLocale("enUS", {
   HELP = "Help",
   HELP_T_noguild = "You are not in a guild",
@@ -65,6 +65,8 @@ ns.AddLocale("enUS", {
   PREVIEW_WHISPER = "Hi! Could you switch GuildEventManager on for the guild? /gem and the \"?\" show you how – it takes a minute.",
   PREVIEW_GM_OFFLINE = "Your guild master %s is not online. Write to him later or by mail.",
   PREVIEW_GM_UNKNOWN = "Could not find the guild master in the roster yet. Try again in a moment.",
+  HELP_T_raidassign = "Assignments",
+  HELP_X_raidassign = "Who casts what: blessings and auras, totems, curse and bane, fear ward. Only players in the line-up appear.\n\nClick a cell to choose. \"Distribute automatically\" makes a start, \"Into the raid chat\" posts it for everyone. Yellow = missing or twice.",
 })
 ns.AddLocale("deDE", {
   HELP = "Hilfe",
@@ -131,6 +133,8 @@ ns.AddLocale("deDE", {
   PREVIEW_WHISPER = "Hi! Kannst du GuildEventManager für die Gilde einschalten? /gem und das „?“ zeigen dir wie – dauert eine Minute.",
   PREVIEW_GM_OFFLINE = "Dein Gildenmeister %s ist nicht online. Schreib ihm später oder per Post.",
   PREVIEW_GM_UNKNOWN = "Gildenmeister noch nicht in der Mitgliederliste gefunden. Versuch es gleich noch einmal.",
+  HELP_T_raidassign = "Zuweisungen",
+  HELP_X_raidassign = "Wer wirkt was: Segen und Auren, Totems, Fluch und Bann, Furchtzauberschutz. Es erscheinen nur Spieler aus der Aufstellung.\n\nKlick auf ein Feld zum Auswählen. „Automatisch verteilen“ macht einen Vorschlag, „In den Raidchat“ schreibt es für alle hinein. Gelb = fehlt oder doppelt.",
 })
 ns.AddLocale("frFR", {
   HELP = "Aide",
@@ -197,6 +201,8 @@ ns.AddLocale("frFR", {
   PREVIEW_WHISPER = "Salut ! Tu pourrais activer GuildEventManager pour la guilde ? /gem puis le « ? » t'expliquent comment – ça prend une minute.",
   PREVIEW_GM_OFFLINE = "Ton maître de guilde %s n'est pas en ligne. Écris-lui plus tard ou par courrier.",
   PREVIEW_GM_UNKNOWN = "Maître de guilde introuvable dans la liste pour l'instant. Réessaie dans un instant.",
+  HELP_T_raidassign = "Attributions",
+  HELP_X_raidassign = "Qui lance quoi : bénédictions et auras, totems, malédiction et fléau, gardien de peur. Seuls les joueurs de la composition apparaissent.\n\nClique sur une case pour choisir. « Répartir automatiquement » propose une base, « Dans le chat de raid » la publie. Jaune = manquant ou en double.",
 })
 ns.AddLocale("esES", {
   HELP = "Ayuda",
@@ -263,6 +269,8 @@ ns.AddLocale("esES", {
   PREVIEW_WHISPER = "¡Hola! ¿Puedes activar GuildEventManager para la hermandad? /gem y el «?» te muestran cómo; lleva un minuto.",
   PREVIEW_GM_OFFLINE = "Tu maestro de hermandad %s no está conectado. Escríbele más tarde o por correo.",
   PREVIEW_GM_UNKNOWN = "Aún no se encuentra al maestro de hermandad en la lista. Inténtalo de nuevo en un momento.",
+  HELP_T_raidassign = "Asignaciones",
+  HELP_X_raidassign = "Quién lanza qué: bendiciones y auras, tótems, maldición y perdición, custodia de miedo. Solo aparecen los jugadores de la formación.\n\nHaz clic en una casilla para elegir. «Repartir automáticamente» propone un reparto, «Al chat de banda» lo publica. Amarillo = falta o repetido.",
 })
 ns.AddLocale("itIT", {
   HELP = "Aiuto",
@@ -329,6 +337,8 @@ ns.AddLocale("itIT", {
   PREVIEW_WHISPER = "Ciao! Puoi attivare GuildEventManager per la gilda? /gem e il «?» ti mostrano come – serve un minuto.",
   PREVIEW_GM_OFFLINE = "Il tuo capogilda %s non è online. Scrivigli più tardi o per posta.",
   PREVIEW_GM_UNKNOWN = "Capogilda non ancora trovato nell'elenco. Riprova tra poco.",
+  HELP_T_raidassign = "Assegnazioni",
+  HELP_X_raidassign = "Chi lancia cosa: benedizioni e aure, totem, maledizione e flagello, custodia dalla paura. Compaiono solo i giocatori della formazione.\n\nClicca una casella per scegliere. «Distribuisci automaticamente» fa una proposta, «Nella chat dell'incursione» la pubblica. Giallo = mancante o doppio.",
 })
 ns.AddLocale("ptBR", {
   HELP = "Ajuda",
@@ -395,4 +405,6 @@ ns.AddLocale("ptBR", {
   PREVIEW_WHISPER = "Oi! Pode ativar o GuildEventManager para a guilda? /gem e o “?” mostram como – leva um minuto.",
   PREVIEW_GM_OFFLINE = "O mestre da guilda %s não está online. Escreva mais tarde ou por correio.",
   PREVIEW_GM_UNKNOWN = "Mestre da guilda ainda não encontrado na lista. Tente de novo em instantes.",
+  HELP_T_raidassign = "Atribuições",
+  HELP_X_raidassign = "Quem lança o quê: bênçãos e auras, totens, maldição e ruína, proteção contra o medo. Só aparecem jogadores da formação.\n\nClique numa célula para escolher. “Distribuir automaticamente” faz uma proposta, “No chat da raide” publica para todos. Amarelo = falta ou repetido.",
 })

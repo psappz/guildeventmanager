@@ -68,6 +68,7 @@ local function send(e) C.Send("EVT", { e = e }) end
 
 function E.Save(e)
   if not E.CanManage(e) then U.Print(ns.L.NO_RIGHTS); return nil end
+  e.fields = E.CleanFields(e.fields)
   e.upd = math.max(U.Now(), (e.upd or 0) + 1)
   events()[e.id] = e
   send(e)
@@ -240,6 +241,41 @@ function E.Fields(e)
   for _, f in ipairs(t and t.signupFields or {}) do out[#out + 1] = f end
   for _, f in ipairs(e and e.fields or {}) do out[#out + 1] = f end
   return out
+end
+
+-- The event's own questions (event editor, travels with the event): only
+-- plain data, a few kinds, short texts – also for events from other members
+E.Q_MAX, E.Q_OPTS = 5, 6
+E.Q_KINDS = { choice = true, number = true, text = true }
+function E.CleanFields(list)
+  if type(list) ~= "table" then return nil end
+  local out, seen = {}, {}
+  for _, f in ipairs(list) do
+    if #out >= E.Q_MAX then break end
+    if type(f) == "table" and E.Q_KINDS[f.kind] and type(f.id) == "string" and f.id:match("^q%d%d?$") and not seen[f.id]
+      and type(f.label) == "string" and f.label ~= "" then
+      seen[f.id] = true
+      local q = { id = f.id, kind = f.kind, label = f.label:sub(1, 60), required = f.required and true or nil, yn = f.yn and true or nil }
+      if f.kind == "choice" then
+        q.options = {}
+        if q.yn then
+          q.options = { { "yes", "YES" }, { "no", "NO" } }
+        else
+          for _, o in ipairs(type(f.options) == "table" and f.options or {}) do
+            local v = type(o) == "table" and o[1] or o
+            if type(v) == "string" and v ~= "" and #q.options < E.Q_OPTS then
+              v = v:sub(1, 20); q.options[#q.options + 1] = { v, v }
+            end
+          end
+        end
+        if #q.options >= 2 then out[#out + 1] = q end
+      else
+        if f.kind == "number" then q.min = 0; q.max = 99999 end
+        out[#out + 1] = q
+      end
+    end
+  end
+  return #out > 0 and out or nil
 end
 
 function E.FieldDefault(f, e)
@@ -419,6 +455,7 @@ C.On("EVT", function(data, from)
   local e = data.e
   if type(e) ~= "table" or not e.id then return end
   if not E.CanCreate(e.type, from) then return end
+  e.fields = E.CleanFields(e.fields)
   local list = events()
   local old = list[e.id]
   if old and (tonumber(old.upd) or 0) >= (tonumber(e.upd) or 0) then

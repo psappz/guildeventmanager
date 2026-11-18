@@ -54,7 +54,40 @@ function R.Need(t)
   local n = pr.pve and pr.pve.need and pr.pve.need[t.id]
   return { tank = n and n.tank or t.need.tank, heal = n and n.heal or t.need.heal }
 end
-function R.Bosses(t) return t.bosses end
+-- Bosses: the guild may change the order (raid settings, drag & drop). Boss
+-- setups and needs keep using the boss's index in the template, so a new
+-- order never mixes them up.
+function R.BossOrder(t)
+  local pr = core.Profile.Get()
+  local o = pr.pve and pr.pve.order and pr.pve.order[t.id]
+  local out, seen = {}, {}
+  if type(o) == "table" then
+    for _, i in ipairs(o) do
+      i = tonumber(i)
+      if i and t.bosses[i] and not seen[i] then out[#out + 1] = i; seen[i] = true end
+    end
+  end
+  for i = 1, #t.bosses do if not seen[i] then out[#out + 1] = i end end
+  return out
+end
+function R.BossName(t, i) return t and t.bosses[i] or "?" end
+-- position of a boss in the guild's order (1 = first)
+function R.BossPos(t, i)
+  for pos, j in ipairs(R.BossOrder(t)) do if j == i then return pos end end
+  return i
+end
+function R.Bosses(t)
+  local out = {}
+  for _, i in ipairs(R.BossOrder(t)) do out[#out + 1] = R.BossName(t, i) end
+  return out
+end
+function R.SetBossOrder(t, order)
+  core.Profile.Update(function(pr)
+    pr.pve = pr.pve or {}
+    pr.pve.order = pr.pve.order or {}
+    pr.pve.order[t.id] = order
+  end)
+end
 
 -- Early sign-up: characters below the raid's level may sign up from level
 -- `min` (default 45) if there are at least floor((raid level - own level) / perDay)
@@ -897,7 +930,7 @@ function R.ExportText(e, boss)
   local t = R.TemplateOf(e)
   boss = boss or R.Plan(e).b
   local lines = {}
-  local bossName = (boss and boss > 0) and t.bosses[boss] or L.RAID_SETUP_STD
+  local bossName = (boss and boss > 0) and R.BossName(t, boss) or L.RAID_SETUP_STD
   lines[#lines + 1] = "**" .. e.name .. "** · " .. U.FormatTime(e.start) .. " · " .. bossName
   local n = R.RoleCounts(R.Lineup(e, boss))
   lines[#lines + 1] = L.RAID_EXPORT_COUNTS:format(n.tank, n.heal, n.melee, n.range)
@@ -1062,6 +1095,63 @@ API.AddProbe("pve", function()
     { "C_Item.GetItemCount / GetItemCount", P.Has(C_Item and C_Item.GetItemCount) .. " / " .. P.Has(GetItemCount) .. " · test (Hearthstone 6948): " .. (((C_Item and C_Item.GetItemCount) or GetItemCount) and P.Try((C_Item and C_Item.GetItemCount) or GetItemCount, 6948) or "–") },
   }
 end)
+-- Boss names in the client language (0.8.0): does the client have an
+-- encounter journal, which raids and bosses does it list, and what do the
+-- raid lockouts and the current instance say?
+API.AddProbe("bossnames", function()
+  local P = core.Probe
+  local rows = {}
+  local ej = { "EJ_GetNumTiers", "EJ_SelectTier", "EJ_GetInstanceByIndex", "EJ_GetInstanceInfo", "EJ_GetEncounterInfoByIndex", "EJ_SelectInstance" }
+  local have = {}
+  for _, n in ipairs(ej) do have[#have + 1] = n .. " " .. P.Has(_G[n]) end
+  rows[#rows + 1] = { "encounter journal", table.concat(have, " · ") }
+  if EJ_GetNumTiers and EJ_SelectTier and EJ_GetInstanceByIndex then
+    local ok, tiers = pcall(EJ_GetNumTiers)
+    tiers = ok and tonumber(tiers) or 0
+    rows[#rows + 1] = { "journal tiers", tostring(tiers) }
+    for tier = 1, math.min(tiers, 4) do
+      pcall(EJ_SelectTier, tier)
+      local list = {}
+      for i = 1, 20 do
+        local ok2, id, name = pcall(EJ_GetInstanceByIndex, i, true)
+        if not ok2 or not id then break end
+        local bosses = {}
+        if EJ_SelectInstance and EJ_GetEncounterInfoByIndex then
+          pcall(EJ_SelectInstance, id)
+          for j = 1, 16 do
+            local ok3, bname = pcall(EJ_GetEncounterInfoByIndex, j, id)
+            if not ok3 or not bname then break end
+            bosses[#bosses + 1] = bname
+          end
+        end
+        list[#list + 1] = tostring(name) .. " #" .. tostring(id) .. (#bosses > 0 and (" [" .. table.concat(bosses, ", ") .. "]") or "")
+      end
+      rows[#rows + 1] = { "raids in tier " .. tier, #list > 0 and table.concat(list, " · ") or "none" }
+    end
+  end
+  if GetInstanceInfo then
+    local ok, name, itype, diff, diffName, maxP, _, _, instID = pcall(GetInstanceInfo)
+    rows[#rows + 1] = { "current instance", ok and (tostring(name) .. " · " .. tostring(itype) .. " · " .. tostring(diffName) .. " · max " .. tostring(maxP) .. " · id " .. tostring(instID)) or "–" }
+  end
+  if GetNumSavedInstances and GetSavedInstanceInfo then
+    local ok, n = pcall(GetNumSavedInstances)
+    n = ok and tonumber(n) or 0
+    for i = 1, math.min(n, 6) do
+      local ok2, name, _, _, _, _, _, _, isRaid, maxP, diffName, numEnc = pcall(GetSavedInstanceInfo, i)
+      local bosses = {}
+      if ok2 and GetSavedInstanceEncounterInfo then
+        for j = 1, tonumber(numEnc) or 0 do
+          local ok3, bname = pcall(GetSavedInstanceEncounterInfo, i, j)
+          if ok3 and bname then bosses[#bosses + 1] = bname end
+        end
+      end
+      rows[#rows + 1] = { "lockout " .. i, ok2 and (tostring(name) .. " · raid " .. tostring(isRaid) .. " · max " .. tostring(maxP) .. " · " .. tostring(diffName) .. " · [" .. table.concat(bosses, ", ") .. "]") or "–" }
+    end
+    if n == 0 then rows[#rows + 1] = { "lockouts", "none" } end
+  end
+  return rows
+end)
+
 -- Raid spells for the assignments (0.8.0): which classic spells this client
 -- still knows (by spell ID, shows the name in the client language) and every
 -- spell in the own spell book.

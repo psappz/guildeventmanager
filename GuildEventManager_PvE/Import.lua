@@ -119,7 +119,11 @@ function R.ReadRaidHelper(text)
   if type(data) ~= "table" then return nil, "no object" end
   local ev = data.signUps and data or data.event or data
   local su = ev.signUps or ev.signups
-  if type(su) ~= "table" then return nil, L.RAID_IMP_NOSIGNUPS end
+  if type(su) ~= "table" then
+    local comp = R.ReadComp(data)
+    if comp then return comp end
+    return nil, L.RAID_IMP_NOSIGNUPS
+  end
   local out = { title = ev.title or ev.displayTitle, start = tonumber(ev.startTime), list = {} }
   for _, x in ipairs(su) do
     if type(x) == "table" and x.name then
@@ -133,6 +137,50 @@ function R.ReadRaidHelper(text)
         spec = x.specName,
       }
     end
+  end
+  table.sort(out.list, function(a, b) return a.pos < b.pos end)
+  return out
+end
+
+-- A Raid-Helper composition (comp tool, "JSON"): players placed in groups.
+-- Tolerant about the field names: slots at the top or inside the groups,
+-- group as groupNumber / partyId / group / groupId, slot as slotNumber /
+-- slotId / position. Returns the same shape as an event, plus group and slot.
+local function num(...)
+  for i = 1, select("#", ...) do
+    local v = tonumber((select(i, ...)))
+    if v then return v end
+  end
+end
+function R.ReadComp(data)
+  if type(data) ~= "table" then return nil end
+  local c = data.comp or data.composition or data
+  local slots = {}
+  local function take(x, g)
+    if type(x) ~= "table" or not x.name or x.name == "" then return end
+    slots[#slots + 1] = { x = x, g = num(x.groupNumber, x.partyId, x.group, x.groupId, g), s = num(x.slotNumber, x.slotId, x.slot, x.position) }
+  end
+  if type(c.slots) == "table" then for _, x in ipairs(c.slots) do take(x) end end
+  if type(c.groups) == "table" then
+    for gi, grp in ipairs(c.groups) do
+      if type(grp) == "table" and type(grp.slots) == "table" then
+        local g = num(grp.groupNumber, grp.position, grp.number, grp.id) or gi
+        for _, x in ipairs(grp.slots) do take(x, g) end
+      end
+    end
+  end
+  if #slots == 0 then return nil end
+  local out = { title = c.title or c.name or data.title, comp = true, list = {} }
+  for i, it in ipairs(slots) do
+    local x = it.x
+    local spec = x.specName and R.RH_SPECS[x.specName]
+    local role = spec and spec[3] or R.RH_ROLES[x.roleName] or R.RH_ROLES[x.className]
+    local g = it.g and math.floor(it.g) or nil
+    if g and (g < 1 or g > 8) then g = nil end
+    out.list[#out.list + 1] = {
+      id = tostring(x.userId or x.name), name = tostring(x.name), class = spec and spec[1], tree = spec and spec[2],
+      role = role, st = "in", group = g, slot = it.s or i, pos = (g or 9) * 100 + (it.s or i), spec = x.specName,
+    }
   end
   table.sort(out.list, function(a, b) return a.pos < b.pos end)
   return out
@@ -165,13 +213,24 @@ function R.ApplyImport(e, imp, map)
   if not R.CanEdit(e) then U.Print(L.NO_RIGHTS); return 0, 0, 0 end
   local s = R.Store()
   e.signups = e.signups or {}
-  local added, kept, skipped = 0, 0, 0
+  local added, kept, skipped, placed = 0, 0, 0, 0
+  local plan = imp.comp and R.Plan(e)
+  local t = R.TemplateOf(e)
   for _, x in ipairs(imp.list) do
     local key = map[x.id]
     if key then
       s.discord[x.id] = key
+      -- a composition also places the player in his group (in its order)
+      if plan and x.group and (not t or x.group <= t.groups) then
+        plan.g[key] = x.group
+        for j = #plan.o, 1, -1 do if plan.o[j] == key then table.remove(plan.o, j) end end
+        plan.o[#plan.o + 1] = key
+        placed = placed + 1
+      end
       local cur = e.signups[key]
       if cur and cur.src ~= "rh" then
+        kept = kept + 1
+      elseif imp.comp and cur then
         kept = kept + 1
       else
         e.signups[key] = { on = x.st ~= "out", st = x.st, c = x.note, src = "rh",
@@ -188,5 +247,5 @@ function R.ApplyImport(e, imp, map)
     end
   end
   R.Changed(e)
-  return added, kept, skipped
+  return added, kept, skipped, placed
 end

@@ -744,6 +744,51 @@ local function buildEditor(p)
     if r then r.edit:SetFocus() end
   end)
 
+  -- 5 · own questions for the sign-up
+  local Q_KINDS = { "yesno", "choice", "number", "text" }
+  ed.s5q = UI.Section(col, L.ED_QUESTIONS); ed.s5q:SetWidth(LEFT_W)
+  ed.qHint = W.Text(col, 10, "muted"); ed.qHint:SetWidth(LEFT_W); ed.qHint:SetText(L.ED_Q_HINT)
+  ed.qRows = W.Pool(col, function(parent)
+    local r = CreateFrame("Frame", nil, parent)
+    r:SetSize(LEFT_W, 50)
+    r.edit = W.Edit(r, LEFT_W - 30 - 116, 22)
+    r.edit:SetPoint("TOPLEFT", 0, 0)
+    r.edit:SetMaxLetters(60)
+    r.edit:SetScript("OnTextChanged", function(self, user)
+      if user and ed.qs and ed.qs[r.index] then ed.qs[r.index].label = self:GetText() end
+    end)
+    r.kind = W.Dropdown(r, 110, function()
+      local o = {}
+      for _, k in ipairs(Q_KINDS) do o[#o + 1] = { k, L["ED_Q_KIND_" .. k] } end
+      return o
+    end, function() return ed.qs and ed.qs[r.index] and ed.qs[r.index].kind end, function(v)
+      if ed.qs and ed.qs[r.index] then ed.qs[r.index].kind = v; V.EditorRefresh() end
+    end)
+    r.kind:SetPoint("LEFT", r.edit, "RIGHT", 6, 0)
+    r.del = W.Button(r, "x", false, 22); r.del:SetWidth(24)
+    r.del:SetPoint("LEFT", r.kind, "RIGHT", 6, 0)
+    r.del:SetScript("OnClick", function() table.remove(ed.qs, r.index); V.EditorRefresh() end)
+    r.req = W.Check(r, L.ED_Q_REQUIRED, function(_, on) if ed.qs and ed.qs[r.index] then ed.qs[r.index].required = on end end)
+    r.req:SetPoint("TOPLEFT", r.edit, "BOTTOMLEFT", 2, -8)
+    r.optsL = W.Text(r, 10, "muted"); r.optsL:SetText(L.ED_Q_OPTIONS)
+    r.optsL:SetPoint("LEFT", r.req, "RIGHT", 70, 0)
+    r.opts = W.Edit(r, 10, 22)
+    r.opts:SetPoint("LEFT", r.optsL, "RIGHT", 6, 0); r.opts:SetPoint("RIGHT", r, "RIGHT", 0, 0)
+    r.opts:SetMaxLetters(130)
+    r.opts:SetScript("OnTextChanged", function(self, user)
+      if user and ed.qs and ed.qs[r.index] then ed.qs[r.index].opts = self:GetText() end
+    end)
+    return r
+  end)
+  ed.addQ = W.Button(col, L.ED_Q_ADD, false, 22)
+  ed.addQ:SetScript("OnClick", function()
+    if #ed.qs >= E.Q_MAX then return end
+    ed.qs[#ed.qs + 1] = { kind = "yesno", label = "" }
+    V.EditorRefresh()
+    local r = ed.qRows.items[#ed.qs]
+    if r then r.edit:SetFocus() end
+  end)
+
   -- right: description and preview
   local right = CreateFrame("Frame", nil, ed)
   right:SetPoint("TOPLEFT", scroll, "TOPRIGHT", 14, 0); right:SetPoint("BOTTOMRIGHT", 0, 0)
@@ -908,6 +953,25 @@ function V.EditorRefresh()
   ed.goalRows:HideFrom(#ed.goals + 1)
   ed.addGoal:SetShown(#ed.goals < 8)
   if #ed.goals < 8 then at(ed.addGoal); y = y + 26 end
+  y = y + 16
+
+  -- 5 · own questions
+  at(ed.s5q); y = y + 24
+  at(ed.qHint); y = y + ed.qHint:GetStringHeight() + 6
+  for i, q in ipairs(ed.qs) do
+    local r = ed.qRows:Get(i)
+    r.index = i
+    if not r.edit:HasFocus() and r.edit:GetText() ~= (q.label or "") then r.edit:SetText(q.label or "") end
+    r.kind:Refresh()
+    r.req:SetChecked(q.required)
+    local choice = q.kind == "choice"
+    r.optsL:SetShown(choice); r.opts:SetShown(choice)
+    if choice and not r.opts:HasFocus() and r.opts:GetText() ~= (q.opts or "") then r.opts:SetText(q.opts or "") end
+    at(r); y = y + 56
+  end
+  ed.qRows:HideFrom(#ed.qs + 1)
+  ed.addQ:SetShown(#ed.qs < E.Q_MAX)
+  if #ed.qs < E.Q_MAX then at(ed.addQ); y = y + 26 end
   ed.scroll:SetContentHeight(y + 8)
   V.EditorPreview()
 end
@@ -1000,6 +1064,34 @@ function V.SaveEditor()
     if line ~= "" and #goals < 8 then goals[#goals + 1] = { text = line, done = old[line] or false } end
   end
   f.goals = #goals > 0 and goals or nil
+  -- own questions: keep the ids of existing ones, so answers stay with them
+  local used, qs = {}, {}
+  for _, q in ipairs(ed.qs) do if q.id then used[q.id] = true end end
+  local nextId = 1
+  for _, q in ipairs(ed.qs) do
+    local label = (q.label or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if label ~= "" then
+      if not q.id then
+        while used["q" .. nextId] do nextId = nextId + 1 end
+        q.id = "q" .. nextId; used[q.id] = true
+      end
+      local fq = { id = q.id, label = label, required = q.required and true or nil }
+      if q.kind == "yesno" then
+        fq.kind, fq.yn = "choice", true
+      elseif q.kind == "choice" then
+        fq.kind, fq.options = "choice", {}
+        for part in (q.opts or ""):gmatch("[^,]+") do
+          part = part:gsub("^%s+", ""):gsub("%s+$", "")
+          if part ~= "" then fq.options[#fq.options + 1] = part end
+        end
+        if #fq.options < 2 then ed.err:SetText(L.ED_ERR_Q_OPTS:format(label)); return end
+      else
+        fq.kind = q.kind
+      end
+      qs[#qs + 1] = fq
+    end
+  end
+  f.fields = E.CleanFields(qs)
   local e
   if ed.ev then
     e = E.Get(ed.ev.id)
@@ -1072,6 +1164,13 @@ function V.OpenEditor(e, template, preset)
   ed.goals = {}
   for _, g in ipairs(ed.f.goals or {}) do ed.goals[#ed.goals + 1] = g.text end
   ed.goalsTouched = src ~= nil
+  ed.qs = {}
+  for _, q in ipairs(ed.f.fields or {}) do
+    local opts = {}
+    for _, o in ipairs(q.options or {}) do opts[#opts + 1] = type(o) == "table" and o[1] or o end
+    ed.qs[#ed.qs + 1] = { id = q.id, label = q.label, required = q.required,
+      kind = q.yn and "yesno" or q.kind, opts = (not q.yn) and table.concat(opts, ", ") or nil }
+  end
   if #ed.goals == 0 and not src then
     local t = ns.Modules.Type(ed.f.type)
     for _, k in ipairs(t and t.goalKeys or {}) do ed.goals[#ed.goals + 1] = L[k] end

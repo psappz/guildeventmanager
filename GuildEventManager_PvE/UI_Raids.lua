@@ -53,10 +53,12 @@ local function raidChips(p)
   return row
 end
 
+R.RaidChips = raidChips
+
 local function bossOptions(e)
   local t = R.TemplateOf(e)
   local o = { { 0, L.RAID_SETUP_STD } }
-  if t then for i, b in ipairs(t.bosses) do o[#o + 1] = { i, i .. ". " .. b } end end
+  if t then for pos, i in ipairs(R.BossOrder(t)) do o[#o + 1] = { i, pos .. ". " .. R.BossName(t, i) } end end
   return o
 end
 
@@ -612,7 +614,7 @@ local function refreshPlan(p)
   local needs = boss > 0 and R.BossNeeds(e, boss) or {}
   if #needs > 0 then
     y = y + 8
-    head(L.RAID_BOSSNEED:format(t.bosses[boss]))
+    head(L.RAID_BOSSNEED:format(R.BossName(t, boss)))
     for _, x in ipairs(needs) do buffRow(x.id == "tremor_all" and "tremor" or x.id, L["RAID_B_" .. x.id], (not x.unknown) and x.ok or nil, x.unknown and L.RAID_LATER or x.info) end
   end
   local cov = R.Coverage(e, boss)
@@ -793,10 +795,12 @@ local function buildImport(p)
   p.apply:SetScript("OnClick", function()
     local e = current()
     if not e or not V.imp then return end
-    local a, k, sk = R.ApplyImport(e, V.imp, V.map)
+    local comp = V.imp.comp
+    local a, k, sk, pl = R.ApplyImport(e, V.imp, V.map)
     U.Print(L.RAID_IMP_DONE:format(a, k, sk))
+    if comp then U.Print(L.RAID_IMP_PLACED:format(pl or 0)) end
     V.imp = nil; p.edit:SetText("")
-    UI.Show("raids")
+    UI.Show(comp and "raidplan" or "raids")
   end)
 end
 
@@ -809,6 +813,7 @@ local function refreshImport(p)
   if not e then p.status:SetText(L.RAID_NONE)
   elseif not R.CanEdit(e) then p.status:SetText(L.RAID_IMP_RIGHTS)
   elseif not imp then p.status:SetText(L.RAID_IMP_EMPTY)
+  elseif imp.comp then p.status:SetText(L.RAID_IMP_READ_COMP:format(#imp.list, imp.title or "?", e.name))
   else p.status:SetText(L.RAID_IMP_READ_N:format(#imp.list, imp.title or "?", e.name)) end
   local n = 0
   for _, x in ipairs(imp and imp.list or {}) do
@@ -960,6 +965,7 @@ UI.AddModule("raids", {
   tabs = {
     { id = "raids", label = function() return core.L.TAB_HOME end, build = buildOverview, refresh = refreshOverview },
     { id = "raidplan", label = function() return L.RAID_TAB_PLAN end, build = buildPlan, refresh = refreshPlan },
+    { id = "raidassign", label = function() return L.RAID_TAB_ASSIGN end, build = function(p) R.BuildAssign(p) end, refresh = function(p) R.RefreshAssign(p) end },
     { id = "raidnight", label = function() return L.RAID_TAB_NIGHT end, build = buildNight, refresh = refreshNight },
     { id = "raidimport", label = function() return L.RAID_TAB_IMPORT end, build = buildImport, refresh = refreshImport },
   },
@@ -967,8 +973,117 @@ UI.AddModule("raids", {
 
 -- help ("?" in the header)
 if UI.AddHelp then
-  for _, id in ipairs({ "raids", "raidplan", "raidnight", "raidimport" }) do
+  for _, id in ipairs({ "raids", "raidplan", "raidassign", "raidnight", "raidimport" }) do
     UI.AddHelp(id, function() return core.L["HELP_T_" .. id], core.L["HELP_X_" .. id] end)
+  end
+end
+
+---------------------------------------------------------------------------
+-- Settings: the bosses of a raid in the guild's order (drag & drop)
+---------------------------------------------------------------------------
+local bossGhost
+local function bossDragGhost()
+  if bossGhost then return bossGhost end
+  local th = T.Current()
+  bossGhost = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+  bossGhost:SetSize(220, 24)
+  bossGhost:SetFrameStrata("TOOLTIP")
+  W.Paint(bossGhost, th.panel2, th.title)
+  bossGhost.text = W.Text(bossGhost, 11, "text"); bossGhost.text:SetPoint("LEFT", 8, 0)
+  bossGhost:SetScript("OnUpdate", function(self)
+    local x, y = GetCursorPosition()
+    local s = UIParent:GetEffectiveScale()
+    self:ClearAllPoints(); self:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", x / s + 8, y / s - 8)
+  end)
+  bossGhost:Hide()
+  return bossGhost
+end
+
+local function bossTemplate(p)
+  local id = p.tplId or (R.TEMPLATES[1] and R.TEMPLATES[1].id)
+  for _, t in ipairs(R.TEMPLATES) do if t.id == id then return t end end
+  return R.TEMPLATES[1]
+end
+
+-- move the boss from position a to position b
+local function moveBoss(p, a, b)
+  local t = bossTemplate(p)
+  if not t or a == b or not a or not b then return end
+  local order = R.BossOrder(t)
+  local x = table.remove(order, a)
+  table.insert(order, math.min(b, #order + 1), x)
+  R.SetBossOrder(t, order)
+  UI.Refresh()
+end
+
+local function buildBosses(p)
+  p.head = UI.Section(p, L.RAID_BOSSES); p.head:SetPoint("TOPLEFT", 0, 0)
+  p.tpl = W.Dropdown(p, 200, function()
+    local o = {}
+    for _, t in ipairs(R.TEMPLATES) do o[#o + 1] = { t.id, R.TplName(t) } end
+    return o
+  end, function() local t = bossTemplate(p); return t and t.id end, function(v) p.tplId = v; UI.Refresh() end)
+  p.tpl:SetPoint("TOPLEFT", 0, -30)
+  p.reset = W.Button(p, L.RAID_BOSSES_RESET, false, 22)
+  p.reset:SetWidth(150)
+  p.reset:SetPoint("LEFT", p.tpl, "RIGHT", 8, 0)
+  p.reset:SetScript("OnClick", function()
+    local t = bossTemplate(p)
+    if t then R.SetBossOrder(t, nil); UI.Refresh() end
+  end)
+  p.hint = W.Text(p, 10, "muted"); p.hint:SetPoint("TOPLEFT", 0, -60); p.hint:SetPoint("RIGHT", 0, 0)
+  p.hint:SetSpacing(2)
+  p.rows = {}
+  local th = T.Current()
+  for i = 1, 16 do
+    local r = CreateFrame("Button", nil, p, "BackdropTemplate")
+    r:SetSize(360, 24)
+    r:SetPoint("TOPLEFT", 0, -92 - (i - 1) * 27)
+    W.Paint(r, th.panel2, th.line)
+    r:RegisterForDrag("LeftButton")
+    r.num = W.Text(r, 13, "title"); r.num:SetPoint("LEFT", 8, 0); r.num:SetWidth(26)
+    r.name = W.Text(r, 11, "text"); r.name:SetPoint("LEFT", 36, 0); r.name:SetPoint("RIGHT", -60, 0); r.name:SetWordWrap(false)
+    r.up = W.Button(r, "^", false, 20); r.up:SetWidth(22); r.up:SetPoint("RIGHT", -28, 0)
+    r.down = W.Button(r, "v", false, 20); r.down:SetWidth(22); r.down:SetPoint("RIGHT", -3, 0)
+    r.up:SetScript("OnClick", function() moveBoss(p, r.pos, r.pos - 1) end)
+    r.down:SetScript("OnClick", function() moveBoss(p, r.pos, r.pos + 1) end)
+    r.drop = i
+    r:SetScript("OnDragStart", function(self)
+      if not G.IsManager() then return end
+      p.dragFrom = self.pos
+      local gh = bossDragGhost(); gh.text:SetText(self.num:GetText() .. "  " .. self.name:GetText()); gh:Show()
+    end)
+    local function stop()
+      if not p.dragFrom then return end
+      local from = p.dragFrom
+      p.dragFrom = nil
+      if bossGhost then bossGhost:Hide() end
+      local f = (GetMouseFoci and GetMouseFoci()[1]) or (GetMouseFocus and GetMouseFocus())
+      while f and not f.drop do f = f.GetParent and f:GetParent() end
+      if f and f.drop and p.rows[f.drop] == f then moveBoss(p, from, f.pos) else UI.Refresh() end
+    end
+    r:SetScript("OnDragStop", stop)
+    r:SetScript("OnReceiveDrag", stop)
+    p.rows[i] = r
+  end
+end
+
+local function refreshBosses(p)
+  p.tpl:Refresh()
+  local t = bossTemplate(p)
+  local mgr = G.IsManager()
+  p.hint:SetText(mgr and L.RAID_BOSSES_HINT or L.RAID_BOSSES_HINT_RO)
+  p.reset:SetShown(mgr)
+  local order = t and R.BossOrder(t) or {}
+  for i, r in ipairs(p.rows) do
+    local idx = order[i]
+    r:SetShown(idx ~= nil)
+    if idx then
+      r.pos = i
+      r.num:SetText(i .. ".")
+      r.name:SetText(R.BossName(t, idx))
+      r.up:SetShown(mgr and i > 1); r.down:SetShown(mgr and i < #order)
+    end
   end
 end
 
@@ -976,6 +1091,12 @@ UI.AddSettingsPage("raidsettings", {
   label = function() return L.TAB_RAIDS end,
   build = buildSettings,
   refresh = refreshSettings,
+})
+
+UI.AddSettingsPage("raidbosses", {
+  label = function() return L.RAID_BOSSES end,
+  build = buildBosses,
+  refresh = refreshBosses,
 })
 
 -- raid events read in the honor book like other events (core), nothing to add
