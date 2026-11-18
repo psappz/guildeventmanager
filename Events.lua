@@ -557,6 +557,8 @@ function E.LoginNotice()
   if not G.IsActivated() then return end
   local ask = #E.OpenInvites()
   if ask > 0 then U.Print(U.Color(U.GOLD, ns.L.LOGIN_ASK:format(ask))) end
+  -- the popup right after login, not only with the next 30-second tick
+  ns.Schedule("gemInviteFirst", 6, function() ns.SafeCall("invites", E.CheckInvites) end)
   local planned, running = 0, 0
   for _, e in pairs(events()) do
     if e.status == "planned" then planned = planned + 1 elseif e.status == "running" then running = running + 1 end
