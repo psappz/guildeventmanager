@@ -4,7 +4,6 @@ local ADDON, R = ...
 -- The line-up travels with the event (e.pve), the specs and the readiness of
 -- every member travel in the module's own messages.
 local core = R.core
-core.TEST_RAID_LEVEL = 45   -- TEST BUILD ONLY (remove before 0.8.0): raids from level 45
 if not core then return end
 local API = GuildEventManagerAPI
 API.pve = R
@@ -56,6 +55,31 @@ function R.Need(t)
   return { tank = n and n.tank or t.need.tank, heal = n and n.heal or t.need.heal }
 end
 function R.Bosses(t) return t.bosses end
+
+-- Early sign-up: characters below the raid's level may sign up from level
+-- `min` (default 45) if there are at least (raid level - own level) days left
+-- – one level a day. Reminders still go to characters of the raid's level only.
+R.EARLY_DEFAULT = { on = true, min = 45 }
+function R.Early()
+  local pr = core.Profile.Get()
+  local x = pr.pve and pr.pve.early or {}
+  local on = x.on
+  if on == nil then on = R.EARLY_DEFAULT.on end
+  return { on = on and true or false, min = tonumber(x.min) or R.EARLY_DEFAULT.min }
+end
+
+function R.CanSignUp(e, key)
+  local need = E.MinLevel(e)
+  if not need then return true end
+  local lv = tonumber(E.LevelOf(key))
+  if not lv or lv <= 0 or lv >= need then return true end
+  local rule = R.Early()
+  if not rule.on then return false, L.RAID_EARLY_OFF:format(need) end
+  if lv < rule.min then return false, L.RAID_EARLY_LOW:format(rule.min, need) end
+  local days = ((tonumber(e.start) or 0) - core.U.Now()) / 86400
+  if days >= need - lv then return true end
+  return false, L.RAID_EARLY_DAYS:format(lv, need - lv, math.max(0, math.floor(days)))
+end
 
 function R.RaidEvents(open)
   return E.List(function(e) return R.IsRaid(e) and (not open or E.IsOpen(e)) end)
@@ -913,7 +937,8 @@ for _, t in ipairs(R.TEMPLATES) do
     id = "raid_" .. t.id, nameKey = t.labelKey, descKey = "RAID_DESC_" .. t.id, kind = "short", group = "raid",
     gmax = t.size, icon = t.icon, raid = t.id,
     remind = true,   -- raids remind members to sign up by default
-    minLevel = function() return core.TEST_RAID_LEVEL or (GetMaxPlayerLevel and GetMaxPlayerLevel()) or 60 end,
+    minLevel = function() return (GetMaxPlayerLevel and GetMaxPlayerLevel()) or 60 end,
+    canSignUp = function(e, key) return R.CanSignUp(e, key) end,
     canCreate = function(key) return R.CanCreate(key) end,
     signupFields = fieldsFor(t),
   }

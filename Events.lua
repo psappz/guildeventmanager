@@ -281,10 +281,25 @@ function E.CheckField(f, v)
 end
 
 -- the own sign-up: opts = { st, c, f = { [fieldId] = value } }
+-- may the character sign up (declining is always possible)? The event type
+-- can decide (canSignUp(e, key) -> ok, reason), e.g. raids by level
+function E.CanSignUp(e, key)
+  local t = e and ns.Modules.Type(e.type)
+  if t and t.canSignUp then
+    local ok, a, b = pcall(t.canSignUp, e, key)
+    if ok then return a ~= false, b end
+  end
+  return true
+end
+
 function E.SetSignup(e, opts)
   if not C.CanSend() and not ns.demo then U.Print(ns.L.NOT_ACTIVE); return end
   opts = opts or {}
   local st = SIGN_OK[opts.st] and opts.st or "in"
+  if st ~= "out" then
+    local ok, why = E.CanSignUp(e)
+    if not ok then U.Print(why or ns.L.SIGN_NOT_ALLOWED); return false, why end
+  end
   local f = {}
   for _, fd in ipairs(E.Fields(e)) do
     local v = (fd.kind == "auto") and E.AutoValue(fd, e) or (opts.f and opts.f[fd.id])
@@ -476,8 +491,6 @@ function E.MinLevel(e)
   local v = e and tonumber(e.lvl)
   if v and v > 1 then
     v = math.floor(v)
-    -- TEST BUILD ONLY (remove before 0.8.0): raids ask from a lower level
-    if ns.TEST_RAID_LEVEL and type(e.type) == "string" and e.type:find("^raid_") then v = math.min(v, ns.TEST_RAID_LEVEL) end
     return v
   end
   return nil

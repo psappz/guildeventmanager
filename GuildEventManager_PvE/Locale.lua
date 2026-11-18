@@ -178,6 +178,13 @@ core.AddLocale("enUS", {
   RAID_RANK_GM = "Only the guild master changes this.",
   RAID_NEED = "Wanted per raid",
   RAID_SETTINGS_NOTE = "Raid leads below the event-manager rank plan, invite and sort; honor for a raid is booked by an event manager when closing it.",
+  RAID_EARLY = "Early sign-up",
+  RAID_EARLY_ON = "Characters below the raid level may sign up",
+  RAID_EARLY_MIN = "from level",
+  RAID_EARLY_HINT = "One level a day: a character may sign up if there are at least (raid level − own level) days left. Example for a level 60 raid: level 52 needs 8 days. Reminders only go to characters of the raid level.",
+  RAID_EARLY_OFF = "This raid is for level %d. You can still decline.",
+  RAID_EARLY_LOW = "Sign-up from level %d (raid level %d). You can still decline.",
+  RAID_EARLY_DAYS = "At level %d you need %d days until the raid – there are %d left. You can still decline.",
 })
 core.AddLocale("deDE", {
   MOD_PVE = "PvE",
@@ -355,6 +362,13 @@ core.AddLocale("deDE", {
   RAID_RANK_GM = "Nur der Gildenmeister ändert das.",
   RAID_NEED = "Sollzahlen pro Raid",
   RAID_SETTINGS_NOTE = "Raidleitungen unterhalb des Eventmanager-Rangs planen, laden ein und sortieren; Ehre für einen Raid bucht ein Eventmanager beim Abschließen.",
+  RAID_EARLY = "Frühe Anmeldung",
+  RAID_EARLY_ON = "Charaktere unter der Raidstufe dürfen sich anmelden",
+  RAID_EARLY_MIN = "ab Stufe",
+  RAID_EARLY_HINT = "Eine Stufe pro Tag: Ein Charakter darf sich anmelden, wenn bis zum Raid noch mindestens (Raidstufe − eigene Stufe) Tage sind. Beispiel bei einem Stufe-60-Raid: Stufe 52 braucht 8 Tage. Erinnert werden nur Charaktere der Raidstufe.",
+  RAID_EARLY_OFF = "Dieser Raid ist für Stufe %d. Absagen kannst du trotzdem.",
+  RAID_EARLY_LOW = "Anmeldung ab Stufe %d möglich (Raidstufe %d). Absagen kannst du trotzdem.",
+  RAID_EARLY_DAYS = "Mit Stufe %d brauchst du %d Tage bis zum Raid – es sind noch %d. Absagen kannst du trotzdem.",
 })
 core.AddLocale("frFR", {
   MOD_PVE = "JcE",
@@ -532,6 +546,13 @@ core.AddLocale("frFR", {
   RAID_RANK_GM = "Seul le maître de guilde modifie cela.",
   RAID_NEED = "Effectifs souhaités par raid",
   RAID_SETTINGS_NOTE = "Les chefs de raid sous le rang de gestion planifient, invitent et trient ; l'honneur d'un raid est attribué par un gestionnaire à la clôture.",
+  RAID_EARLY = "Inscription anticipée",
+  RAID_EARLY_ON = "Les personnages sous le niveau du raid peuvent s'inscrire",
+  RAID_EARLY_MIN = "à partir du niveau",
+  RAID_EARLY_HINT = "Un niveau par jour : un personnage peut s'inscrire s'il reste au moins (niveau du raid − son niveau) jours. Exemple pour un raid niveau 60 : niveau 52 = 8 jours. Les rappels ne vont qu'aux personnages du niveau du raid.",
+  RAID_EARLY_OFF = "Ce raid est pour le niveau %d. Tu peux quand même décliner.",
+  RAID_EARLY_LOW = "Inscription à partir du niveau %d (niveau du raid %d). Tu peux quand même décliner.",
+  RAID_EARLY_DAYS = "Au niveau %d il te faut %d jours avant le raid – il en reste %d. Tu peux quand même décliner.",
 })
 core.AddLocale("esES", {
   MOD_PVE = "JcE",
@@ -709,6 +730,13 @@ core.AddLocale("esES", {
   RAID_RANK_GM = "Solo el maestro de hermandad lo cambia.",
   RAID_NEED = "Objetivo por banda",
   RAID_SETTINGS_NOTE = "Los líderes de banda por debajo del rango de gestión planifican, invitan y ordenan; el honor de una banda lo asigna un gestor al cerrarla.",
+  RAID_EARLY = "Inscripción anticipada",
+  RAID_EARLY_ON = "Los personajes por debajo del nivel de la banda pueden inscribirse",
+  RAID_EARLY_MIN = "desde el nivel",
+  RAID_EARLY_HINT = "Un nivel al día: un personaje puede inscribirse si quedan al menos (nivel de la banda − su nivel) días. Ejemplo con una banda de nivel 60: nivel 52 necesita 8 días. Los avisos solo van a personajes del nivel de la banda.",
+  RAID_EARLY_OFF = "Esta banda es para nivel %d. Aun así puedes rechazar.",
+  RAID_EARLY_LOW = "Inscripción desde el nivel %d (nivel de la banda %d). Aun así puedes rechazar.",
+  RAID_EARLY_DAYS = "Con nivel %d necesitas %d días hasta la banda; quedan %d. Aun así puedes rechazar.",
 })
 core.AddLocale("itIT", {
   MOD_PVE = "PvE",
@@ -886,6 +914,13 @@ core.AddLocale("itIT", {
   RAID_RANK_GM = "Solo il capogilda lo modifica.",
   RAID_NEED = "Obiettivo per incursione",
   RAID_SETTINGS_NOTE = "I capi incursione sotto il grado di gestione pianificano, invitano e ordinano; l'onore di un'incursione lo assegna un gestore alla chiusura.",
+  RAID_EARLY = "Iscrizione anticipata",
+  RAID_EARLY_ON = "I personaggi sotto il livello dell'incursione possono iscriversi",
+  RAID_EARLY_MIN = "dal livello",
+  RAID_EARLY_HINT = "Un livello al giorno: un personaggio può iscriversi se mancano almeno (livello dell'incursione − proprio livello) giorni. Esempio per un'incursione di livello 60: livello 52 richiede 8 giorni. I promemoria vanno solo ai personaggi del livello dell'incursione.",
+  RAID_EARLY_OFF = "Questa incursione è per il livello %d. Puoi comunque rifiutare.",
+  RAID_EARLY_LOW = "Iscrizione dal livello %d (livello dell'incursione %d). Puoi comunque rifiutare.",
+  RAID_EARLY_DAYS = "Al livello %d ti servono %d giorni all'incursione – ne restano %d. Puoi comunque rifiutare.",
 })
 core.AddLocale("ptBR", {
   MOD_PVE = "JxA",
@@ -1063,4 +1098,11 @@ core.AddLocale("ptBR", {
   RAID_RANK_GM = "Só o mestre da guilda altera isso.",
   RAID_NEED = "Meta por raide",
   RAID_SETTINGS_NOTE = "Líderes de raide abaixo da patente de gestão planejam, convidam e ordenam; a honra de um raide é lançada por um gestor ao encerrá-lo.",
+  RAID_EARLY = "Inscrição antecipada",
+  RAID_EARLY_ON = "Personagens abaixo do nível do raide podem se inscrever",
+  RAID_EARLY_MIN = "a partir do nível",
+  RAID_EARLY_HINT = "Um nível por dia: um personagem pode se inscrever se faltarem pelo menos (nível do raide − nível próprio) dias. Exemplo num raide de nível 60: nível 52 precisa de 8 dias. Lembretes vão só para personagens do nível do raide.",
+  RAID_EARLY_OFF = "Este raide é para nível %d. Você ainda pode recusar.",
+  RAID_EARLY_LOW = "Inscrição a partir do nível %d (nível do raide %d). Você ainda pode recusar.",
+  RAID_EARLY_DAYS = "No nível %d você precisa de %d dias até o raide – restam %d. Você ainda pode recusar.",
 })

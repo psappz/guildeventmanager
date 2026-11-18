@@ -217,6 +217,8 @@ local function buildDetail(p)
     r.check:SetPoint("TOPLEFT", r.label, "BOTTOMLEFT", 0, -4)
     return r
   end)
+  d.why = W.Text(d.my, 10, "text")
+  d.why:SetSpacing(2)
   d.save = W.Button(d.my, L.SIGN_ON, true, 22)
   d.save:SetScript("OnClick", function()
     local e = d.ev
@@ -381,6 +383,14 @@ local function refreshDetail(p)
       y = y - 46
     end
     d.fieldRows:HideFrom(#fields + 1)
+    -- not allowed (e.g. level): say why; declining still works
+    local can, why = E.CanSignUp(e)
+    d.why:SetShown(not can)
+    if not can then
+      d.why:ClearAllPoints(); d.why:SetPoint("TOPLEFT", 8, y - 2); d.why:SetPoint("RIGHT", d.my, "RIGHT", -8, 0)
+      d.why:SetText(U.Color(U.WARN, why or L.SIGN_NOT_ALLOWED))
+      y = y - d.why:GetStringHeight() - 8
+    end
     d.save:ClearAllPoints(); d.save:SetPoint("TOPLEFT", 8, y - 4)
     W.SetLabel(d.save, E.Status(e) and L.SIGN_SAVE or L.SIGN_ON)
     local cur = E.Status(e)

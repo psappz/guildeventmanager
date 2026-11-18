@@ -18,6 +18,7 @@ ns.AddLocale("enUS", {
   ASK_IN_HOURS = "in %d hours",
   ASK_TOMORROW = "tomorrow",
   ASK_IN_DAYS = "in %d days",
+  SIGN_NOT_ALLOWED = "You can't sign up for this event. You can still decline.",
 })
 ns.AddLocale("deDE", {
   ED_LEVEL = "Ab Stufe",
@@ -37,6 +38,7 @@ ns.AddLocale("deDE", {
   ASK_IN_HOURS = "in %d Stunden",
   ASK_TOMORROW = "morgen",
   ASK_IN_DAYS = "in %d Tagen",
+  SIGN_NOT_ALLOWED = "Für dieses Event kannst du dich nicht anmelden. Absagen kannst du trotzdem.",
 })
 ns.AddLocale("frFR", {
   ED_LEVEL = "À partir du niveau",
@@ -56,6 +58,7 @@ ns.AddLocale("frFR", {
   ASK_IN_HOURS = "dans %d heures",
   ASK_TOMORROW = "demain",
   ASK_IN_DAYS = "dans %d jours",
+  SIGN_NOT_ALLOWED = "Tu ne peux pas t'inscrire à cet événement. Tu peux quand même décliner.",
 })
 ns.AddLocale("esES", {
   ED_LEVEL = "Desde el nivel",
@@ -75,6 +78,7 @@ ns.AddLocale("esES", {
   ASK_IN_HOURS = "en %d horas",
   ASK_TOMORROW = "mañana",
   ASK_IN_DAYS = "en %d días",
+  SIGN_NOT_ALLOWED = "No puedes inscribirte en este evento. Aun así puedes rechazar.",
 })
 ns.AddLocale("itIT", {
   ED_LEVEL = "Dal livello",
@@ -94,6 +98,7 @@ ns.AddLocale("itIT", {
   ASK_IN_HOURS = "tra %d ore",
   ASK_TOMORROW = "domani",
   ASK_IN_DAYS = "tra %d giorni",
+  SIGN_NOT_ALLOWED = "Non puoi iscriverti a questo evento. Puoi comunque rifiutare.",
 })
 ns.AddLocale("ptBR", {
   ED_LEVEL = "A partir do nível",
@@ -113,4 +118,5 @@ ns.AddLocale("ptBR", {
   ASK_IN_HOURS = "em %d horas",
   ASK_TOMORROW = "amanhã",
   ASK_IN_DAYS = "em %d dias",
+  SIGN_NOT_ALLOWED = "Você não pode se inscrever neste evento. Ainda pode recusar.",
 })

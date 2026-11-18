@@ -838,10 +838,27 @@ local function buildSettings(p)
   p.rank:SetPoint("TOPLEFT", p.rankLabel, "BOTTOMLEFT", 0, -6)
   p.rankHint = W.Text(p, 10, "muted"); p.rankHint:SetPoint("LEFT", p.rank, "RIGHT", 10, 0); p.rankHint:SetPoint("RIGHT", 0, 0)
   p.rankHint:SetSpacing(2)
-  p.needHead = UI.Section(p, L.RAID_NEED); p.needHead:SetPoint("TOPLEFT", 0, -100)
+  -- early sign-up below the raid level (one level a day)
+  p.earlyHead = UI.Section(p, L.RAID_EARLY); p.earlyHead:SetPoint("TOPLEFT", 0, -100)
+  p.early = W.Check(p, L.RAID_EARLY_ON, function(_, on)
+    core.Profile.Update(function(pr) pr.pve = pr.pve or {}; pr.pve.early = pr.pve.early or {}; pr.pve.early.on = on end)
+  end)
+  p.early:SetPoint("TOPLEFT", 0, -130)
+  p.earlyMinL = W.Text(p, 11, "text"); p.earlyMinL:SetPoint("TOPLEFT", 0, -154); p.earlyMinL:SetText(L.RAID_EARLY_MIN)
+  p.earlyMin = W.Edit(p, 44, 22); p.earlyMin:SetNumeric(true); p.earlyMin:SetMaxLetters(2)
+  p.earlyMin:SetPoint("LEFT", p.earlyMinL, "RIGHT", 8, 0)
+  p.earlyMin:SetScript("OnEnterPressed", function(self)
+    local v = tonumber(self:GetText())
+    if v and v >= 1 then core.Profile.Update(function(pr) pr.pve = pr.pve or {}; pr.pve.early = pr.pve.early or {}; pr.pve.early.min = v end) end
+    self:ClearFocus()
+  end)
+  p.earlyHint = W.Text(p, 10, "muted"); p.earlyHint:SetPoint("TOPLEFT", 0, -184); p.earlyHint:SetPoint("RIGHT", 0, 0)
+  p.earlyHint:SetSpacing(2); p.earlyHint:SetText(L.RAID_EARLY_HINT)
+
+  p.needHead = UI.Section(p, L.RAID_NEED); p.needHead:SetPoint("TOPLEFT", 0, -230)
   p.edits = {}
   for i, t in ipairs(R.TEMPLATES) do
-    local y = -128 - (i - 1) * 34
+    local y = -258 - (i - 1) * 34
     local l = W.Text(p, 11, "text"); l:SetPoint("TOPLEFT", 0, y - 4); l:SetWidth(200); l:SetText(R.TplName(t))
     local tl = W.Text(p, 10, "muted"); tl:SetPoint("TOPLEFT", 210, y - 4); tl:SetText(L.RAID_KIND_tank)
     local te = W.Edit(p, 40, 22); te:SetPoint("TOPLEFT", 270, y); te:SetNumeric(true)
@@ -850,10 +867,12 @@ local function buildSettings(p)
     p.edits[t.id] = { te, he }
   end
   p.save = W.Button(p, core.L.SAVE, true, 22)
-  p.save:SetPoint("TOPLEFT", 0, -128 - #R.TEMPLATES * 34 - 6)
+  p.save:SetPoint("TOPLEFT", 0, -258 - #R.TEMPLATES * 34 - 6)
   p.save:SetScript("OnClick", function()
     core.Profile.Update(function(pr)
       pr.pve = pr.pve or {}
+      local v = tonumber(p.earlyMin:GetText())
+      if v and v >= 1 then pr.pve.early = pr.pve.early or {}; pr.pve.early.min = v end
       pr.pve.need = pr.pve.need or {}
       for id, ed in pairs(p.edits) do
         pr.pve.need[id] = { tank = tonumber(ed[1]:GetText()), heal = tonumber(ed[2]:GetText()) }
@@ -878,6 +897,11 @@ local function refreshSettings(p)
     ed[1]:SetEnabled(mgr); ed[2]:SetEnabled(mgr)
   end
   p.save:SetShown(mgr)
+  local rule = R.Early()
+  p.early:SetChecked(rule.on)
+  p.early:SetEnabled(mgr)
+  if not p.earlyMin:HasFocus() then p.earlyMin:SetText(tostring(rule.min)) end
+  p.earlyMin:SetEnabled(mgr)
 end
 
 ---------------------------------------------------------------------------
@@ -890,7 +914,7 @@ UI.AddModule("raids", {
   order = 5,
   badge = function()
     local n = 0
-    for _, e in ipairs(R.RaidEvents(true)) do if not E.Status(e) then n = n + 1 end end
+    for _, e in ipairs(R.RaidEvents(true)) do if not E.Status(e) and E.CanSignUp(e) then n = n + 1 end end
     return n > 0 and tostring(n) or nil
   end,
   tabs = {
