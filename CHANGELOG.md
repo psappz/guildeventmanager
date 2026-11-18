@@ -8,6 +8,7 @@
 - **Preview for members:** while the guild master has not switched the addon on – or when you are not in a guild – the window shows the sample guild with a big hint on top instead of an empty page. "Tell the guild master" opens a whisper to him with a ready text (you send it yourself). Nothing is sent or saved; the preview ends by itself once the guild is switched on.
 - **Switch off:** link "Switch off GuildEventManager" at the bottom right of the settings (guild master): a guide to remove the code again. Nobody has to uninstall the addon; points, events and settings are kept.
 - **API:** `API.AddHelp(id, fn)` – help text for a module's views.
+- **Remind to sign up:** checkbox in the event editor, ticked by default for raids, off for the other types. The popup comes a few seconds after every login and /reload ("Later" only holds for the session) and right after a fight if it was held back.
 - **Level of an event:** the editor has a field "From level" (empty = all levels). Only characters of that level are reminded; the detail page shows the level. Raids use the highest player level by default. Event types can set `minLevel`.
 
 ### Changed

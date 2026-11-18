@@ -912,6 +912,7 @@ for _, t in ipairs(R.TEMPLATES) do
   types[#types + 1] = {
     id = "raid_" .. t.id, nameKey = t.labelKey, descKey = "RAID_DESC_" .. t.id, kind = "short", group = "raid",
     gmax = t.size, icon = t.icon, raid = t.id,
+    remind = true,   -- raids remind members to sign up by default
     minLevel = function() return core.TEST_RAID_LEVEL or (GetMaxPlayerLevel and GetMaxPlayerLevel()) or 60 end,
     canCreate = function(key) return R.CanCreate(key) end,
     signupFields = fieldsFor(t),

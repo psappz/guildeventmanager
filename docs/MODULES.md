@@ -119,6 +119,7 @@ API.RegisterModule({
 | `kind` | default run type: `"short"`, `"multiday"`, `"multiweek"`, `"season"` |
 | `group` | default group requirement: `"none"`, `"party"`, `"raid"`, `"teams"` |
 | `gmin`, `gmax` | optional default player numbers; the editor picks the matching group size (e.g. `group = "raid", gmax = 25` → "Raid (25)") |
+| `remind` | `true`: the editor's checkbox "Remind members to sign up" starts ticked (the PvE raids do this). Members of the right level who have not answered get a notice and, in the week before the event, a popup. |
 | `minLevel` | optional default for the event's lowest level (number or function); only members of that level are asked to sign up. The manager can change it in the editor. The PvE raids use the highest player level. |
 | `icon` | texture path – shown on the type tile in the event editor, so choose a clear one |
 | `goalKeys` | locale keys of goals suggested in the editor; each reached goal gives event points to all participants |

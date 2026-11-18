@@ -107,7 +107,7 @@ local function refresh(p)
     open = open + 1
     local st = E.Status(ev)
     if st and st ~= "out" then signed = signed + 1 end
-    if E.NeedsAnswer(ev) then ask = ask + 1 end
+    if E.Unanswered(ev) then ask = ask + 1 end
   end
   local c3 = p.cards[3]
   c3.label:SetText(L.HOME_MINE)

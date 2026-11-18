@@ -1,8 +1,9 @@
 local ADDON, ns = ...
--- Strings for the invitation reminder and the level limit of events (0.7.1)
+-- Strings for the invitation reminder and the level limit of events (0.8.0)
 ns.AddLocale("enUS", {
   ED_LEVEL = "From level",
-  ED_LEVEL_HINT = "empty = all levels · only these are asked to sign up",
+  ED_LEVEL_HINT = "empty = all levels · reminders only go to characters of this level",
+  ED_REMIND = "Remind members to sign up",
   FACT_LEVEL = "For characters from level %d",
   FACT_LEVEL_ALL = "For characters of every level",
   NOTICE_ASK = "Please answer: %s · %s",
@@ -20,7 +21,8 @@ ns.AddLocale("enUS", {
 })
 ns.AddLocale("deDE", {
   ED_LEVEL = "Ab Stufe",
-  ED_LEVEL_HINT = "leer = alle Stufen · nur sie werden um eine Antwort gebeten",
+  ED_LEVEL_HINT = "leer = alle Stufen · erinnert werden nur Charaktere ab dieser Stufe",
+  ED_REMIND = "An Anmeldung erinnern",
   FACT_LEVEL = "Für Charaktere ab Stufe %d",
   FACT_LEVEL_ALL = "Für Charaktere jeder Stufe",
   NOTICE_ASK = "Bitte antworten: %s · %s",
@@ -38,7 +40,8 @@ ns.AddLocale("deDE", {
 })
 ns.AddLocale("frFR", {
   ED_LEVEL = "À partir du niveau",
-  ED_LEVEL_HINT = "vide = tous niveaux · seuls eux sont invités à répondre",
+  ED_LEVEL_HINT = "vide = tous niveaux · seuls ces personnages reçoivent des rappels",
+  ED_REMIND = "Rappeler aux membres de s'inscrire",
   FACT_LEVEL = "Pour les personnages à partir du niveau %d",
   FACT_LEVEL_ALL = "Pour les personnages de tout niveau",
   NOTICE_ASK = "Merci de répondre : %s · %s",
@@ -56,7 +59,8 @@ ns.AddLocale("frFR", {
 })
 ns.AddLocale("esES", {
   ED_LEVEL = "Desde el nivel",
-  ED_LEVEL_HINT = "vacío = todos los niveles · solo a ellos se les pide respuesta",
+  ED_LEVEL_HINT = "vacío = todos los niveles · solo se avisa a personajes de este nivel",
+  ED_REMIND = "Recordar a los miembros que se inscriban",
   FACT_LEVEL = "Para personajes desde el nivel %d",
   FACT_LEVEL_ALL = "Para personajes de cualquier nivel",
   NOTICE_ASK = "Responde, por favor: %s · %s",
@@ -74,7 +78,8 @@ ns.AddLocale("esES", {
 })
 ns.AddLocale("itIT", {
   ED_LEVEL = "Dal livello",
-  ED_LEVEL_HINT = "vuoto = tutti i livelli · solo a loro viene chiesta una risposta",
+  ED_LEVEL_HINT = "vuoto = tutti i livelli · i promemoria vanno solo ai personaggi di questo livello",
+  ED_REMIND = "Ricorda ai membri di iscriversi",
   FACT_LEVEL = "Per personaggi dal livello %d",
   FACT_LEVEL_ALL = "Per personaggi di ogni livello",
   NOTICE_ASK = "Rispondi, per favore: %s · %s",
@@ -92,7 +97,8 @@ ns.AddLocale("itIT", {
 })
 ns.AddLocale("ptBR", {
   ED_LEVEL = "A partir do nível",
-  ED_LEVEL_HINT = "vazio = todos os níveis · só eles são convidados a responder",
+  ED_LEVEL_HINT = "vazio = todos os níveis · só personagens deste nível recebem lembretes",
+  ED_REMIND = "Lembrar os membros de se inscrever",
   FACT_LEVEL = "Para personagens a partir do nível %d",
   FACT_LEVEL_ALL = "Para personagens de qualquer nível",
   NOTICE_ASK = "Responda, por favor: %s · %s",

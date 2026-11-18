@@ -701,6 +701,7 @@ local function buildEditor(p)
   ed.lLvl = W.Text(col, 10, "muted"); ed.lLvl:SetText(L.ED_LEVEL)
   ed.lvl = W.Edit(col, 60, 22); ed.lvl:SetNumeric(true); ed.lvl:SetMaxLetters(3)
   ed.lvlHint = W.Text(col, 10, "muted"); ed.lvlHint:SetText(L.ED_LEVEL_HINT)
+  ed.remind = W.Check(col, L.ED_REMIND)
   for _, e in ipairs({ ed.gmin, ed.gmax, ed.pts, ed.lvl }) do
     e:SetScript("OnTextChanged", function(_, user) if user and ed.f then V.EditorPreview() end end)
   end
@@ -880,7 +881,9 @@ function V.EditorRefresh()
   at(ed.lLvl); y = y + 14
   at(ed.lvl)
   ed.lvlHint:ClearAllPoints(); ed.lvlHint:SetPoint("LEFT", ed.lvl, "RIGHT", 10, 0); ed.lvlHint:SetPoint("RIGHT", col, "LEFT", LEFT_W, 0)
-  y = y + 22 + 16
+  y = y + 22 + 10
+  at(ed.remind)
+  y = y + 14 + 16
 
   -- 4 · goals
   at(ed.s4); y = y + 24
@@ -919,6 +922,7 @@ function V.EditorPickType(id)
     ed.gmin:SetText(f.gmin and tostring(f.gmin) or ""); ed.gmax:SetText(f.gmax and tostring(f.gmax) or "")
     local lv = typeLevel(t)
     ed.lvl:SetText(lv and tostring(lv) or "")
+    ed.remind:SetChecked(t and t.remind)
   end
   if not ed.goalsTouched then
     ed.goals = {}
@@ -977,6 +981,7 @@ function V.SaveEditor()
   f.pts = tonumber(ed.pts:GetText())
   f.lvl = tonumber(ed.lvl:GetText())
   if f.lvl and f.lvl <= 1 then f.lvl = nil end
+  f.remind = ed.remind:GetChecked() and true or false
   local old = {}
   for _, g in ipairs(f.goals or {}) do old[g.text] = g.done end
   local goals = {}
@@ -989,7 +994,7 @@ function V.SaveEditor()
   if ed.ev then
     e = E.Get(ed.ev.id)
     if not e then V.ShowList(); return end
-    for _, k in ipairs({ "type", "name", "desc", "kind", "start", "finish", "group", "gmin", "gmax", "lvl", "pts", "goals", "fields" }) do e[k] = f[k] end
+    for _, k in ipairs({ "type", "name", "desc", "kind", "start", "finish", "group", "gmin", "gmax", "lvl", "remind", "pts", "goals", "fields" }) do e[k] = f[k] end
     if e.kind == "season" then e.start = ns.Points.SeasonStart(); e.finish = ns.Points.SeasonEnd() end
     E.Save(e)
   else
@@ -1053,6 +1058,7 @@ function V.OpenEditor(e, template, preset)
   ed.pts:SetText(ed.f.pts and tostring(ed.f.pts) or "")
   if not src and ed.f.lvl == nil then ed.f.lvl = typeLevel(ns.Modules.Type(ed.f.type)) end
   ed.lvl:SetText(ed.f.lvl and tostring(ed.f.lvl) or "")
+  ed.remind:SetChecked(E.Remind(ed.f))
   ed.goals = {}
   for _, g in ipairs(ed.f.goals or {}) do ed.goals[#ed.goals + 1] = g.text end
   ed.goalsTouched = src ~= nil

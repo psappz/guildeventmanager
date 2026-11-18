@@ -90,6 +90,7 @@ function E.Create(fields)
     group = fields.group or (t and t.group) or "none",
     gmin = fields.gmin, gmax = fields.gmax,
     lvl = tonumber(fields.lvl), -- lowest character level that is asked to sign up, nil = all
+    remind = fields.remind,     -- remind members to sign up (nil = the type's default)
     pts = fields.pts,  -- own participation points, nil = profile default
     goals = fields.goals, -- { { text, done } }
     fields = fields.fields, -- own questions of this event { { id, label, kind, options } }
@@ -494,12 +495,26 @@ function E.Qualifies(e, key)
   if not lv or lv <= 0 then return true end
   return lv >= min
 end
--- the member still has to say yes or no
-function E.NeedsAnswer(e, key)
+-- reminders on? (checkbox in the editor; without a choice the type decides:
+-- raids remind, the other types don't)
+function E.Remind(e)
+  if not e then return false end
+  if e.remind ~= nil then return e.remind and true or false end
+  local t = ns.Modules.Type(e.type)
+  return t and t.remind and true or false
+end
+
+-- planned, not answered yet, of the right level
+function E.Unanswered(e, key)
   if not e or e.status ~= "planned" or e.kind == "season" then return false end
   if (tonumber(e.start) or 0) <= U.Now() then return false end
   if E.Status(e, key) then return false end
   return E.Qualifies(e, key)
+end
+
+-- the member is reminded to say yes or no
+function E.NeedsAnswer(e, key)
+  return E.Remind(e) and E.Unanswered(e, key)
 end
 -- own open invitations, soonest first
 function E.OpenInvites()
@@ -509,12 +524,15 @@ function E.OpenInvites()
   return list
 end
 
+-- "Later" holds only for this session: after every login and /reload the
+-- popup comes again
+E.askSnooze = {}
 local function askStore()
   local c = ns.char
-  if not c then return {} , {} end
+  if not c then return {}, E.askSnooze end
   c.askNotice = c.askNotice or {}
-  c.askSnooze = c.askSnooze or {}
-  return c.askNotice, c.askSnooze
+  c.askSnooze = nil
+  return c.askNotice, E.askSnooze
 end
 
 function E.SnoozeInvite(e, secs)
@@ -554,6 +572,11 @@ function E.CheckInvites()
   if ns.UIInvite then ns.UIInvite.Update() end
 end
 
+-- right after login / reload: as soon as the guild is known to be switched on
+ns.On("ACTIVATED", function()
+  ns.Schedule("gemInviteFirst", 2, function() ns.SafeCall("invites", E.CheckInvites) end)
+end)
+
 ns.On("SIGNUP_CHANGED", function(e, key)
   if key == G.MyKey() then E.CheckInvites() end
 end)
@@ -562,8 +585,6 @@ function E.LoginNotice()
   if not G.IsActivated() then return end
   local ask = #E.OpenInvites()
   if ask > 0 then U.Print(U.Color(U.GOLD, ns.L.LOGIN_ASK:format(ask))) end
-  -- the popup right after login, not only with the next 30-second tick
-  ns.Schedule("gemInviteFirst", 6, function() ns.SafeCall("invites", E.CheckInvites) end)
   local planned, running = 0, 0
   for _, e in pairs(events()) do
     if e.status == "planned" then planned = planned + 1 elseif e.status == "running" then running = running + 1 end

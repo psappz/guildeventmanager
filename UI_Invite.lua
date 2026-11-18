@@ -135,3 +135,10 @@ function P.Update()
   if win and win:IsShown() then return end
   P.Show(due[1], #due - 1)
 end
+
+-- held back because of combat: show it as soon as the fight is over
+local regen = CreateFrame("Frame")
+regen:RegisterEvent("PLAYER_REGEN_ENABLED")
+regen:SetScript("OnEvent", function()
+  if #E.DueInvites() > 0 then ns.SafeCall("invites", E.CheckInvites) end
+end)
