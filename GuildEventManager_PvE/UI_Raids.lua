@@ -32,19 +32,24 @@ local function nameOf(x)
   return U.Color(c, G.Display(x.key))
 end
 
+-- the planned raids as a dropdown (guilds plan weeks ahead): date, name, own answer
+local function raidLabel(e)
+  local wd = core.L["WD_" .. (tonumber(date("%w", e.start)) + 1)] or ""
+  local st = E.Status(e)
+  local mine = st and (core.L["ST_" .. st] or st) or core.L.HOME_NOT_SIGNED
+  return wd .. " " .. date("%d.%m. %H:%M", e.start) .. " · " .. (e.name or "?") .. "  |cff9a8f80(" .. mine .. ")|r"
+end
+
 local function raidChips(p)
-  local row = UI.ChipRow(p, function()
+  local row = W.Dropdown(p, 420, function()
     local o = {}
-    for i, e in ipairs(R.RaidEvents(true)) do
-      if i > 6 then break end
-      o[#o + 1] = { e.id, e.name .. " · " .. date("%d.%m.", e.start) }
-    end
+    for _, e in ipairs(R.RaidEvents(true)) do o[#o + 1] = { e.id, raidLabel(e) } end
     if #o == 0 then o[1] = { "none", L.RAID_NONE } end
     return o
   end, function() local e = current(); return e and e.id or "none" end, function(v)
     if v ~= "none" then V.sel = v; V.pick = nil; UI.Refresh() end
   end)
-  row:SetPoint("TOPLEFT", 0, 0); row:SetPoint("RIGHT", p, "RIGHT", -230, 0)
+  row:SetPoint("TOPLEFT", 0, 0)
   return row
 end
 

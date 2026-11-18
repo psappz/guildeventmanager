@@ -326,7 +326,10 @@ function W.Dropdown(parent, width, getOptions, getValue, onSelect)
   end
   b:SetScript("OnClick", function(self)
     W.OpenMenu(self, function(_, root)
-      for _, o in ipairs(getOptions()) do
+      local opts = getOptions()
+      -- long lists (raids planned months ahead) scroll instead of running off the screen
+      if #opts > 20 and root.SetScrollMode then pcall(root.SetScrollMode, root, 20 * 20) end
+      for _, o in ipairs(opts) do
         root:CreateRadio(o[2], function() return getValue() == o[1] end, function() onSelect(o[1]); self:Refresh() end)
       end
     end)
