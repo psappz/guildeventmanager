@@ -662,8 +662,11 @@ local function buildNight(p)
   p.bAsk = btn("RAID_ASK", function() R.AskState(); U.Print(L.RAID_ASKED) end)
   p.bExport = btn("RAID_EXPORT", function(e) R.ShowText(L.RAID_EXPORT_TITLE, R.ExportText(e)) end)
   p.summary = W.Text(p, 11, "text"); p.summary:SetPoint("TOPLEFT", 0, -62); p.summary:SetPoint("RIGHT", 0, 0)
+  -- the own task for the chosen boss setup (from the assignments)
+  p.mine = W.Text(p, 11, "text"); p.mine:SetPoint("TOPLEFT", 0, -80); p.mine:SetPoint("RIGHT", 0, 0)
+  p.mine:SetJustifyH("LEFT"); p.mine:SetWordWrap(false)
   p.box = W.Box(p, 10, 10, "panel2")
-  p.box:SetPoint("TOPLEFT", 0, -84); p.box:SetPoint("BOTTOMRIGHT", 0, 18)
+  p.box:SetPoint("TOPLEFT", 0, -100); p.box:SetPoint("BOTTOMRIGHT", 0, 18)
   local x = 8
   p.heads = {}
   for _, col in ipairs(COLS) do
@@ -695,7 +698,18 @@ local function refreshNight(p)
   local e = current()
   for _, b in ipairs(p.btns) do b:SetShown(e ~= nil) end
   p.box:SetShown(e ~= nil)
+  p.mine:SetText("")
   if not e then p.summary:SetText(L.RAID_NONE); return end
+  if R.MyTasks then
+    local me = G.MyKey()
+    local st = E.Status and E.Status(e, me)
+    if st and st ~= "out" then
+      local ok, mine = pcall(R.MyTasks, e, me, R.Plan(e).b or 0)
+      if ok and mine then
+        p.mine:SetText(U.Color(T.Hex(T.Current().title), L.RAID_A_MINE) .. "  " .. (#mine > 0 and table.concat(mine, " · ") or U.Color("ff8a8078", L.RAID_A_MINE_NONE)))
+      end
+    end
+  end
   local t = R.TemplateOf(e)
   local edit = R.CanEdit(e)
   p.bSort:SetEnabled(edit); p.bInvite:SetEnabled(edit)

@@ -65,8 +65,66 @@ function R.Assign(e)
   p.a = p.a or {}
   local a = p.a
   a.pal = a.pal or {}; a.sha = a.sha or {}; a.wl = a.wl or {}; a.fw = a.fw or {}
+  a.b = a.b or {}
   return a
 end
+
+---------------------------------------------------------------------------
+-- Values: the standard set, and per boss setup single values that differ
+-- (e.g. Fire Resistance at Onyxia). "-" at a boss means: nothing there.
+-- kind/field: pal "aura" or "c:CLASS" · sha element · wl "curse"/"bane" · fw "t"
+---------------------------------------------------------------------------
+local function slot(t, kind, key, create)
+  local k = t[kind]
+  if not k then if not create then return nil end; k = {}; t[kind] = k end
+  local x = k[key]
+  if kind == "fw" then return k end
+  if not x then if not create then return nil end; x = {}; k[key] = x end
+  return x
+end
+
+local function read(t, kind, key, field)
+  if not t then return nil end
+  if kind == "fw" then return t.fw and t.fw[key] end
+  local x = t[kind] and t[kind][key]
+  if not x then return nil end
+  if field:sub(1, 2) == "c:" then return x.cls and x.cls[field:sub(3)] end
+  return x[field]
+end
+
+local function write(t, kind, key, field, v)
+  if kind == "fw" then t.fw = t.fw or {}; t.fw[key] = v; return end
+  local x = slot(t, kind, key, true)
+  if field:sub(1, 2) == "c:" then x.cls = x.cls or {}; x.cls[field:sub(3)] = v else x[field] = v end
+end
+
+-- effective value at a boss setup (boss 0 or nil = standard)
+function R.AGet(e, kind, key, field, boss)
+  local a = R.Assign(e)
+  boss = tonumber(boss) or 0
+  if boss > 0 then
+    local v = read(a.b[boss] or a.b[tostring(boss)], kind, key, field)
+    if v == "-" then return nil, true end
+    if v ~= nil then return v, true end
+  end
+  return read(a, kind, key, field), false
+end
+
+-- set a value; at a boss setup v = nil removes the difference, "-" means nothing
+function R.ASet(e, kind, key, field, v, boss)
+  if not R.CanEdit(e) then return end
+  local a = R.Assign(e)
+  boss = tonumber(boss) or 0
+  if boss > 0 then
+    a.b[boss] = a.b[boss] or {}
+    write(a.b[boss], kind, key, field, v)
+  else
+    write(a, kind, key, field, v)
+  end
+  R.Changed(e)
+end
+
+local function curBoss(e, boss) return boss or R.Plan(e).b or 0 end
 
 local function className(c)
   return (LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[c]) or c
@@ -96,48 +154,19 @@ function R.AssignPlayers(e)
   return out
 end
 
--- setters (raid lead)
-function R.SetBlessing(e, pal, class, id)
-  if not R.CanEdit(e) then return end
-  local a = R.Assign(e)
-  a.pal[pal] = a.pal[pal] or { cls = {} }
-  a.pal[pal].cls = a.pal[pal].cls or {}
-  a.pal[pal].cls[class] = id
-  R.Changed(e)
-end
-function R.SetAura(e, pal, id)
-  if not R.CanEdit(e) then return end
-  local a = R.Assign(e)
-  a.pal[pal] = a.pal[pal] or { cls = {} }
-  a.pal[pal].aura = id
-  R.Changed(e)
-end
-function R.SetTotem(e, sha, element, id)
-  if not R.CanEdit(e) then return end
-  local a = R.Assign(e)
-  a.sha[sha] = a.sha[sha] or {}
-  a.sha[sha][element] = id
-  R.Changed(e)
-end
-function R.SetCurse(e, wl, what, id)
-  if not R.CanEdit(e) then return end
-  local a = R.Assign(e)
-  a.wl[wl] = a.wl[wl] or {}
-  a.wl[wl][what] = id
-  R.Changed(e)
-end
-function R.SetFearWard(e, pri, tank)
-  if not R.CanEdit(e) then return end
-  R.Assign(e).fw[pri] = tank
-  R.Changed(e)
-end
+-- setters (raid lead); boss = the boss setup (nil/0 = standard)
+function R.SetBlessing(e, pal, class, id, boss) R.ASet(e, "pal", pal, "c:" .. class, id, boss) end
+function R.SetAura(e, pal, id, boss) R.ASet(e, "pal", pal, "aura", id, boss) end
+function R.SetTotem(e, sha, element, id, boss) R.ASet(e, "sha", sha, element, id, boss) end
+function R.SetCurse(e, wl, what, id, boss) R.ASet(e, "wl", wl, what, id, boss) end
+function R.SetFearWard(e, pri, tank, boss) R.ASet(e, "fw", pri, "t", tank, boss) end
 
 -- a sensible start the raid lead adjusts
 function R.AutoAssign(e)
   if not R.CanEdit(e) then return end
   local who = R.AssignPlayers(e)
   local a = R.Assign(e)
-  a.pal, a.sha, a.wl, a.fw = {}, {}, {}, {}
+  a.pal, a.sha, a.wl, a.fw = {}, {}, {}, {}   -- the standard set; boss differences stay
   -- blessings: the first paladin Kings for everyone, the second Might / Wisdom,
   -- the third the other one of Might / Wisdom
   local auras = { "devotion", "concentration", "retribution", "fireres", "shadowres", "frostres" }
@@ -169,23 +198,20 @@ function R.AutoAssign(e)
 end
 
 -- what is missing or twice
-function R.AssignGaps(e)
+function R.AssignGaps(e, boss)
+  boss = curBoss(e, boss)
   local who = R.AssignPlayers(e)
-  local a = R.Assign(e)
   local gaps = { noBless = {}, dupCurse = {}, noWF = {} }
   if #who.pal > 0 then
     for _, c in ipairs(who.classes) do
       local any = false
-      for _, p in ipairs(who.pal) do
-        local x = a.pal[p.key]
-        if x and x.cls and x.cls[c] then any = true end
-      end
+      for _, p in ipairs(who.pal) do if R.AGet(e, "pal", p.key, "c:" .. c, boss) then any = true end end
       if not any then gaps.noBless[c] = true end
     end
   end
   local seen = {}
   for _, w in ipairs(who.wl) do
-    local c = a.wl[w.key] and a.wl[w.key].curse
+    local c = R.AGet(e, "wl", w.key, "curse", boss)
     if c then
       if seen[c] then gaps.dupCurse[c] = true end
       seen[c] = true
@@ -194,7 +220,7 @@ function R.AssignGaps(e)
   -- groups with melee but no Windfury totem from a shaman in the group
   local melee, wf = {}, {}
   for _, x in ipairs(who.all) do if x.kind == "melee" then melee[x.group] = true end end
-  for _, s in ipairs(who.sha) do if a.sha[s.key] and a.sha[s.key].air == "windfury" then wf[s.group] = true end end
+  for _, s in ipairs(who.sha) do if R.AGet(e, "sha", s.key, "air", boss) == "windfury" then wf[s.group] = true end end
   if #who.sha > 0 then
     for g in pairs(melee) do if not wf[g] then gaps.noWF[#gaps.noWF + 1] = g end end
     table.sort(gaps.noWF)
@@ -203,15 +229,24 @@ function R.AssignGaps(e)
 end
 
 -- the own tasks, as lines of text
-function R.MyTasks(e, key)
+function R.MyTasks(e, key, boss)
   key = key or G.MyKey()
-  local a = R.Assign(e)
+  boss = curBoss(e, boss)
+  local who = R.AssignPlayers(e)
   local out = {}
-  local p = a.pal[key]
-  if p then
+  local function get(kind, field) return (R.AGet(e, kind, key, field, boss)) end
+  local isPal, isSha, isWl = false, false, false
+  for _, x in ipairs(who.pal) do if x.key == key then isPal = true end end
+  for _, x in ipairs(who.sha) do if x.key == key then isSha = true end end
+  for _, x in ipairs(who.wl) do if x.key == key then isWl = true end end
+  if isPal then
+    local p = { aura = get("pal", "aura") }
     local by = {}
-    for c, id in pairs(p.cls or {}) do by[id] = by[id] or {}; table.insert(by[id], className(c)) end
-    local nClasses = #R.AssignPlayers(e).classes
+    for _, c in ipairs(who.classes) do
+      local id = get("pal", "c:" .. c)
+      if id then by[id] = by[id] or {}; table.insert(by[id], className(c)) end
+    end
+    local nClasses = #who.classes
     for _, bl in ipairs(R.A_BLESS) do
       local list = by[bl.id]
       if list then
@@ -222,30 +257,29 @@ function R.MyTasks(e, key)
     end
     if p.aura then out[#out + 1] = R.AName(R.A_AURA, p.aura) end
   end
-  local s = a.sha[key]
-  if s then
+  if isSha then
     local t = {}
-    for _, el in ipairs(R.A_ELEMENTS) do if s[el] then t[#t + 1] = R.AName(R.A_TOTEM[el], s[el]) end end
+    for _, el in ipairs(R.A_ELEMENTS) do local v = get("sha", el); if v then t[#t + 1] = R.AName(R.A_TOTEM[el], v) end end
     if #t > 0 then out[#out + 1] = table.concat(t, ", ") end
   end
-  local w = a.wl[key]
-  if w then
+  if isWl then
     local t = {}
-    if w.curse then t[#t + 1] = R.AName(R.A_CURSE, w.curse) end
-    if w.bane then t[#t + 1] = R.AName(R.A_BANE, w.bane) end
+    local c, b = get("wl", "curse"), get("wl", "bane")
+    if c then t[#t + 1] = R.AName(R.A_CURSE, c) end
+    if b then t[#t + 1] = R.AName(R.A_BANE, b) end
     if #t > 0 then out[#out + 1] = L.RAID_A_TASK_BOSS:format(table.concat(t, " + ")) end
   end
-  local fw = a.fw[key]
+  local fw = get("fw", "t")
   if fw then out[#out + 1] = L.RAID_A_TASK_FW:format(spellName(6346) or L.RAID_A_fearward, G.Display(fw)) end
   return out
 end
 
 -- lines for the raid chat (short, one per player)
-function R.AssignLines(e)
+function R.AssignLines(e, boss)
   local who = R.AssignPlayers(e)
   local lines = {}
   local function add(x)
-    local tasks = R.MyTasks(e, x.key)
+    local tasks = R.MyTasks(e, x.key, boss)
     if #tasks > 0 then lines[#lines + 1] = G.Display(x.key) .. ": " .. table.concat(tasks, " · ") end
   end
   for _, list in ipairs({ who.pal, who.sha, who.wl, who.pri }) do for _, x in ipairs(list) do add(x) end end
@@ -258,6 +292,8 @@ function R.PostAssignments(e)
   local ch = (IsInRaid and IsInRaid()) and "RAID" or ((IsInGroup and IsInGroup()) and "PARTY") or nil
   if not ch then U.Print(L.RAID_A_NOGROUP); return end
   local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
-  pcall(send, "[GEM] " .. L.RAID_A_HEAD:format(e.name), ch)
+  local t, boss = R.TemplateOf(e), R.Plan(e).b or 0
+  local head = e.name .. ((boss > 0 and t) and (" · " .. R.BossName(t, boss)) or "")
+  pcall(send, "[GEM] " .. L.RAID_A_HEAD:format(head), ch)
   for _, l in ipairs(lines) do pcall(send, l:sub(1, 250), ch) end
 end

@@ -22,20 +22,33 @@ local function cell(parent, w)
   b:SetScript("OnClick", function(self)
     if not self.options then return end
     W.OpenMenu(self, function(_, root)
-      root:CreateRadio(L.RAID_A_NONE_OPT, function() return self.value == nil end, function() self.set(nil) end)
+      -- at a boss setup: back to the standard, or "nothing" just here
+      if self.boss and self.boss > 0 then
+        root:CreateRadio(L.RAID_A_STD_OPT, function() return not self.own end, function() self.set(nil) end)
+        root:CreateRadio(L.RAID_A_NONE_OPT, function() return self.own and self.value == nil end, function() self.set("-") end)
+      else
+        root:CreateRadio(L.RAID_A_NONE_OPT, function() return self.value == nil end, function() self.set(nil) end)
+      end
       for _, o in ipairs(self.options) do
         root:CreateRadio(o[2], function() return self.value == o[1] end, function() self.set(o[1]) end)
       end
     end)
   end)
+  b:SetScript("OnEnter", function(self)
+    if not self.own or not GameTooltip then return end
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText(L.RAID_A_BOSS_OWN); GameTooltip:Show()
+  end)
+  b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
   return b
 end
 
-local function setCell(b, value, text, options, set, edit, warn)
-  b.value, b.options, b.set = value, edit and options or nil, set
+-- own = differs at this boss setup (marked with a dot)
+local function setCell(b, value, text, options, set, edit, warn, own, boss)
+  b.value, b.options, b.set, b.own, b.boss = value, edit and options or nil, set, own, boss
   local th = T.Current()
   local t = text or "–"
   if warn then t = U.Color(WARN, t) elseif not value then t = U.Color(T.Hex(th.muted), t) end
+  if own then t = U.Color(T.Hex(th.title), "• ") .. t end
   W.SetLabel(b, t)
   b:SetEnabled(edit)
 end
@@ -114,6 +127,15 @@ function R.BuildAssign(p)
   p.post = W.Button(p, L.RAID_A_POST, false, 22); p.post:SetWidth(140)
   p.post:SetPoint("TOPRIGHT", 0, 0)
   p.auto:SetPoint("RIGHT", p.post, "LEFT", -6, 0)
+  -- the boss setup: differences per boss (shared with the line-up)
+  p.boss = W.Dropdown(p, 200, function()
+    local e = R.Current(); local t = e and R.TemplateOf(e)
+    local o = { { 0, L.RAID_SETUP_STD } }
+    if t then for pos, i in ipairs(R.BossOrder(t)) do o[#o + 1] = { i, pos .. ". " .. R.BossName(t, i) } end end
+    return o
+  end, function() local e = R.Current(); return e and R.Plan(e).b or 0 end,
+  function(v) local e = R.Current(); if e then if R.CanEdit(e) then R.SetBoss(e, v) else R.Plan(e).b = v end; UI.Refresh() end end)
+  p.boss:SetPoint("RIGHT", p.auto, "LEFT", -6, 0)
   p.auto:SetScript("OnClick", function() local e = R.Current(); if e then R.AutoAssign(e); UI.Refresh() end end)
   p.post:SetScript("OnClick", function() local e = R.Current(); if e then R.PostAssignments(e) end end)
   p.mine = W.Box(p, 10, 10, "panel2")
@@ -141,9 +163,11 @@ function R.RefreshAssign(p)
   if not e then p.mine:Hide(); p.empty:SetText(L.RAID_NONE); p.empty:Show(); return end
   local edit = R.CanEdit(e)
   local who = R.AssignPlayers(e)
-  local a = R.Assign(e)
-  local gaps = R.AssignGaps(e)
-  local mine = R.MyTasks(e)
+  local boss = R.Plan(e).b or 0
+  p.boss:Refresh()
+  local gaps = R.AssignGaps(e, boss)
+  local mine = R.MyTasks(e, nil, boss)
+  local function get(kind, key, field) return R.AGet(e, kind, key, field, boss) end
   p.mine:Show()
   p.mine.text:SetText(U.Color(T.Hex(T.Current().title), L.RAID_A_MINE) .. "  " .. (#mine > 0 and table.concat(mine, " · ") or U.Color("ff8a8078", L.RAID_A_MINE_NONE)))
   local y = 0
@@ -164,14 +188,14 @@ function R.RefreshAssign(p)
     for i, x in ipairs(who.pal) do
       local r = row(c, i, #who.classes + 1)
       r.name:SetText(nameOf(x))
-      local pa = a.pal[x.key] or {}
       for j, cl in ipairs(who.classes) do
-        local v = pa.cls and pa.cls[cl]
+        local v, own = get("pal", x.key, "c:" .. cl)
         setCell(r.cells[j], v, v and R.AShort("bless", v) or "–", bless,
-          function(id) R.SetBlessing(e, x.key, cl, id); UI.Refresh() end, edit, (not v) and gaps.noBless[cl])
+          function(id) R.SetBlessing(e, x.key, cl, id, boss); UI.Refresh() end, edit, (not v) and gaps.noBless[cl], own, boss)
       end
       local b = r.cells[#who.classes + 1]
-      setCell(b, pa.aura, pa.aura and R.AShort("aura", pa.aura) or "–", aura, function(id) R.SetAura(e, x.key, id); UI.Refresh() end, edit)
+      local av, aown = get("pal", x.key, "aura")
+      setCell(b, av, av and R.AShort("aura", av) or "–", aura, function(id) R.SetAura(e, x.key, id, boss); UI.Refresh() end, edit, nil, aown, boss)
     end
     local miss = {}
     for _, cl in ipairs(who.classes) do if gaps.noBless[cl] then miss[#miss + 1] = R.ClassName(cl) end end
@@ -191,11 +215,10 @@ function R.RefreshAssign(p)
     for i, x in ipairs(who.sha) do
       local r = row(c, i, #R.A_ELEMENTS, 140)
       r.name:SetText(nameOf(x))
-      local s = a.sha[x.key] or {}
       for j, el in ipairs(R.A_ELEMENTS) do
-        local v = s[el]
+        local v, own = get("sha", x.key, el)
         setCell(r.cells[j], v, v and R.AName(R.A_TOTEM[el], v) or "–", opts(R.A_TOTEM[el]),
-          function(id) R.SetTotem(e, x.key, el, id); UI.Refresh() end, edit)
+          function(id) R.SetTotem(e, x.key, el, id, boss); UI.Refresh() end, edit, nil, own, boss)
       end
     end
     local t = {}
@@ -214,11 +237,12 @@ function R.RefreshAssign(p)
     for i, x in ipairs(who.wl) do
       local r = row(c, i, 2, 180)
       r.name:SetText(nameOf(x))
-      local w = a.wl[x.key] or {}
-      setCell(r.cells[1], w.curse, w.curse and R.AName(R.A_CURSE, w.curse) or "–", opts(R.A_CURSE),
-        function(id) R.SetCurse(e, x.key, "curse", id); UI.Refresh() end, edit, w.curse and gaps.dupCurse[w.curse])
-      setCell(r.cells[2], w.bane, w.bane and R.AName(R.A_BANE, w.bane) or "–", opts(R.A_BANE),
-        function(id) R.SetCurse(e, x.key, "bane", id); UI.Refresh() end, edit)
+      local cv, cown = get("wl", x.key, "curse")
+      local bv, bown = get("wl", x.key, "bane")
+      setCell(r.cells[1], cv, cv and R.AName(R.A_CURSE, cv) or "–", opts(R.A_CURSE),
+        function(id) R.SetCurse(e, x.key, "curse", id, boss); UI.Refresh() end, edit, cv and gaps.dupCurse[cv], cown, boss)
+      setCell(r.cells[2], bv, bv and R.AName(R.A_BANE, bv) or "–", opts(R.A_BANE),
+        function(id) R.SetCurse(e, x.key, "bane", id, boss); UI.Refresh() end, edit, nil, bown, boss)
     end
     local d = {}
     for id in pairs(gaps.dupCurse) do d[#d + 1] = R.AName(R.A_CURSE, id) end
@@ -238,8 +262,8 @@ function R.RefreshAssign(p)
     for i, x in ipairs(who.pri) do
       local r = row(c, i, 1, 220)
       r.name:SetText(nameOf(x))
-      local v = a.fw[x.key]
-      setCell(r.cells[1], v, v and G.Display(v) or "–", tanks, function(k) R.SetFearWard(e, x.key, k); UI.Refresh() end, edit)
+      local v, own = get("fw", x.key, "t")
+      setCell(r.cells[1], v, v and G.Display(v) or "–", tanks, function(k) R.SetFearWard(e, x.key, k, boss); UI.Refresh() end, edit, nil, own, boss)
     end
     c.note:SetText(#who.tanks == 0 and U.Color(WARN, L.RAID_A_NO_TANKS) or "")
     local h = place(c, #who.pri, 48)

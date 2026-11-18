@@ -266,6 +266,8 @@ core.AddLocale("enUS", {
   RAID_A_exhaustion = "Curse of Exhaustion",
   RAID_A_agony = "Bane of Agony",
   RAID_A_doom = "Bane of Doom",
+  RAID_A_STD_OPT = "As in the standard",
+  RAID_A_BOSS_OWN = "Differs at this boss from the standard line-up",
   RAID_A_ALL = "everyone",
 })
 core.AddLocale("deDE", {
@@ -532,6 +534,8 @@ core.AddLocale("deDE", {
   RAID_A_exhaustion = "Fluch der Erschöpfung",
   RAID_A_agony = "Omen der Pein",
   RAID_A_doom = "Omen der Verdammnis",
+  RAID_A_STD_OPT = "Wie im Standard",
+  RAID_A_BOSS_OWN = "Weicht bei diesem Boss vom Standard ab",
   RAID_A_ALL = "alle",
 })
 core.AddLocale("frFR", {
@@ -798,6 +802,8 @@ core.AddLocale("frFR", {
   RAID_A_exhaustion = "Curse of Exhaustion",
   RAID_A_agony = "Bane of Agony",
   RAID_A_doom = "Bane of Doom",
+  RAID_A_STD_OPT = "Comme en standard",
+  RAID_A_BOSS_OWN = "Diffère du standard pour ce boss",
   RAID_A_ALL = "tout le monde",
 })
 core.AddLocale("esES", {
@@ -1064,6 +1070,8 @@ core.AddLocale("esES", {
   RAID_A_exhaustion = "Curse of Exhaustion",
   RAID_A_agony = "Bane of Agony",
   RAID_A_doom = "Bane of Doom",
+  RAID_A_STD_OPT = "Como en el estándar",
+  RAID_A_BOSS_OWN = "Difiere del estándar en este jefe",
   RAID_A_ALL = "todos",
 })
 core.AddLocale("itIT", {
@@ -1330,6 +1338,8 @@ core.AddLocale("itIT", {
   RAID_A_exhaustion = "Curse of Exhaustion",
   RAID_A_agony = "Bane of Agony",
   RAID_A_doom = "Bane of Doom",
+  RAID_A_STD_OPT = "Come nello standard",
+  RAID_A_BOSS_OWN = "Diverso dallo standard per questo boss",
   RAID_A_ALL = "tutti",
 })
 core.AddLocale("ptBR", {
@@ -1596,5 +1606,7 @@ core.AddLocale("ptBR", {
   RAID_A_exhaustion = "Curse of Exhaustion",
   RAID_A_agony = "Bane of Agony",
   RAID_A_doom = "Bane of Doom",
+  RAID_A_STD_OPT = "Como no padrão",
+  RAID_A_BOSS_OWN = "Difere do padrão neste chefe",
   RAID_A_ALL = "todos",
 })
