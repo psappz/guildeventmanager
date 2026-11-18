@@ -57,15 +57,24 @@ end
 function R.Bosses(t) return t.bosses end
 
 -- Early sign-up: characters below the raid's level may sign up from level
--- `min` (default 45) if there are at least (raid level - own level) days left
--- – one level a day. Reminders still go to characters of the raid's level only.
-R.EARLY_DEFAULT = { on = true, min = 45 }
+-- `min` (default 45) if there are at least floor((raid level - own level) / perDay)
+-- days left – perDay levels a day (default 1). Reminders still go to
+-- characters of the raid's level only.
+R.EARLY_DEFAULT = { on = true, min = 45, perDay = 1 }
 function R.Early()
   local pr = core.Profile.Get()
   local x = pr.pve and pr.pve.early or {}
   local on = x.on
   if on == nil then on = R.EARLY_DEFAULT.on end
-  return { on = on and true or false, min = tonumber(x.min) or R.EARLY_DEFAULT.min }
+  local per = tonumber(x.perDay) or R.EARLY_DEFAULT.perDay
+  if per < 1 then per = 1 end
+  return { on = on and true or false, min = tonumber(x.min) or R.EARLY_DEFAULT.min, perDay = math.floor(per) }
+end
+
+-- days a character needs until the raid (rounded down)
+function R.EarlyDays(need, lv, rule)
+  rule = rule or R.Early()
+  return math.floor((need - lv) / rule.perDay)
 end
 
 function R.CanSignUp(e, key)
@@ -77,8 +86,9 @@ function R.CanSignUp(e, key)
   if not rule.on then return false, L.RAID_EARLY_OFF:format(need) end
   if lv < rule.min then return false, L.RAID_EARLY_LOW:format(rule.min, need) end
   local days = ((tonumber(e.start) or 0) - core.U.Now()) / 86400
-  if days >= need - lv then return true end
-  return false, L.RAID_EARLY_DAYS:format(lv, need - lv, math.max(0, math.floor(days)))
+  local want = R.EarlyDays(need, lv, rule)
+  if days >= want then return true end
+  return false, L.RAID_EARLY_DAYS:format(lv, want, math.max(0, math.floor(days)))
 end
 
 function R.RaidEvents(open)

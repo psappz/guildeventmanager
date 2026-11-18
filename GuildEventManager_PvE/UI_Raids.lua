@@ -852,8 +852,16 @@ local function buildSettings(p)
     if v and v >= 1 then core.Profile.Update(function(pr) pr.pve = pr.pve or {}; pr.pve.early = pr.pve.early or {}; pr.pve.early.min = v end) end
     self:ClearFocus()
   end)
+  p.perDayL = W.Text(p, 11, "text"); p.perDayL:SetPoint("LEFT", p.earlyMin, "RIGHT", 24, 0); p.perDayL:SetText(L.RAID_EARLY_PERDAY)
+  p.perDay = W.Edit(p, 44, 22); p.perDay:SetNumeric(true); p.perDay:SetMaxLetters(2)
+  p.perDay:SetPoint("LEFT", p.perDayL, "RIGHT", 8, 0)
+  p.perDay:SetScript("OnEnterPressed", function(self)
+    local v = tonumber(self:GetText())
+    if v and v >= 1 then core.Profile.Update(function(pr) pr.pve = pr.pve or {}; pr.pve.early = pr.pve.early or {}; pr.pve.early.perDay = v end) end
+    self:ClearFocus()
+  end)
   p.earlyHint = W.Text(p, 10, "muted"); p.earlyHint:SetPoint("TOPLEFT", 0, -184); p.earlyHint:SetPoint("RIGHT", 0, 0)
-  p.earlyHint:SetSpacing(2); p.earlyHint:SetText(L.RAID_EARLY_HINT)
+  p.earlyHint:SetSpacing(2)
 
   p.needHead = UI.Section(p, L.RAID_NEED); p.needHead:SetPoint("TOPLEFT", 0, -230)
   p.edits = {}
@@ -873,6 +881,8 @@ local function buildSettings(p)
       pr.pve = pr.pve or {}
       local v = tonumber(p.earlyMin:GetText())
       if v and v >= 1 then pr.pve.early = pr.pve.early or {}; pr.pve.early.min = v end
+      local per = tonumber(p.perDay:GetText())
+      if per and per >= 1 then pr.pve.early = pr.pve.early or {}; pr.pve.early.perDay = per end
       pr.pve.need = pr.pve.need or {}
       for id, ed in pairs(p.edits) do
         pr.pve.need[id] = { tank = tonumber(ed[1]:GetText()), heal = tonumber(ed[2]:GetText()) }
@@ -902,6 +912,10 @@ local function refreshSettings(p)
   p.early:SetEnabled(mgr)
   if not p.earlyMin:HasFocus() then p.earlyMin:SetText(tostring(rule.min)) end
   p.earlyMin:SetEnabled(mgr)
+  if not p.perDay:HasFocus() then p.perDay:SetText(tostring(rule.perDay)) end
+  p.perDay:SetEnabled(mgr)
+  -- the hint with the guild's own numbers: example level 52 and 45
+  p.earlyHint:SetText(L.RAID_EARLY_HINT:format(rule.perDay, R.EarlyDays(60, 52, rule), rule.min, R.EarlyDays(60, rule.min, rule)))
 end
 
 ---------------------------------------------------------------------------

@@ -9,7 +9,7 @@
 - **Switch off:** link "Switch off GuildEventManager" at the bottom right of the settings (guild master): a guide to remove the code again. Nobody has to uninstall the addon; points, events and settings are kept.
 - **API:** `API.AddHelp(id, fn)` – help text for a module's views.
 - **Remind to sign up:** checkbox in the event editor, ticked by default for raids, off for the other types. The popup comes a few seconds after every login and /reload ("Later" only holds for the session) and right after a fight if it was held back.
-- **Raids: early sign-up below level 60** (raid settings, on by default): from level 45 a character may sign up if there are at least (60 − own level) days left – one level a day. Below that only declining works; the sign-up box says why. Reminders only go to level 60 characters.
+- **Raids: early sign-up below level 60** (raid settings, on by default): from level 45 a character may sign up if there are at least (60 − own level) ÷ levels a day days left (rounded down; levels a day set in the raid settings, default 1). Below that only declining works; the sign-up box says why. Reminders only go to level 60 characters.
 - **Level of an event:** the editor has a field "From level" (empty = all levels). Only characters of that level are reminded; the detail page shows the level. Raids use the highest player level by default. Event types can set `minLevel`.
 
 ### Changed
