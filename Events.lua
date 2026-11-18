@@ -127,11 +127,18 @@ function E.End(e, attended)
   if not book then per = 0; U.Print(ns.L.EVT_END_NO_POINTS) end
   local done, total = E.GoalCount(e)
   local full = total > 0 and done == total
+  local t = ns.Modules.Type(e.type)
   for key, on in pairs(attended or {}) do
     if on then
       e.attended[key] = true
       n = n + 1
-      if per > 0 then ns.Points.Add(key, "event", per, "participate", e.id, nil, full and { flag = "full" } or nil) end
+      -- the type may multiply the points for taking part (raids: early sign-up)
+      local factor = 1
+      if t and t.pointsFactor then
+        local ok, f = pcall(t.pointsFactor, e, key)
+        if ok and tonumber(f) and f > 0 then factor = f end
+      end
+      if per > 0 then ns.Points.Add(key, "event", math.floor(per * factor + 0.5), "participate", e.id, nil, full and { flag = "full" } or nil) end
       if book and done > 0 and (p.pts.goal or 0) > 0 then ns.Points.Add(key, "event", done * p.pts.goal, "goal", e.id) end
     end
   end
@@ -313,9 +320,14 @@ function E.SetSignup(e, opts)
   local c = opts.c and tostring(opts.c):gsub("^%s+", ""):gsub("%s+$", ""):sub(1, E.COMMENT_MAX) or nil
   if c == "" then c = nil end
   e.signups = e.signups or {}
-  local s = { on = st ~= "out", st = st, c = c, f = f, t = U.Now() }
+  -- the character's level when signing up (the lowest one is kept: an early
+  -- sign-up stays early even after levelling)
+  local prev = e.signups[G.MyKey()]
+  local lv = tonumber(UnitLevel and UnitLevel("player"))
+  if prev and tonumber(prev.lv) and (not lv or prev.lv < lv) then lv = prev.lv end
+  local s = { on = st ~= "out", st = st, c = c, f = f, t = U.Now(), lv = lv }
   e.signups[G.MyKey()] = s
-  C.Send("SIGN", { ev = e.id, on = s.on, st = st, c = c, f = f })
+  C.Send("SIGN", { ev = e.id, on = s.on, st = st, c = c, f = f, lv = lv })
   ns.Fire("SIGNUP_CHANGED", e, G.MyKey(), s)
   if ns.UI and ns.UI.Refresh then ns.UI.Refresh() end
   return true
@@ -448,7 +460,11 @@ C.On("SIGN", function(data, from)
     for _, fd in ipairs(E.Fields(e)) do if data.f[fd.id] ~= nil then f[fd.id] = cleanValue(fd, data.f[fd.id]) end end
   end
   local c = type(data.c) == "string" and data.c:sub(1, E.COMMENT_MAX) or nil
-  e.signups[from] = { on = st ~= "out", st = st, c = c, f = f, t = U.Now() }
+  local lv = tonumber(data.lv)
+  if lv and (lv < 1 or lv > 200) then lv = nil end
+  local prev = e.signups[from]
+  if prev and tonumber(prev.lv) and (not lv or prev.lv < lv) then lv = prev.lv end
+  e.signups[from] = { on = st ~= "out", st = st, c = c, f = f, t = U.Now(), lv = lv }
   ns.Fire("SIGNUP_CHANGED", e, from, e.signups[from])
   if ns.UI and ns.UI.Refresh then ns.UI.Refresh() end
 end)

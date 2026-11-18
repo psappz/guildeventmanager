@@ -68,7 +68,18 @@ function R.Early()
   if on == nil then on = R.EARLY_DEFAULT.on end
   local per = tonumber(x.perDay) or R.EARLY_DEFAULT.perDay
   if per < 1 then per = 1 end
-  return { on = on and true or false, min = tonumber(x.min) or R.EARLY_DEFAULT.min, perDay = math.floor(per) }
+  return { on = on and true or false, min = tonumber(x.min) or R.EARLY_DEFAULT.min, perDay = math.floor(per), bonus = x.bonus and true or false }
+end
+
+-- bonus: whoever signed up early (below the raid level) and took part gets
+-- the points for taking part times "levels a day"
+function R.PointsFactor(e, key)
+  local rule = R.Early()
+  if not rule.on or not rule.bonus or rule.perDay <= 1 then return 1 end
+  local s = E.Signup(e, key)
+  local need = E.MinLevel(e)
+  if s and need and tonumber(s.lv) and s.lv < need and (s.st == "in" or s.st == "late") then return rule.perDay end
+  return 1
 end
 
 -- days a character needs until the raid (rounded down)
@@ -949,6 +960,7 @@ for _, t in ipairs(R.TEMPLATES) do
     remind = true,   -- raids remind members to sign up by default
     minLevel = function() return (GetMaxPlayerLevel and GetMaxPlayerLevel()) or 60 end,
     canSignUp = function(e, key) return R.CanSignUp(e, key) end,
+    pointsFactor = function(e, key) return R.PointsFactor(e, key) end,
     canCreate = function(key) return R.CanCreate(key) end,
     signupFields = fieldsFor(t),
   }

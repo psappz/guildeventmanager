@@ -860,13 +860,17 @@ local function buildSettings(p)
     if v and v >= 1 then core.Profile.Update(function(pr) pr.pve = pr.pve or {}; pr.pve.early = pr.pve.early or {}; pr.pve.early.perDay = v end) end
     self:ClearFocus()
   end)
-  p.earlyHint = W.Text(p, 10, "muted"); p.earlyHint:SetPoint("TOPLEFT", 0, -184); p.earlyHint:SetPoint("RIGHT", 0, 0)
+  p.bonus = W.Check(p, L.RAID_EARLY_BONUS, function(_, on)
+    core.Profile.Update(function(pr) pr.pve = pr.pve or {}; pr.pve.early = pr.pve.early or {}; pr.pve.early.bonus = on end)
+  end)
+  p.bonus:SetPoint("TOPLEFT", 0, -186)
+  p.earlyHint = W.Text(p, 10, "muted"); p.earlyHint:SetPoint("TOPLEFT", 0, -210); p.earlyHint:SetPoint("RIGHT", 0, 0)
   p.earlyHint:SetSpacing(2)
 
-  p.needHead = UI.Section(p, L.RAID_NEED); p.needHead:SetPoint("TOPLEFT", 0, -230)
+  p.needHead = UI.Section(p, L.RAID_NEED); p.needHead:SetPoint("TOPLEFT", 0, -270)
   p.edits = {}
   for i, t in ipairs(R.TEMPLATES) do
-    local y = -258 - (i - 1) * 34
+    local y = -298 - (i - 1) * 34
     local l = W.Text(p, 11, "text"); l:SetPoint("TOPLEFT", 0, y - 4); l:SetWidth(200); l:SetText(R.TplName(t))
     local tl = W.Text(p, 10, "muted"); tl:SetPoint("TOPLEFT", 210, y - 4); tl:SetText(L.RAID_KIND_tank)
     local te = W.Edit(p, 40, 22); te:SetPoint("TOPLEFT", 270, y); te:SetNumeric(true)
@@ -875,7 +879,7 @@ local function buildSettings(p)
     p.edits[t.id] = { te, he }
   end
   p.save = W.Button(p, core.L.SAVE, true, 22)
-  p.save:SetPoint("TOPLEFT", 0, -258 - #R.TEMPLATES * 34 - 6)
+  p.save:SetPoint("TOPLEFT", 0, -298 - #R.TEMPLATES * 34 - 6)
   p.save:SetScript("OnClick", function()
     core.Profile.Update(function(pr)
       pr.pve = pr.pve or {}
@@ -914,8 +918,13 @@ local function refreshSettings(p)
   p.earlyMin:SetEnabled(mgr)
   if not p.perDay:HasFocus() then p.perDay:SetText(tostring(rule.perDay)) end
   p.perDay:SetEnabled(mgr)
-  -- the hint with the guild's own numbers: example level 52 and 45
-  p.earlyHint:SetText(L.RAID_EARLY_HINT:format(rule.perDay, R.EarlyDays(60, 52, rule), rule.min, R.EarlyDays(60, rule.min, rule)))
+  p.bonus:SetChecked(rule.bonus); p.bonus:SetEnabled(mgr)
+  -- the hint calculates with the values set above
+  local top = (GetMaxPlayerLevel and GetMaxPlayerLevel()) or 60
+  local pts = core.Profile.Get().pts.participate or 10
+  local text = L.RAID_EARLY_HINT:format(rule.min, top, rule.min, rule.perDay, R.EarlyDays(top, rule.min, rule))
+  if rule.bonus and rule.perDay > 1 then text = text .. " " .. L.RAID_EARLY_BONUS_EX:format(pts, rule.perDay, pts * rule.perDay) end
+  p.earlyHint:SetText(text)
 end
 
 ---------------------------------------------------------------------------
