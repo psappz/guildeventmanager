@@ -822,6 +822,20 @@ end
 ---------------------------------------------------------------------------
 -- Settings page: who may create raids, role targets
 ---------------------------------------------------------------------------
+-- the example under "early sign-up": with the values as typed, before saving
+local function earlyHint(p)
+  local rule = R.Early()
+  local min = tonumber(p.earlyMin:GetText()) or rule.min
+  local per = tonumber(p.perDay:GetText()) or rule.perDay
+  if per < 1 then per = 1 end
+  local cur = { min = min, perDay = math.floor(per) }
+  local top = (GetMaxPlayerLevel and GetMaxPlayerLevel()) or 60
+  local pts = core.Profile.Get().pts.participate or 10
+  local text = L.RAID_EARLY_HINT:format(min, top, min, cur.perDay, R.EarlyDays(top, min, cur))
+  if p.bonus:GetChecked() and cur.perDay > 1 then text = text .. " " .. L.RAID_EARLY_BONUS_EX:format(pts, cur.perDay, pts * cur.perDay) end
+  p.earlyHint:SetText(text)
+end
+
 local function buildSettings(p)
   p.head = UI.Section(p, L.RAID_SETTINGS); p.head:SetPoint("TOPLEFT", 0, 0)
   p.rankLabel = W.Text(p, 11, "text"); p.rankLabel:SetPoint("TOPLEFT", 0, -30); p.rankLabel:SetText(L.RAID_RANK)
@@ -847,6 +861,7 @@ local function buildSettings(p)
   p.earlyMinL = W.Text(p, 11, "text"); p.earlyMinL:SetPoint("TOPLEFT", 0, -154); p.earlyMinL:SetText(L.RAID_EARLY_MIN)
   p.earlyMin = W.Edit(p, 44, 22); p.earlyMin:SetNumeric(true); p.earlyMin:SetMaxLetters(2)
   p.earlyMin:SetPoint("LEFT", p.earlyMinL, "RIGHT", 8, 0)
+  p.earlyMin:SetScript("OnTextChanged", function() if p.earlyHint then earlyHint(p) end end)
   p.earlyMin:SetScript("OnEnterPressed", function(self)
     local v = tonumber(self:GetText())
     if v and v >= 1 then core.Profile.Update(function(pr) pr.pve = pr.pve or {}; pr.pve.early = pr.pve.early or {}; pr.pve.early.min = v end) end
@@ -855,6 +870,7 @@ local function buildSettings(p)
   p.perDayL = W.Text(p, 11, "text"); p.perDayL:SetPoint("LEFT", p.earlyMin, "RIGHT", 24, 0); p.perDayL:SetText(L.RAID_EARLY_PERDAY)
   p.perDay = W.Edit(p, 44, 22); p.perDay:SetNumeric(true); p.perDay:SetMaxLetters(2)
   p.perDay:SetPoint("LEFT", p.perDayL, "RIGHT", 8, 0)
+  p.perDay:SetScript("OnTextChanged", function() if p.earlyHint then earlyHint(p) end end)
   p.perDay:SetScript("OnEnterPressed", function(self)
     local v = tonumber(self:GetText())
     if v and v >= 1 then core.Profile.Update(function(pr) pr.pve = pr.pve or {}; pr.pve.early = pr.pve.early or {}; pr.pve.early.perDay = v end) end
@@ -862,6 +878,7 @@ local function buildSettings(p)
   end)
   p.bonus = W.Check(p, L.RAID_EARLY_BONUS, function(_, on)
     core.Profile.Update(function(pr) pr.pve = pr.pve or {}; pr.pve.early = pr.pve.early or {}; pr.pve.early.bonus = on end)
+    earlyHint(p)
   end)
   p.bonus:SetPoint("TOPLEFT", 0, -186)
   p.earlyHint = W.Text(p, 10, "muted"); p.earlyHint:SetPoint("TOPLEFT", 0, -210); p.earlyHint:SetPoint("RIGHT", 0, 0)
@@ -919,12 +936,7 @@ local function refreshSettings(p)
   if not p.perDay:HasFocus() then p.perDay:SetText(tostring(rule.perDay)) end
   p.perDay:SetEnabled(mgr)
   p.bonus:SetChecked(rule.bonus); p.bonus:SetEnabled(mgr)
-  -- the hint calculates with the values set above
-  local top = (GetMaxPlayerLevel and GetMaxPlayerLevel()) or 60
-  local pts = core.Profile.Get().pts.participate or 10
-  local text = L.RAID_EARLY_HINT:format(rule.min, top, rule.min, rule.perDay, R.EarlyDays(top, rule.min, rule))
-  if rule.bonus and rule.perDay > 1 then text = text .. " " .. L.RAID_EARLY_BONUS_EX:format(pts, rule.perDay, pts * rule.perDay) end
-  p.earlyHint:SetText(text)
+  earlyHint(p)
 end
 
 ---------------------------------------------------------------------------
