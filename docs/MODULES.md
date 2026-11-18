@@ -84,7 +84,7 @@ Name the folder `GuildEventManager_<Name>` so it is sorted next to the core in t
 
 ## 3. API reference
 
-`GuildEventManagerAPI` (short: `API`). `API.version` is `3`. New functions raise the version; existing functions keep their behaviour. Declare the lowest version that has everything you use (see [section 6](#6-api-changes)), e.g. `requires = { api = 1 }` keeps your module working with older cores.
+`GuildEventManagerAPI` (short: `API`). `API.version` is `6`. New functions raise the version; existing functions keep their behaviour. Declare the lowest version that has everything you use (see [section 6](#6-api-changes)), e.g. `requires = { api = 1 }` keeps your module working with older cores.
 
 ### Modules
 
@@ -233,7 +233,7 @@ Only in an activated guild, throttled, split when long, dropped from senders out
 
 ## 4. PvP modules – `GuildEventManagerAPI.PvP`
 
-Available when `GuildEventManager_PvP` is loaded (`API.PvP.version` is `3`). Declare `requires = { api = 1, pvp = 1 }`, `pvp = 2` if you use duels of honor, oaths or season results, `pvp = 3` for the new names `ActiveDuels`, `DuelRecord` and `HONORDUEL`.
+Available when `GuildEventManager_PvP` is loaded (`API.PvP.version` is `4`). Declare `requires = { api = 1, pvp = 1 }`, `pvp = 2` if you use duels of honor, oaths or season results, `pvp = 3` for the new names `ActiveDuels`, `DuelRecord` and `HONORDUEL`.
 
 | Function | |
 |---|---|
@@ -281,6 +281,14 @@ Every change to `GuildEventManagerAPI` and `GuildEventManagerAPI.PvP`, newest fi
 - Something that has to go is marked **deprecated** here first and keeps working for at least one more minor release of the core (e.g. 1.1 → removed in 1.2 at the earliest).
 - Ledger entries, achievement ids and message kinds of a released module are never reused with another meaning: old entries in the guild ledger stay readable.
 - Before 1.0 (0.x betas) the same rules apply as far as possible; breaking changes, if unavoidable, are listed here with a migration note.
+
+### API 6 · PvP API 4 – 0.8.0
+
+- **Event types:** `minLevel` (default lowest level, number or function), `remind` (the editor's reminder checkbox starts ticked), `canSignUp(e, key) -> ok, reason` (may this character say yes; declining is always allowed), `pointsFactor(e, key) -> number` (multiplies the points for taking part). See *Event types* in section 3.
+- **Events:** every event carries `lvl` (lowest level; only those characters are reminded) and `remind`. Members who have not answered get a notice and, in the week before, a popup. Events can carry their own questions (`e.fields`, made in the editor), cleaned on receipt.
+- **Sign-ups:** every sign-up carries `lv`, the lowest level the character signed up with.
+- **Help:** `API.AddHelp(id, fn)` – text for the "?" in the header.
+- **Security:** guild messages from senders who are not in the guild roster are ignored on every channel.
 
 ### API 5 · PvP API 4 – 0.7.0
 

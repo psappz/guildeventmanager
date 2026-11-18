@@ -9,7 +9,7 @@ local U, G, T = ns.U, ns.Guild, ns.Theme
 local API = {}
 GuildEventManagerAPI = API
 
-API.version = 5   -- see docs/MODULES.md, section 6 (API changes)
+API.version = 6   -- see docs/MODULES.md, section 6 (API changes)
 API.coreVersion = ns.VERSION
 
 local function moduleId(id)
