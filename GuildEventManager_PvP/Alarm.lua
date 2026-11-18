@@ -112,8 +112,34 @@ end
 
 ---------------------------------------------------------------------------
 -- Window
+-- The window itself is a plain frame, so it can appear and close at any time,
+-- also in combat. The protected target button is NOT part of it: it sits on
+-- top of a placeholder, parented to UIParent, and is placed, shown and hidden
+-- only out of combat (the game blocks that in combat). In combat the
+-- placeholder says how to target by hand; after the fight the button follows.
 ---------------------------------------------------------------------------
-local win
+local win, secure
+local pendingSync = false
+
+local function syncTarget()
+  if not secure then return end
+  if InCombatLockdown and InCombatLockdown() then pendingSync = true; return end
+  pendingSync = false
+  if win and win:IsShown() and win.info and win.slot:GetLeft() then
+    local s = win.slot
+    secure:ClearAllPoints()
+    -- absolute position (anchoring to the window would make the window protected)
+    secure:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", s:GetLeft(), s:GetBottom())
+    secure:SetSize(s:GetWidth(), s:GetHeight())
+    secure:SetFrameLevel(win:GetFrameLevel() + 10)
+    secure:SetAttribute("macrotext", "/targetexact " .. win.info.name .. "\n/run if UnitExists('target') then SetRaidTarget('target', 8) end")
+    secure:Show()
+    win.slot.label:SetText("")
+  else
+    secure:Hide()
+  end
+end
+
 local function build()
   local th = T.Current()
   local w = CreateFrame("Frame", "GuildEventManagerAlarm", UIParent, "BackdropTemplate")
@@ -127,6 +153,7 @@ local function build()
     self:StopMovingOrSizing()
     local p, _, rp, x, y = self:GetPoint()
     if core.db then core.db.pvpAlarmPos = { p, rp, x, y } end
+    syncTarget()
   end)
   local pos = core.db and core.db.pvpAlarmPos
   if pos then w:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4]) else w:SetPoint("TOP", UIParent, "TOP", 0, -140) end
@@ -141,19 +168,31 @@ local function build()
   w.close:SetPoint("TOPRIGHT", -6, -6)
   w.reasons = W.Text(w, 11, "text"); w.reasons:SetPoint("TOPLEFT", 10, -54); w.reasons:SetPoint("RIGHT", -10, 0)
   w.reasons:SetJustifyH("LEFT"); w.reasons:SetSpacing(2)
-  -- protected button: targets the enemy and puts a skull on him (prepared out of combat only)
-  local sb = CreateFrame("Button", "GuildEventManagerAlarmTarget", w, "SecureActionButtonTemplate,BackdropTemplate")
+  -- placeholder in the window; the protected button lies on top of it
+  local slot = CreateFrame("Frame", nil, w, "BackdropTemplate")
+  slot:SetSize(180, 24)
+  slot:SetPoint("BOTTOMLEFT", 10, 10)
+  W.Paint(slot, th.panel2, th.line)
+  slot.label = W.Text(slot, 10, "muted"); slot.label:SetPoint("CENTER")
+  w.slot = slot
+  -- protected button: targets the enemy and puts a skull on him (out of combat only)
+  local sb = CreateFrame("Button", "GuildEventManagerAlarmTarget", UIParent, "SecureActionButtonTemplate,BackdropTemplate")
   sb:SetSize(180, 24)
-  sb:SetPoint("BOTTOMLEFT", 10, 10)
+  sb:SetFrameStrata("HIGH")
   W.Paint(sb, th.accent, th.title)
   sb.label = W.Text(sb, 11, "text"); sb.label:SetPoint("CENTER")
+  sb.label:SetText(L.PVP_AL_TARGET)
   sb:RegisterForClicks("AnyUp", "AnyDown")
   sb:SetAttribute("type", "macro")
+  sb:Hide()
+  secure = sb
   w.target = sb
+  w:HookScript("OnShow", syncTarget)
+  w:HookScript("OnHide", syncTarget)
   w.call = W.Button(w, L.PVP_AL_CALL, false, 24)
-  w.call:SetPoint("LEFT", sb, "RIGHT", 6, 0); w.call:SetPoint("RIGHT", -10, 0)
+  w.call:SetPoint("LEFT", slot, "RIGHT", 6, 0); w.call:SetPoint("RIGHT", -10, 0)
   w.call:SetScript("OnClick", function() if w.info then P.CallGuild(w.info) end end)
-  w.hint = W.Text(w, 9, "muted"); w.hint:SetPoint("BOTTOMLEFT", sb, "TOPLEFT", 0, 4); w.hint:SetPoint("RIGHT", -10, 0)
+  w.hint = W.Text(w, 9, "muted"); w.hint:SetPoint("BOTTOMLEFT", slot, "TOPLEFT", 0, 4); w.hint:SetPoint("RIGHT", -10, 0)
   w.hint:SetWordWrap(false)
   w:Hide()
   return w
@@ -179,16 +218,13 @@ function P.ShowAlarm(info)
   for _, r in ipairs(info.reasons) do if r.kind == "bounty" then hasBounty = true end end
   win:SetHeight(110 + #lines * 14)
   if InCombatLockdown and InCombatLockdown() then
-    win.target.label:SetText(L.PVP_AL_TARGET_COMBAT)
-    win.target:SetAlpha(0.6)
+    win.slot.label:SetText(L.PVP_AL_TARGET_COMBAT)
     win.hint:SetText(L.PVP_AL_HINT_COMBAT)
   else
-    win.target:SetAttribute("macrotext", "/targetexact " .. info.name .. "\n/run if UnitExists('target') then SetRaidTarget('target', 8) end")
-    win.target.label:SetText(L.PVP_AL_TARGET)
-    win.target:SetAlpha(1)
     win.hint:SetText(hasBounty and L.PVP_AL_HINT_BOUNTY or "")
   end
   win:Show()
+  syncTarget()
   if P.AlarmSettings().sound then P.PlaySignal() end
   if FlashClientIcon then pcall(FlashClientIcon) end
   core.Schedule("gemPvpAlarmHide", 30, function() if win then win:Hide() end end)
@@ -225,8 +261,14 @@ end)
 ---------------------------------------------------------------------------
 local f = CreateFrame("Frame")
 f:RegisterEvent("PLAYER_LOGIN")
+f:RegisterEvent("PLAYER_REGEN_ENABLED")
 f:SetScript("OnEvent", function(self, event, unit)
   if event == "PLAYER_LOGIN" then pcall(self.RegisterEvent, self, "UNIT_TARGET"); return end
+  -- after the fight: place or remove the target button as the window needs it
+  if event == "PLAYER_REGEN_ENABLED" then
+    if pendingSync then core.SafeCall("pvpAlarmSync", syncTarget) end
+    return
+  end
   if event == "UNIT_TARGET" and type(unit) == "string" and (unit:find("^party%d") or unit:find("^raid%d")) then
     local t = unit .. "target"
     core.SafeCall("pvpAlarmGroup", function()

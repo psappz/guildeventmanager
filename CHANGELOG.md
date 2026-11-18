@@ -24,6 +24,7 @@
 - Overview: "still without an answer" counts only the events you are asked to answer (declined ones and events above your level no longer count).
 
 ### Fixed
+- PvP target alarm: the game blocked showing, hiding and resizing the alarm in combat (because of the protected target button inside it). The window now works in combat; the target button is placed after the fight.
 - Opening an event from a notice right after login showed the event list instead of the event.
 - Addon messages from players outside the guild are now ignored on every channel. Before, a stranger could whisper sign-ups or points to a member.
 
