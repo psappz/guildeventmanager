@@ -1,5 +1,10 @@
 # GuildEventManager
 
+## 0.8.1 (2026-11-20)
+
+### Fixed
+- **PvP alarm:** clicking the target button could bring up the game's message "*** ForceTaint_Strong *** has been blocked". The button now only targets the enemy ("Target"); the skull mark is gone, as it cannot be put on players anyway.
+
 ## 0.8.0 (2026-11-18)
 
 ### Added
