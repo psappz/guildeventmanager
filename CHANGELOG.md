@@ -4,6 +4,7 @@
 
 ### Fixed
 - **PvP alarm:** clicking the target button could bring up the game's message "*** ForceTaint_Strong *** has been blocked". The button now only targets the enemy ("Target"); the skull mark is gone, as it cannot be put on players anyway.
+- **Invitation popup:** "Open GuildEventManager" gave an error ("UI_Events.lua:1305: attempt to call a nil value") instead of the short glow around your sign-up.
 
 ## 0.8.0 (2026-11-18)
 

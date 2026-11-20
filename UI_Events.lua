@@ -1302,7 +1302,7 @@ function V.GlowSignup()
     local ag = g:CreateAnimationGroup()
     local a1 = ag:CreateAnimation("Alpha"); a1:SetFromAlpha(0); a1:SetToAlpha(1); a1:SetDuration(0.35); a1:SetOrder(1)
     local a2 = ag:CreateAnimation("Alpha"); a2:SetFromAlpha(1); a2:SetToAlpha(0); a2:SetDuration(0.6); a2:SetOrder(2)
-    ag:SetLoops("NONE")
+    ag:SetLooping("NONE")
     local n = 0
     ag:SetScript("OnFinished", function() n = n + 1; if n < 3 then ag:Play() end end)
     d.glow, d.glowAnim = g, ag
