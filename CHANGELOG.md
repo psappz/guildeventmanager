@@ -1,5 +1,10 @@
 # GuildEventManager
 
+## 0.8.2 (2026-11-21)
+
+### Fixed
+- **PvP module in battlegrounds:** the PvP module error "attempt to compare local 'isMe' (a secret boolean value)". The game hides some information about players there; the module now treats hidden values as unknown instead of failing.
+
 ## 0.8.1 (2026-11-20)
 
 ### Fixed

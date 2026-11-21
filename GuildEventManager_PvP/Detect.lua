@@ -19,19 +19,33 @@ local honorLines = {}     -- victim names from the honor chat line { name, t }
 local reminded = {}       -- debt id -> GetTime() of the last reminder
 
 local function secret(v) return issecretvalue and issecretvalue(v) or false end
+-- unit queries can return secret values (battlegrounds, arenas, combat):
+-- comparing or testing them raises an error, so only a readable true counts
+local function utrue(fn, ...)
+  if type(fn) ~= "function" then return false end
+  local ok, v = pcall(fn, ...)
+  if not ok or secret(v) then return false end
+  return v and true or false
+end
+local function uval(fn, ...)
+  if type(fn) ~= "function" then return nil end
+  local ok, v = pcall(fn, ...)
+  if not ok or secret(v) then return nil end
+  return v
+end
 
 local function unitName(unit)
-  local n, second = UnitName(unit)
-  if not n or secret(n) then return nil end
+  local ok, n, second = pcall(UnitName, unit)
+  if not ok or not n or secret(n) then return nil end
   if second and second ~= "" and not secret(second) then return n .. " " .. second end
   return n
 end
 
 local function isEnemyPlayer(unit)
-  if not UnitExists(unit) or not UnitIsPlayer(unit) then return false end
-  local f = UnitFactionGroup(unit)
-  if not f or secret(f) then return UnitIsEnemy and UnitIsEnemy("player", unit) or false end
-  local mine = UnitFactionGroup("player")
+  if not utrue(UnitExists, unit) or not utrue(UnitIsPlayer, unit) then return false end
+  local f = uval(UnitFactionGroup, unit)
+  if not f then return utrue(UnitIsEnemy, "player", unit) end
+  local mine = uval(UnitFactionGroup, "player")
   return f ~= mine and (f == "Horde" or f == "Alliance")
 end
 
@@ -191,7 +205,7 @@ end
 local targetName
 
 local function deadEnemyName(unit)
-  if not UnitExists(unit) or not isEnemyPlayer(unit) then return nil end
+  if not isEnemyPlayer(unit) then return nil end
   local ok, dead = pcall(UnitIsDeadOrGhost, unit)
   if not ok or secret(dead) or not dead then return nil end
   return unitName(unit) or (unit == "target" and targetName) or nil
@@ -207,7 +221,7 @@ end
 -- enemy we saw dead and then see alive again is taken off the list.
 local deadSeen = {}
 local function confirmTarget(d)
-  local name = UnitExists("target") and deadEnemyName("target")
+  local name = utrue(UnitExists, "target") and deadEnemyName("target")
   if name and name == d.name then d.tgt = true; d.suspect = nil
   else d.suspect = true end   -- gone from the target right after "dying": Feign Death
 end
@@ -280,13 +294,13 @@ end
 -- what the module saw at the last kills (for /gem pvpcheck and /gem export)
 P.killDiag = {}
 local function diagKill(source, name)
-  local t = UnitExists("target")
+  local t = utrue(UnitExists, "target")
   local ok, dead = pcall(UnitIsDeadOrGhost, "target")
   local n
-  if t then n = UnitName("target") end
+  if t then n = select(2, pcall(UnitName, "target")) end
   table.insert(P.killDiag, 1, {
     at = date("%H:%M:%S"), source = source, name = name,
-    target = t and true or false, player = t and UnitIsPlayer("target") or false,
+    target = t and true or false, player = t and utrue(UnitIsPlayer, "target") or false,
     dead = (ok and secret(dead)) and "<secret>" or (ok and dead) or false,
     nameSecret = secret(n), cached = targetName, seen = #deadSeen, feigned = P.feignSeen or 0,
   })
@@ -350,8 +364,7 @@ local function scanAttackers()
   for _, plate in ipairs(plates) do
     local unit = plate.namePlateUnitToken or (plate.UnitFrame and plate.UnitFrame.unit)
     if unit and isEnemyPlayer(unit) then
-      local okT, isMe = pcall(UnitIsUnit, unit .. "target", "player")
-      if okT and isMe == true then
+      if utrue(UnitIsUnit, unit .. "target", "player") then
         local name = unitName(unit)
         if name then lastEnemy = { name = name, t = GetTime() } end
       end

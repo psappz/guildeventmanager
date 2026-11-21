@@ -39,7 +39,7 @@ local function build(p)
   -- take over the current target (an enemy player)
   p.take:SetScript("OnClick", function()
     local ok, n, r = pcall(UnitName, "target")
-    if ok and n and not (issecretvalue and issecretvalue(n)) and UnitIsPlayer and UnitIsPlayer("target") then
+    if ok and n and not (issecretvalue and issecretvalue(n)) and UnitIsPlayer and (function() local okP, v = pcall(UnitIsPlayer, "target"); return okP and not (issecretvalue and issecretvalue(v)) and v end)() then
       if r and r ~= "" and not (issecretvalue and issecretvalue(r)) then n = n .. " " .. r end
       p.name:SetText(n)
     else

@@ -250,7 +250,12 @@ end)
 local told = {}
 local function onTarget()
   if not (UnitExists and UnitIsPlayer and UnitIsEnemy) then return end
-  if not UnitExists("target") or not UnitIsPlayer("target") or not UnitIsEnemy("player", "target") then return end
+  local function utrue(fn, ...)
+    local ok, v = pcall(fn, ...)
+    if not ok or (issecretvalue and issecretvalue(v)) then return false end
+    return v and true or false
+  end
+  if not utrue(UnitExists, "target") or not utrue(UnitIsPlayer, "target") or not utrue(UnitIsEnemy, "player", "target") then return end
   local ok, n, r = pcall(UnitName, "target")
   if not ok or not n or (issecretvalue and (issecretvalue(n) or (r and issecretvalue(r)))) then return end
   local name = (r and r ~= "") and (n .. " " .. r) or n
