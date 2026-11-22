@@ -1,5 +1,10 @@
 # GuildEventManager
 
+## 0.8.4 (2026-11-22)
+
+### Fixed
+- **Fishing recorder:** error "attempt to get length of local 's' (a secret string value)" during the tournament. Hidden chat and unit values are now written as "<secret>"; after a /reload the recorder goes on with the same log.
+
 ## 0.8.3 (2026-11-22)
 
 ### New (test tool)

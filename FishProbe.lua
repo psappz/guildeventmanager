@@ -56,7 +56,20 @@ local function inSTV()
       or z:find("strangleronce", 1, true) or z:find("rovotorto", 1, true) or z:find("espinhaç", 1, true)
 end
 
-local function cut(s) s = tostring(s or ""); return #s > TXT and s:sub(1, TXT) or s end
+-- Chat and unit values can be "secret" during events and in combat: they may
+-- not be measured, cut or joined. Such a value is written as "<secret>".
+local function secretV(v) return issecretvalue and issecretvalue(v) or false end
+local function sv(v)
+  if secretV(v) then return "<secret>" end
+  local ok, t = pcall(tostring, v)
+  if not ok or secretV(t) then return "<secret>" end
+  return t
+end
+local function cut(s)
+  if s == nil then s = "" end
+  s = sv(s)
+  return #s > TXT and s:sub(1, TXT) or s
+end
 
 local function add(kind, a, b, c)
   if not rec then return end
@@ -69,22 +82,22 @@ FP.Add = add
 local function weapon(unit)
   local id = GetInventoryItemID and GetInventoryItemID(unit, 16)
   local link = GetInventoryItemLink and GetInventoryItemLink(unit, 16)
-  return tostring(id) .. " " .. tostring(link)
+  return sv(id) .. " " .. sv(link)
 end
 
 local function channel(unit)
   local name, _, _, _, _, _, _, spellID = (UnitChannelInfo or function() end)(unit)
   local cast = (UnitCastingInfo or function() end)(unit)
-  return "channel=" .. tostring(name) .. "/" .. tostring(spellID) .. " cast=" .. tostring(cast)
+  return "channel=" .. sv(name) .. "/" .. sv(spellID) .. " cast=" .. sv(cast)
 end
 
 -- an enemy player: does he fish, which weapon do we see (directly / after inspect)
 local inspecting
 local function lookAt(unit, why)
   if not U.UnitTrue(UnitExists, unit) or not U.UnitTrue(UnitIsPlayer, unit) or not U.UnitTrue(UnitIsEnemy, "player", unit) then return end
-  add("enemy:" .. why, UnitName(unit), channel(unit), "weapon " .. weapon(unit) .. " canInspect=" .. tostring(CanInspect and CanInspect(unit)))
+  add("enemy:" .. why, UnitName(unit), channel(unit), "weapon " .. weapon(unit) .. " canInspect=" .. sv(CanInspect and CanInspect(unit)))
   if why == "target" and CanInspect and CanInspect(unit) and NotifyInspect and not inspecting then
-    inspecting = UnitGUID(unit)
+    inspecting = U.UnitVal(UnitGUID, unit)
     pcall(NotifyInspect, unit)
   end
 end
@@ -109,38 +122,40 @@ local function onEvent(_, event, ...)
     for i = 1, (GetNumLootItems and GetNumLootItems() or 0) do
       local link = GetLootSlotLink and GetLootSlotLink(i)
       local _, name, qty = GetLootSlotInfo(i)
-      items[#items + 1] = (link and link:match("item:(%d+)") or "?") .. "x" .. tostring(qty) .. " " .. tostring(name)
+      local l = sv(link)
+      items[#items + 1] = (l:match("item:(%d+)") or "?") .. "x" .. sv(qty) .. " " .. sv(name)
     end
-    add("loot", "fishing=" .. tostring(fishing), table.concat(items, " | "), GetSubZoneText and GetSubZoneText() or "")
+    add("loot", "fishing=" .. sv(fishing), table.concat(items, " | "), GetSubZoneText and GetSubZoneText() or "")
   elseif event == "QUEST_TURNED_IN" then
-    add("quest_done", tostring(a1), "xp=" .. tostring(a2) .. " money=" .. tostring(select(3, ...)))
+    add("quest_done", sv(a1), "xp=" .. sv(a2) .. " money=" .. sv(select(3, ...)))
   elseif event == "QUEST_COMPLETE" then
-    add("quest_complete", GetTitleText and GetTitleText() or "?", GetQuestID and tostring(GetQuestID()) or "?")
+    add("quest_complete", GetTitleText and GetTitleText() or "?", GetQuestID and sv(GetQuestID()) or "?")
   elseif event == "PLAYER_PVP_KILLS_CHANGED" then
-    add("hk_counter", "lifetime HK " .. tostring(GetPVPLifetimeStats and (GetPVPLifetimeStats())), "session " .. tostring(GetPVPSessionStats and (GetPVPSessionStats())))
+    add("hk_counter", "lifetime HK " .. sv(GetPVPLifetimeStats and (GetPVPLifetimeStats())), "session " .. sv(GetPVPSessionStats and (GetPVPSessionStats())))
   elseif event == "PLAYER_TARGET_CHANGED" then
     lookAt("target", "target")
   elseif event == "UPDATE_MOUSEOVER_UNIT" then
     lookAt("mouseover", "mouseover")
   elseif event == "UNIT_SPELLCAST_CHANNEL_START" then
     if a1 and (a1 == "target" or a1:find("^nameplate")) and U.UnitTrue(UnitIsPlayer, a1) and U.UnitTrue(UnitIsEnemy, "player", a1) then
-      local name = GetSpellInfo and GetSpellInfo(select(3, ...)) or tostring(select(3, ...))
-      add("enemy_channel", UnitName(a1), tostring(name) .. " (" .. tostring(select(3, ...)) .. ")", a1)
+      local sid = select(3, ...)
+      local name = (not secretV(sid) and GetSpellInfo and select(2, pcall(GetSpellInfo, sid))) or sv(sid)
+      add("enemy_channel", UnitName(a1), sv(name) .. " (" .. sv(select(3, ...)) .. ")", a1)
     end
   elseif event == "PLAYER_REGEN_DISABLED" then
-    add("combat_start", "target=" .. tostring(U.UnitVal(UnitName, "target")), U.UnitTrue(UnitExists, "target") and channel("target") or "", U.UnitTrue(UnitExists, "target") and ("weapon " .. weapon("target")) or "")
+    add("combat_start", "target=" .. sv(U.UnitVal(UnitName, "target")), U.UnitTrue(UnitExists, "target") and channel("target") or "", U.UnitTrue(UnitExists, "target") and ("weapon " .. weapon("target")) or "")
   elseif event == "INSPECT_READY" then
     if inspecting and a1 == inspecting then
-      local unit = (UnitGUID("target") == inspecting) and "target" or nil
+      local unit = (U.UnitVal(UnitGUID, "target") == inspecting) and "target" or nil
       add("inspect", unit and UnitName(unit) or "?", unit and ("weapon " .. weapon(unit)) or "target gone")
       if ClearInspectPlayer then pcall(ClearInspectPlayer) end
     end
     inspecting = nil
   elseif event == "ZONE_CHANGED_NEW_AREA" then
-    add("zone", GetZoneText and GetZoneText() or "?", tostring(mapID()))
+    add("zone", GetZoneText and GetZoneText() or "?", sv(mapID()))
   elseif event == "BAG_UPDATE_DELAYED" then
     local n = GetItemCount and GetItemCount(TASTY) or 0
-    if n ~= lastCount then add("tastyfish_in_bags", tostring(n)); lastCount = n end
+    if n ~= lastCount then add("tastyfish_in_bags", sv(n)); lastCount = n end
   end
 end
 
@@ -151,18 +166,28 @@ local function snapshot()
     local _, _, _, fishing = GetProfessions()
     if fishing and GetProfessionInfo then
       local name, _, rank, maxRank, _, _, _, mod = GetProfessionInfo(fishing)
-      prof[#prof + 1] = tostring(name) .. " " .. tostring(rank) .. "/" .. tostring(maxRank) .. " +" .. tostring(mod)
+      prof[#prof + 1] = sv(name) .. " " .. sv(rank) .. "/" .. sv(maxRank) .. " +" .. sv(mod)
     end
   end
-  add("snapshot", "server weekday=" .. tostring(w) .. " " .. tostring(h) .. ":" .. tostring(m) .. " local=" .. date("%a %H:%M"),
-    "fishing " .. table.concat(prof, ","), "own weapon " .. weapon("player") .. " level " .. tostring(UnitLevel("player")))
-  add("snapshot2", "IsFishingLoot=" .. tostring(IsFishingLoot ~= nil) .. " UnitChannelInfo=" .. tostring(UnitChannelInfo ~= nil)
-    .. " CanInspect=" .. tostring(CanInspect ~= nil) .. " QuestFlagged(8193)=" .. tostring(C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted and C_QuestLog.IsQuestFlaggedCompleted(8193)),
-    "zone " .. tostring(GetZoneText and GetZoneText()) .. " map " .. tostring(mapID()), "tastyfish " .. tostring(GetItemCount and GetItemCount(TASTY)))
+  add("snapshot", "server weekday=" .. sv(w) .. " " .. sv(h) .. ":" .. sv(m) .. " local=" .. date("%a %H:%M"),
+    "fishing " .. table.concat(prof, ","), "own weapon " .. weapon("player") .. " level " .. sv(UnitLevel("player")))
+  add("snapshot2", "IsFishingLoot=" .. sv(IsFishingLoot ~= nil) .. " UnitChannelInfo=" .. sv(UnitChannelInfo ~= nil)
+    .. " CanInspect=" .. sv(CanInspect ~= nil) .. " QuestFlagged(8193)=" .. sv(C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted and C_QuestLog.IsQuestFlaggedCompleted(8193)),
+    "zone " .. sv(GetZoneText and GetZoneText()) .. " map " .. sv(mapID()), "tastyfish " .. sv(GetItemCount and GetItemCount(TASTY)))
 end
 
 function FP.Start(auto)
   if rec then return end
+  -- after a /reload or relog within the 4 hours: go on with the same log
+  local old = ns.db.fishLog
+  if type(old) == "table" and not old.stopped and old.server and serverNow() - old.server < 4 * 3600 and type(old.e) == "table" then
+    rec = old
+    for _, e in ipairs(EVENTS) do pcall(f.RegisterEvent, f, e) end
+    lastCount = nil
+    add("resume", "after reload")
+    U.Print("Fishing recorder goes on (" .. #rec.e .. " entries so far) · /gem probe fish off")
+    return
+  end
   ns.db.fishLog = { at = date("%Y-%m-%d %H:%M"), server = serverNow(), auto = auto or nil, e = {} }
   rec = ns.db.fishLog
   for _, e in ipairs(EVENTS) do pcall(f.RegisterEvent, f, e) end
@@ -174,6 +199,7 @@ end
 function FP.Stop(quiet)
   if not rec then return end
   add("stop", "entries " .. #rec.e)
+  rec.stopped = true
   rec = nil
   f:UnregisterAllEvents()
   if not quiet then U.Print("Fishing recorder OFF – thank you! Saved for the developer (logout or /reload writes it).") end
@@ -226,7 +252,7 @@ ns.Export.Add("Fishing recorder", function()
   if not log then return { "nothing recorded" } end
   local out = { "started " .. log.at .. (log.auto and " (auto)" or "") }
   for _, e in ipairs(log.e) do
-    out[#out + 1] = e.st .. " " .. e.k .. ": " .. e.a .. (e.b and (" | " .. e.b) or "") .. (e.c and (" | " .. e.c) or "") .. " [" .. tostring(e.map) .. "]"
+    out[#out + 1] = e.st .. " " .. e.k .. ": " .. e.a .. (e.b and (" | " .. e.b) or "") .. (e.c and (" | " .. e.c) or "") .. " [" .. sv(e.map) .. "]"
   end
   return out
 end)
