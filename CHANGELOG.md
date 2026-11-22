@@ -1,5 +1,10 @@
 # GuildEventManager
 
+## 0.8.3 (2026-11-22)
+
+### New (test tool)
+- **Fishing recorder** for the Stranglethorn Fishing Extravaganza: `/gem probe fish` notes what the game tells addons during the tournament (announcements, fishing loot, turn-ins, honor kills, enemies fishing). It starts by itself on Sundays 13:30–17:30 server time in Stranglethorn Vale and stops after four hours; `/gem probe fish off` stops it. The record is in `/gem export` ("Fishing recorder"). Used to build the fishing plugin.
+
 ## 0.8.2 (2026-11-21)
 
 ### Fixed

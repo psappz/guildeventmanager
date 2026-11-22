@@ -8,7 +8,7 @@
 ## Notes-itIT: Modulo PvE per GuildEventManager: incursioni con ruoli, doppia specializzazione, formazione con trascinamento, panoramica dei potenziamenti, serata raid e importazione Raid-Helper.
 ## Notes-ptBR: Módulo JxA para o GuildEventManager: raides com funções, especialização dupla, formação arrastando, visão dos bônus, noite de raide e importação do Raid-Helper.
 ## Author: psappz
-## Version: 0.8.2
+## Version: 0.8.3
 ## Dependencies: GuildEventManager
 ## IconTexture: Interface\AddOns\GuildEventManager\Media\GuildEventManagerIcon
 ## X-License: MIT
