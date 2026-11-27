@@ -34,11 +34,53 @@ function U.TryAll(fn, ...)
   return dropStatus(pcall(fn, ...))
 end
 
+-- Scope of the storage keys: region, plus "-HC" on hardcore. Forever has no
+-- realms; names of guilds and characters are unique per region and ruleset.
+-- (A ruleset query does not exist; GetRealmName is empty on Forever.)
+local REGIONS = { [1] = "US", [2] = "KR", [3] = "EU", [4] = "TW", [5] = "CN" }
+function U.Scope()
+  local r
+  if GetCurrentRegionName then
+    local ok, v = pcall(GetCurrentRegionName)
+    if ok and type(v) == "string" and v ~= "" then r = v:upper() end
+  end
+  if not r and GetCurrentRegion then
+    local ok, v = pcall(GetCurrentRegion)
+    if ok then r = REGIONS[tonumber(v) or 0] end
+  end
+  local db = _G.GuildEventManagerDB
+  if not r then return type(db) == "table" and db.scope or nil end
+  if C_GameRules and C_GameRules.IsHardcoreActive then
+    local ok, hc = pcall(C_GameRules.IsHardcoreActive)
+    if ok and hc == true then r = r .. "-HC" end
+  end
+  if type(db) == "table" and db.scope ~= r then db.scope = r end
+  return r
+end
+
+-- Storage key of this character: "Name Second@EU"
 function U.CharKey()
   local n, second = UnitName("player")
   local name = (n or "?") .. ((second and second ~= "") and (" " .. second) or "")
-  local realm = (GetNormalizedRealmName and GetNormalizedRealmName()) or GetRealmName() or "?"
-  return name .. "-" .. realm
+  local sc = U.Scope()
+  return sc and (name .. "@" .. sc) or name
+end
+
+-- Unit queries that may return "secret" values (in battlegrounds, arenas and
+-- combat on Forever 1.60): comparing or testing a secret raises an error.
+-- U.UnitTrue(fn, ...) is true only for a readable true; U.UnitVal returns the
+-- first value, or nil when it is secret or the call fails.
+local function isSecret(v) return issecretvalue and issecretvalue(v) or false end
+U.IsSecret = isSecret
+function U.UnitVal(fn, ...)
+  if type(fn) ~= "function" then return nil end
+  local ok, v = pcall(fn, ...)
+  if not ok or isSecret(v) then return nil end
+  return v
+end
+function U.UnitTrue(fn, ...)
+  local v = U.UnitVal(fn, ...)
+  return v == true or (v ~= nil and v ~= false and type(v) ~= "boolean" and true) or false
 end
 
 function U.IsAddOnLoaded(name)
@@ -109,6 +151,7 @@ function ns.Schedule(name, delay, fn)
 end
 
 function ns.Unschedule(name) due[name] = nil end
+function ns.Pending(name) return due[name] ~= nil end
 
 ---------------------------------------------------------------------------
 -- Names: Forever writes characters as "First Last" in some logs and as
@@ -162,4 +205,15 @@ function U.Copy(t)
   local c = {}
   for k, v in pairs(t) do c[k] = U.Copy(v) end
   return c
+end
+
+-- The GP coin as an inline texture for text; it takes the height of the font.
+-- big: the detailed 64 px coin for large numbers, else the plain 32 px one.
+function U.Coin(big)
+  return "|TInterface\\AddOns\\GuildEventManager\\Media\\" .. (big and "gp_coin" or "gp_coin_small") .. ":0|t"
+end
+
+-- a small gold dot for small GP numbers (lists), where a coin would be too busy
+function U.Dot()
+  return "|TInterface\\AddOns\\GuildEventManager\\Media\\gp_dot:0|t"
 end

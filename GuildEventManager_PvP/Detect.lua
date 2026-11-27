@@ -18,34 +18,38 @@ local lastHK = nil        -- session honorable kills at the last check
 local honorLines = {}     -- victim names from the honor chat line { name, t }
 local reminded = {}       -- debt id -> GetTime() of the last reminder
 
+-- guild members in the own group or raid, oneself included (0.9, "Shoulder to Shoulder")
+function P.GuildInGroup()
+  local n = 1
+  local raid = IsInRaid and IsInRaid()
+  local count = (GetNumGroupMembers and GetNumGroupMembers()) or 0
+  if count <= 1 then return nil end
+  for i = 1, count do
+    local unit = raid and ("raid" .. i) or (i < count and ("party" .. i) or nil)
+    if unit and not (UnitIsUnit and UnitIsUnit(unit, "player")) then
+      local ok, inGuild = pcall(UnitIsInMyGuild, unit)
+      if ok and inGuild == true then n = n + 1 end
+    end
+  end
+  return n
+end
+
 local function secret(v) return issecretvalue and issecretvalue(v) or false end
--- unit queries can return secret values (battlegrounds, arenas, combat):
--- comparing or testing them raises an error, so only a readable true counts
-local function utrue(fn, ...)
-  if type(fn) ~= "function" then return false end
-  local ok, v = pcall(fn, ...)
-  if not ok or secret(v) then return false end
-  return v and true or false
-end
-local function uval(fn, ...)
-  if type(fn) ~= "function" then return nil end
-  local ok, v = pcall(fn, ...)
-  if not ok or secret(v) then return nil end
-  return v
-end
 
 local function unitName(unit)
   local ok, n, second = pcall(UnitName, unit)
-  if not ok or not n or secret(n) then return nil end
+  if not ok then return nil end
+  if not n or secret(n) then return nil end
   if second and second ~= "" and not secret(second) then return n .. " " .. second end
   return n
 end
 
+-- (unit queries can return secret values in battlegrounds: U.UnitTrue/UnitVal)
 local function isEnemyPlayer(unit)
-  if not utrue(UnitExists, unit) or not utrue(UnitIsPlayer, unit) then return false end
-  local f = uval(UnitFactionGroup, unit)
-  if not f then return utrue(UnitIsEnemy, "player", unit) end
-  local mine = uval(UnitFactionGroup, "player")
+  if not U.UnitTrue(UnitExists, unit) or not U.UnitTrue(UnitIsPlayer, unit) then return false end
+  local f = U.UnitVal(UnitFactionGroup, unit)
+  if not f then return U.UnitTrue(UnitIsEnemy, "player", unit) end
+  local mine = U.UnitVal(UnitFactionGroup, "player")
   return f ~= mine and (f == "Horde" or f == "Alliance")
 end
 
@@ -166,7 +170,7 @@ function P.OnKill(name, kind, source)
     return
   end
   k.honor = k.honor + r.kill
-  Pts.AddSelf("honor", r.kill, "kill", { note = victim, zone = zone })
+  Pts.AddSelf("honor", r.kill, "kill", { note = victim, zone = zone, grp = P.GuildInGroup and P.GuildInGroup() or nil })
   if not (core.db and core.db.pvpQuiet) then U.Print(L.PVP_KILL:format(r.kill, victim)) end
 end
 
@@ -221,7 +225,7 @@ end
 -- enemy we saw dead and then see alive again is taken off the list.
 local deadSeen = {}
 local function confirmTarget(d)
-  local name = utrue(UnitExists, "target") and deadEnemyName("target")
+  local name = UnitExists("target") and deadEnemyName("target")
   if name and name == d.name then d.tgt = true; d.suspect = nil
   else d.suspect = true end   -- gone from the target right after "dying": Feign Death
 end
@@ -294,13 +298,13 @@ end
 -- what the module saw at the last kills (for /gem pvpcheck and /gem export)
 P.killDiag = {}
 local function diagKill(source, name)
-  local t = utrue(UnitExists, "target")
+  local t = U.UnitTrue(UnitExists, "target")
   local ok, dead = pcall(UnitIsDeadOrGhost, "target")
   local n
   if t then n = select(2, pcall(UnitName, "target")) end
   table.insert(P.killDiag, 1, {
     at = date("%H:%M:%S"), source = source, name = name,
-    target = t and true or false, player = t and utrue(UnitIsPlayer, "target") or false,
+    target = t and true or false, player = t and U.UnitTrue(UnitIsPlayer, "target") or false,
     dead = (ok and secret(dead)) and "<secret>" or (ok and dead) or false,
     nameSecret = secret(n), cached = targetName, seen = #deadSeen, feigned = P.feignSeen or 0,
   })
@@ -352,6 +356,8 @@ local function seeUnit(unit)
   if (UnitAffectingCombat and UnitAffectingCombat("player")) or unit == "target" then
     lastEnemy = { name = name, t = GetTime() }
   end
+  -- what we know about him (race, class, level, where): for the WANTED posters
+  if P.NoteEnemy then core.SafeCall("pvpNoteEnemy", P.NoteEnemy, unit, name) end
   -- wanted enemies (bounty, blood debt, oath, watch list): alarm window
   if P.CheckWanted then P.CheckWanted(unit, name) end
 end
@@ -364,7 +370,7 @@ local function scanAttackers()
   for _, plate in ipairs(plates) do
     local unit = plate.namePlateUnitToken or (plate.UnitFrame and plate.UnitFrame.unit)
     if unit and isEnemyPlayer(unit) then
-      if utrue(UnitIsUnit, unit .. "target", "player") then
+      if U.UnitTrue(UnitIsUnit, unit .. "target", "player") then
         local name = unitName(unit)
         if name then lastEnemy = { name = name, t = GetTime() } end
       end

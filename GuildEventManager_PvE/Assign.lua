@@ -11,7 +11,8 @@ local U, G, E = core.U, core.Guild, core.Events
 local L = R.L
 
 R.A_BLESS = {
-  { id = "kings", sp = 20217 }, { id = "might", sp = 19740 }, { id = "wisdom", sp = 19742 },
+  -- gsp: Greater Blessing (one class at a time – what the assignment is about)
+  { id = "kings", sp = 20217, gsp = 25898 }, { id = "might", sp = 19740, gsp = 25782 }, { id = "wisdom", sp = 19742, gsp = 25894 },
 }
 R.A_AURA = {
   { id = "devotion", sp = 465 }, { id = "retribution", sp = 7294 }, { id = "concentration", sp = 19746 },
@@ -53,7 +54,7 @@ end
 function R.AName(list, id)
   local o = find(list, id)
   if not o then return nil end
-  return spellName(o.sp) or text("RAID_A_" .. id) or id
+  return spellName(o.gsp) or spellName(o.sp) or text("RAID_A_" .. id) or id
 end
 -- short label for the narrow table cells
 function R.AShort(kind, id)

@@ -219,7 +219,8 @@ local function refresh(p)
 end
 
 UI.RegisterView("settings", {
-  label = function() return L.TAB_SETTINGS end,
+  label = function() return L.SET_GENERAL end,
+  group = "guild",
   build = build,
   refresh = refresh,
 })

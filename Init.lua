@@ -4,12 +4,86 @@ local U, G, C, P, E = ns.U, ns.Guild, ns.Comm, ns.Profile, ns.Events
 ns.VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON, "Version"))
   or (GetAddOnMetadata and GetAddOnMetadata(ADDON, "Version")) or "0.1.0"
 
+-- WoW Forever has no realms any more (mega realms per region and ruleset): the
+-- realm the client reports is "CAMWOWEU5Realm4PvP", "CAMWOW EU5 Realm 4 PvP",
+-- "" or nothing. Up to 0.9.0 the stores were keyed by it ("Guild@Realm",
+-- "Name-Realm"), and every spelling got its own store, so points, bounties and
+-- settings seemed to vanish. From 0.9.0 keys carry no realm: fold all old
+-- spellings into one, the fullest first.
+local function isArray(t) return t[1] ~= nil end
+local function deepMerge(dst, src)
+  for k, v in pairs(src) do
+    local d = dst[k]
+    if d == nil then dst[k] = v
+    elseif type(d) == "table" and type(v) == "table" and not isArray(d) and not isArray(v) then deepMerge(d, v) end
+  end
+end
+local function size(t, depth)
+  if type(t) ~= "table" then return 0 end
+  local n = 0
+  for _, v in pairs(t) do
+    n = n + 1
+    if depth > 0 then n = n + size(v, depth - 1) end
+  end
+  return n
+end
+-- current keys end in "@<scope>" (EU, EU-HC, US, …); everything else for the
+-- same name is an old spelling: "Name", "Name@Realm", "Name-Realm"
+local SCOPES = { US = true, KR = true, EU = true, TW = true, CN = true }
+local function isScope(sx) return sx and SCOPES[(sx:gsub("%-HC$", ""))] == true end
+local function baseOf(key, dash)
+  key = tostring(key)
+  local b, sx = key:match("^(.*)@(.*)$")
+  if b then return b, sx end
+  b = dash and key:match("^(.*)%-[^%-]*$")
+  if b then return b, nil end
+  return key, nil
+end
+local function fold(tbl, scope, dash)
+  if type(tbl) ~= "table" then return 0 end
+  local groups = {}
+  for key in pairs(tbl) do
+    local base, sx = baseOf(key, dash)
+    if base ~= "" and not isScope(sx) then
+      groups[base] = groups[base] or {}
+      table.insert(groups[base], key)
+    end
+  end
+  local n = 0
+  for base, keys in pairs(groups) do
+    local target = base .. "@" .. scope
+    table.sort(keys, function(x, y) return size(tbl[x], 2) > size(tbl[y], 2) end)
+    for _, key in ipairs(keys) do
+      if key ~= target then
+        local from, to = tbl[key], tbl[target]
+        if to == nil then tbl[target] = from
+        elseif type(to) == "table" and type(from) == "table" then deepMerge(to, from) end
+        tbl[key] = nil
+        n = n + 1
+      end
+    end
+  end
+  return n
+end
+function ns.FoldRealms(db)
+  if type(db) ~= "table" then return 0 end
+  local scope = U.Scope()
+  if not scope then return 0 end
+  local n = fold(db.guilds, scope) + fold(db.markers, scope) + fold(db.chars, scope, true)
+  for _, c in pairs(db.chars or {}) do
+    if type(c) == "table" then n = n + fold(c.seenAch, scope) end
+  end
+  db.realm, db.realmName = nil, nil
+  return n
+end
+
 local function initDB()
   GuildEventManagerDB = GuildEventManagerDB or {}
   local db = GuildEventManagerDB
   db.guilds = db.guilds or {}
   db.minimap = db.minimap or {}
   db.chars = db.chars or {}
+  ns.FoldRealms(db)
   db.chars[U.CharKey()] = db.chars[U.CharKey()] or {}
   ns.db = db
   ns.char = db.chars[U.CharKey()]
@@ -79,7 +153,8 @@ SlashCmdList.GUILDEVENTMANAGER = function(msg)
   elseif cmd == "ach" or cmd == "achievements" or cmd == "erfolge" then ns.SafeCall("open", ns.UI.Show, "ach")
   elseif cmd == "plaque" or cmd == "plakette" then
     local f = rest:lower()
-    ns.SafeCall("plaque", ns.Plaque.Test, f:find("^al") and "alliance" or f:find("^ho") and "horde" or nil)
+    if f:find("^gu") or f:find("^gi") then ns.SafeCall("plaque", ns.Plaque.TestGuild)   -- /gem plaque guild
+    else ns.SafeCall("plaque", ns.Plaque.Test, f:find("^al") and "alliance" or f:find("^ho") and "horde" or nil) end
   elseif cmd == "status" then
     for _, l in ipairs(ns.Minimap.StatusLines()) do U.Print(l[1]) end
     U.Print(ns.Family.Line(ns.L.FAMILY))
@@ -131,6 +206,7 @@ function handlers.GUILD_ROSTER_UPDATE()
   ns.Schedule("gemRosterRead", 0.5, function()
     G.ReadRoster()
     ns.CheckActivation()
+    ns.Fire("ROSTER_READ")
     if not ns.actPoll then ns.actPoll = true; ns.Schedule("gemActPoll", 60, pollActivation) end
   end)
 end

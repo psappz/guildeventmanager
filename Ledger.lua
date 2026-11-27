@@ -41,7 +41,8 @@ function Lg.Text(e)
 end
 
 -- Core: event points and achievement points
-local WHY = { participate = "LEDGER_PARTICIPATE", lead = "LEDGER_LEAD", goal = "LEDGER_GOAL", manual = "LEDGER_MANUAL", revert = "LEDGER_REVERT" }
+local WHY = { participate = "LEDGER_PARTICIPATE", lead = "LEDGER_LEAD", goal = "LEDGER_GOAL", manual = "LEDGER_MANUAL", revert = "LEDGER_REVERT",
+  place = "LEDGER_PLACE", bonus = "LEDGER_BONUS" }
 Lg.AddFormat("core", {
   label = function() return ns.L.LEDGER_TAG_EVENTS end,
   match = function(e) return e.pot == "event" or e.pot == "ach" end,

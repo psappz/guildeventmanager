@@ -84,7 +84,76 @@ Name the folder `GuildEventManager_<Name>` so it is sorted next to the core in t
 
 ## 3. API reference
 
-`GuildEventManagerAPI` (short: `API`). `API.version` is `6`. New functions raise the version; existing functions keep their behaviour. Declare the lowest version that has everything you use (see [section 6](#6-api-changes)), e.g. `requires = { api = 1 }` keeps your module working with older cores.
+`GuildEventManagerAPI` (short: `API`). `API.version` is `7`. New functions raise the version; existing functions keep their behaviour. Declare the lowest version that has everything you use (see [section 6](#6-api-changes)), e.g. `requires = { api = 1 }` keeps your module working with older cores.
+
+### API 7 (GuildEventManager 0.9) – what is new for modules
+
+Everything below needs `requires = { api = 7 }`. The working example for an outside module is **GuildEventManager_Fishing**: it uses only the public API (no `API.core`).
+
+**Module definition – new fields**
+
+```lua
+API.RegisterModule({
+  id = "mymod", nameKey = "MY_MOD", version = 1, requires = { api = 7 },
+  addon = "GuildEventManager_MyModule",          -- folder name: version check and "newer version in the guild"
+  about = { descKey, points = { keys }, get = "CurseForge: GuildEventManager MyModule" },  -- info card for the guild
+  areas = { "pvp", "pve" },                       -- event types with `area` stay locked until the guild master unlocks them
+  eventTypes = { ... },
+  guildAchievements = { ... },                    -- see below
+  rules = { ... },                                -- guild-wide defaults (API.GetRules / API.SetRules)
+})
+```
+
+**Modules of the guild.** A module counts as part of the guild as soon as the guild master or an event manager has it installed: his client writes it into the guild profile with name, description and where to get it. Members without the module get one notice and may say "not interested". `API.ModuleKnown(id)`, `API.IsInterested(id)`.
+
+**Event types – new fields**
+
+| Field | |
+|---|---|
+| `settings = { { id, kind, labelKey, default, min, max, options, showIf = fn(values) } }` | Settings of the event leader per event (kinds `choice`, `multi`, `number`, `check`, `text`, `time`, `date`); `options` may be a function. Read them with `API.EventSettings(e)` (defaults filled in). |
+| `canSignUp(e, key) -> ok, reason, hints` | Third return value: yellow hints instead of a block. |
+| `rules = fn(e) -> { { icon, title, text } }` | "How it works" cards in the event and under "?". |
+| `reminders = { { before = seconds, textKey, checklist = { keys } } }` | Own reminders with a checklist. |
+| `repeatDefault = { every = "week" }` | Recurring events: the editor starts with this. |
+| `contest = { rank, ties, places, target, window, format, goal }` | Contest with live standings (below). |
+| `group = "teams"` | Teams tab in the event (below). |
+| `area = "pvp" \| "pve"` | Locked until the guild master unlocks the area of the module (0.9). |
+| `holiday = "id"` | Can be created only from `lead` days before the holiday until its end (0.9). |
+
+**Contests.** `contest = { rank = "high"|"low", ties = "shared"|"first", places = { p1, p2, p3 } | fn(e), target = n | fn(e), window = fn(e) -> from, to, format = fn(v) }`. Every client writes only its own score: `API.SetScore(e, v)`, `API.AddScore(e, d)`; `API.Standings(e)` → `{ { key, value, at, place, bonus } }`. Counting ends at the end of the window, when someone reaches `target` (scores reached later are ignored), or with `API.EndContest(e, reason)`. The event leader sends the final result (referee); `API.SuggestBonus(e, name, points, reasonKey)` proposes extra GP. `API.ContestRunning(e)`, `API.ContestEnded(e)`, `API.ShowStandings(e)`.
+- **Shared goal:** `contest.goal = { target, reward, groupBonus }` – everybody counts towards one target; reached: every participant gets `reward`, the best group (teams, else raids, else groups 1–8) `groupBonus`. `API.ContestTotal(e)`, `API.ContestGroups(e)`, `API.GoalReached(e)`.
+- **Report end:** a participant reports an end his client may have missed (`API.ReportEnd(e, reason)`); counting stops for everyone until the leader confirms (`API.ConfirmEnd(e)`) or lets it go on (`API.ResumeContest(e)`). `API.EndPending(e)`.
+
+**Teams.** `API.Teams(e)`, `API.TeamOf(e, name)`, `API.TeamStandings(e)` (sum of the members), `API.ShowTeams(e)`. Callback `TEAMS_CHANGED`.
+
+**Game watcher.** `API.OnGame(kind, fn, moduleId) -> handle`, `API.OffGame(handle)`. The core registers game events only while somebody listens, drops duplicates and checks every value WoW Forever may hide (secret values arrive as `nil`, never as an error).
+
+| Kind | `fn(x)` gets |
+|---|---|
+| `fishloot` | `{ item, qty, name, zone, sub, map, at }` one per item of a fishing loot |
+| `loot` | `{ item, qty, name, fishing, pushed, zone, map, at }` (from the own loot chat line) |
+| `itemcount` | `{ item, count, prev, at }` for items watched with `API.WatchItem(id)` |
+| `questdone` | `{ id, xp, money, at }` |
+| `npcsay` | `{ npc, text, chat = "yell"\|"say"\|"emote"\|"boss", zone, map, at }` |
+| `system` | `{ text, at }` |
+| `pvpkill` | `{ victim, zone, map, at }` honorable kill (victim nil if unreadable) |
+| `zone` | `{ zone, sub, map, at }` |
+| `spellcast` | `{ spell, target, zone, map, at }` own successful cast, `target` = the name it was aimed at (0.9) |
+
+Helpers: `API.ItemCount(id)`, `API.ZoneIs(mapId or name)`, `API.MapID()`.
+
+**Guild achievements.** `guildAchievements = { { id, nameKey, descKey, icon, tiers = { bronze, silver, gold [, legendary] }, stat = fn(ctx, def, from, to) -> { { ts, add, who } } } }`. `ctx.events` holds the finished events (`{ id, ts, type, att = { person = true }, n, leaders, ev }`). Every step earns a trophy. `API.GuildAchievements()`, `API.GuildProgress(id)`, `API.Trophies()`, callback `GUILD_ACHIEVEMENT_EARNED`.
+
+**Person instead of character.** A member's main and twinks are one person: `API.MainOf(key)`, `API.Person(key)` → `{ main, chars, source }`, callback `PERSONS_CHANGED`. Count per person.
+
+**Areas (0.9).** `areas = { "pvp", "pve" }` on the module, `area = "pvp"` on an event type. The guild master installs the whole module and unlocks the areas he wants (Settings → Modules); types without area are always open. `API.Areas(moduleId)`, `API.AreaUnlocked(moduleId, area)`, `API.SetAreaUnlocked(moduleId, area, on)` (guild master only), `API.TypeOpen(typeId)`. Only creating is checked – events that arrive from others stay valid.
+
+**Holidays (0.9).** `API.AddHoliday({ id, nameKey, from = { month, day }, to = { month, day }, lead = 14, icon })` in realm time (`to` may lie in the next year). `API.Holiday(id)` → `{ id, name, start, finish, active, soon, days, moved }` of the current or next occurrence, `API.HolidayActive(id)`, `API.SetHolidayDates(id, from, to)` (managers; `nil, nil` = back to the module's dates), `API.RealmTime(y, m, d, h, mi)`.
+
+**Members (0.9).** `API.MemberInfo(name)` → `{ key, name, rank, rankIndex, level, class, online, offDays }`, `API.RankNames()`, `API.IsGuildMaster()`, `API.IsLeadership(name)` (guild master plus the ranks of the function "lead"), `API.IsBankChar(name)`, `API.OpenInGuild(name)` (Blizzard's guild window with the member – addons cannot set ranks on Forever).
+
+**More helpers.** `API.Storage(id)` / `API.CharStorage(id)` (saved per account / per character), `API.FloatingWindow(id, opts)`, `API.MemberLevel(name)`, `API.ServerClock()`, `API.NextServerTime(weekday, "HH:MM")`, `API.FormatTime(ts, style)`, `API.SendOfficer(id, kind, data)` (only ranks that may read the officer chat), `API.Alert(text, opts)`, `API.AlertGuild`, `API.AlertEvent`, `API.OpenEvent(e, tab)`, `API.NewEvent(typeId, fields)`, `API.EventSettings(e)`, `API.AddHelp(viewId, fn)`.
+
 
 ### Modules
 
@@ -282,6 +351,20 @@ Every change to `GuildEventManagerAPI` and `GuildEventManagerAPI.PvP`, newest fi
 - Ledger entries, achievement ids and message kinds of a released module are never reused with another meaning: old entries in the guild ledger stay readable.
 - Before 1.0 (0.x betas) the same rules apply as far as possible; breaking changes, if unavoidable, are listed here with a migration note.
 
+### API 7 · PvP API 4 – 0.9.0
+
+- **Modules of the guild:** catalogue in the guild profile, info card, "not interested", version notices; module fields `addon`, `about`.
+- **Event types:** `settings` (event leader settings, `API.EventSettings`), third return value of `canSignUp` (hints), `rules`, `reminders`, `repeatDefault`, `contest` (with `goal`), `group = "teams"`, `area`, `holiday`.
+- **Contests, teams, report end, shared goal:** see *API 7* in section 3.
+- **Game watcher:** `API.OnGame` with the kinds `fishloot`, `loot`, `itemcount`, `questdone`, `npcsay`, `system`, `pvpkill`, `zone`, `spellcast`; `API.WatchItem`, `API.ItemCount`, `API.ZoneIs`, `API.MapID`.
+- **Guild achievements of modules** (`guildAchievements`) and trophies; `API.GuildAchievements`, `API.GuildProgress`, `API.Trophies`.
+- **Person instead of character:** `API.MainOf`, `API.Person`, callback `PERSONS_CHANGED`. GP, rankings and achievements count per person.
+- **Areas and holidays:** `areas`, `API.AreaUnlocked`, `API.SetAreaUnlocked`, `API.TypeOpen`; `API.AddHoliday`, `API.Holiday`, `API.HolidayActive`, `API.SetHolidayDates`, `API.RealmTime`.
+- **Members:** `API.MemberInfo`, `API.RankNames`, `API.IsGuildMaster`, `API.IsLeadership`, `API.IsBankChar`, `API.OpenInGuild`.
+- **Storage and helpers:** `API.Storage`, `API.CharStorage`, `API.FloatingWindow`, `API.MemberLevel`, `API.ServerClock`, `API.NextServerTime`, `API.FormatTime`, `API.SendOfficer`, `API.Alert*`, `API.OpenEvent`, `API.NewEvent`.
+- **Contests:** a score reached after counting ended is ignored when it arrives (places 2 and 3 stand as at the moment of the win).
+- **Profile:** the module areas (`areas`) are guild master only, like the ranks with event rights.
+
 ### API 6 · PvP API 4 – 0.8.0
 
 - **Event types:** `minLevel` (default lowest level, number or function), `remind` (the editor's reminder checkbox starts ticked), `canSignUp(e, key) -> ok, reason` (may this character say yes; declining is always allowed), `pointsFactor(e, key) -> number` (multiplies the points for taking part). See *Event types* in section 3.
@@ -360,10 +443,15 @@ Why: "Mak'gora" means a duel to the death in WoW Hardcore. Our duel of honor is 
 
 ## Known modules
 
+
 - **GuildEventManager_PvE** (in the package): raids. `GuildEventManagerAPI.pve` gives `Player(e, key, boss)`, `Lineup(e, boss)`, `Group(e, g, boss)`, `Coverage(e, boss)`, `Spec(key)`, `ExportText(e)` for modules that build on raids.
 
 | Module | Author | |
 |---|---|---|
 | GuildEventManager_PvP | psappz | ships with the core |
+| GuildEventManager_Fishing | psappz | fishing contests: guild scoring at the Stranglethorn tournament, own contest, PvP teams, Anglergeddon – the example of a module built only on the public API |
+| GuildEventManager_Holidays | psappz | Winter Veil, Lunar Festival, Love is in the Air, with PvP/PvE areas |
+| GuildEventManager_Management | psappz | member files, activity, promotion suggestions, voluntary details |
+| GuildEventManager_Marketplace | psappz | book of professions, guild stock (guild bank, bank characters) |
 
 *Your module here – open an issue.*

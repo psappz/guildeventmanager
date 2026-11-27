@@ -14,10 +14,23 @@ P.DEFAULTS = {
   managerRankName = nil,
   managerHigher = true,     -- higher ranks included
   raidRank = 1,             -- lowest rank index that may create raids (1 = the rank below the guild master)
+  twinkRankAuto = true,     -- put recognised twinks into the guild rank twinkRank (0.9)
+  twinkRank = "Twink",      -- name of that rank (nothing happens if the guild has no such rank)
+  inactiveOn = true,        -- inactive members get the rank inactiveRank (0.9)
+  inactiveRank = "Inaktiv",
+  inactiveDays = 30,        -- a person (all characters) offline this long is inactive
+  officerTwinkRank = "Offizierstwink", -- twinks whose main belongs to the guild leadership
+  purgeOn = true,           -- suggest removing persons offline purgeDays (0.9)
+  purgeDays = 90,
+  leadRanks = { 1 },        -- guild leadership besides the guild master (rank indexes); only the GM changes it
+  bankChars = {},           -- bank characters: { key = true }, ranks and purge leave them alone
+  managerCap = 100,         -- most GP per entry a manager may book without the guild master (0 = no limit)
   season = "month",         -- "2weeks" | "month" | "quarter"
   pts = { participate = 10, goal = 5, lead = 15, leadMin = 5 },
   banner = { 1000, 3000, 6000 },  -- thresholds for banner levels 2, 3, 4 (honor + event points, last 28 days)
   typesKnown = {},
+  areas = {},               -- unlocked module areas (0.9): { module = { pvp = true, pve = true } }, guild master only
+  holidays = {},            -- holiday dates moved by the guild (0.9): { id = { from = { m, d }, to = { m, d } } }
 }
 
 ---------------------------------------------------------------------------
@@ -63,7 +76,13 @@ function P.Update(fn)
   if not G.IsManager() then U.Print(ns.L.NO_RIGHTS); return false end
   local p = P.Get()
   local oldRank, oldHigher, oldRaid = p.managerRank, p.managerHigher, p.raidRank
+  local oldAreas = U.Copy(p.areas or {})
   fn(p)
+  -- module areas (0.9): guild master only
+  if not G.IsLeader() and ns.Catalog and not ns.Catalog.SameAreas(oldAreas, p.areas) then
+    p.areas = oldAreas
+    U.Print(ns.L.AREA_ONLY_GM)
+  end
   if not G.IsLeader() and (p.managerRank ~= oldRank or p.managerHigher ~= oldHigher or p.raidRank ~= oldRaid) then
     p.managerRank, p.managerHigher, p.raidRank = oldRank, oldHigher, oldRaid
     U.Print(ns.L.ONLY_GM_RANK)
@@ -96,9 +115,26 @@ C.On("PROF", function(data, from)
   if not s then return end
   local old = P.Get()
   if (tonumber(new.v) or 0) <= (old.v or 0) then return end
-  if not G.IsManager(from) then return end
-  -- only the guild master may change who holds event rights
-  if G.RankOf(from) ~= 0 and (new.managerRank ~= old.managerRank or new.managerHigher ~= old.managerHigher or new.raidRank ~= old.raidRank) then return end
+  if not G.IsManager(from) and not G.IsLead(from) then return end
+  -- only the guild master may change who holds event rights and who leads the guild
+  local function same(a, b)
+    a, b = a or {}, b or {}
+    if #a ~= #b then return false end
+    for i = 1, #a do if a[i] ~= b[i] then return false end end
+    return true
+  end
+  local function leadOf(pr)
+    if type(pr.struct) == "table" and type(pr.struct.funcs) == "table" then
+      for _, f in ipairs(pr.struct.funcs) do
+        if f.base == "lead" then local t = U.Copy(f.ranks or {}); table.sort(t); return t end
+      end
+    end
+    return pr.leadRanks
+  end
+  if G.RankOf(from) ~= 0 and (not same(new.leadRanks, old.leadRanks) or not same(leadOf(new), leadOf(old))) then return end
+  if G.RankOf(from) ~= 0 and (new.managerRank ~= old.managerRank or new.managerHigher ~= old.managerHigher or new.raidRank ~= old.raidRank
+    or (new.managerCap or 100) ~= (old.managerCap or 100)) then return end
+  if G.RankOf(from) ~= 0 and ns.Catalog and not ns.Catalog.SameAreas(new.areas, old.areas) then return end
   s.profile = new
   P.Get()
   ns.Fire("PROFILE_CHANGED")
@@ -115,8 +151,13 @@ function P.Hello()
   local evMax, lgMax = 0, 0
   for _, e in pairs(s.events) do evMax = math.max(evMax, e.upd or 0) end
   for _, e in pairs(s.ledger) do lgMax = math.max(lgMax, e.ts or 0) end
-  C.Send("HELLO", { pv = P.Get().v or 0, ev = evMax, lg = lgMax })
+  C.Send("HELLO", { pv = P.Get().v or 0, ev = evMax, lg = lgMax, ps = ns.Persons and ns.Persons.MaxV() or 0, vs = ns.Catalog and ns.Catalog.Versions() or nil })
 end
+
+-- versions of the sender (API 7): everybody looks, an older client is told ours
+C.On("HELLO", function(data, from)
+  if ns.Catalog and ns.Catalog.SeeVersions(data.vs, from) then ns.Catalog.MaybeTell() end
+end)
 
 C.On("HELLO", function(data, from)
   if not G.IsManager() then return end

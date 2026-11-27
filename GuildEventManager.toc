@@ -8,8 +8,8 @@
 ## Notes-itIT: Pianifica e gestisci gli eventi di gilda in WoW Forever: punti evento, onore di gilda, imprese di gilda e un punteggio totale per tutta la gilda.
 ## Notes-ptBR: Planeje e conduza eventos da guilda no WoW Forever: pontos de evento, honra da guilda, conquistas da guilda e uma pontuação total para a guilda inteira.
 ## Author: psappz
-## Version: 0.8.4
-## IconTexture: Interface\AddOns\GuildEventManager\Media\GuildEventManagerIcon
+## Version: 0.9.0
+## IconTexture: Interface\AddOns\GuildEventManager\Media\gp_coin
 ## AddonCompartmentFunc: GuildEventManager_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: GuildEventManager_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: GuildEventManager_OnAddonCompartmentLeave
@@ -30,6 +30,17 @@ Locales\ptBR.lua
 Locales\Core07.lua
 Locales\Invite07.lua
 Locales\Help07.lua
+Locales\Api07.lua
+Locales\Calendar09.lua
+Locales\Award09.lua
+Locales\Persons09.lua
+Locales\Ranks09.lua
+Locales\Struct09.lua
+Locales\Teams09.lua
+Locales\GuildAch09.lua
+Locales\Holidays09.lua
+Locales\Help09.lua
+Locales\Deeds09.lua
 Util.lua
 Family.lua
 Theme.lua
@@ -37,27 +48,51 @@ Guild.lua
 Comm.lua
 Modules.lua
 Profile.lua
+Persons.lua
+Struct.lua
+Ranks.lua
 Points.lua
 Achievements.lua
+GuildAch.lua
 Events.lua
 Ledger.lua
+Deeds.lua
 Notices.lua
+Catalog.lua
+Holidays.lua
+Contest.lua
+Teams.lua
+Game.lua
+Series.lua
+Reminders.lua
 Plaque.lua
 Widgets.lua
 UI_Main.lua
+UI_Calendar.lua
 UI_GuildBanner.lua
 UI_Home.lua
 UI_Events.lua
+UI_Teams.lua
 UI_Invite.lua
 UI_Banner.lua
+UI_Trophies.lua
 UI_Achievements.lua
 UI_Ledger.lua
+UI_Award.lua
+UI_Persons.lua
+UI_Ranks.lua
+UI_Members.lua
+UI_Struct.lua
+UI_Org.lua
 UI_Settings.lua
 UI_Help.lua
+UI_Float.lua
+UI_Modules.lua
 Demo.lua
 Export.lua
 Probe.lua
 FishProbe.lua
+ModelProbe.lua
 Tabard.lua
 UI_Minimap.lua
 API.lua

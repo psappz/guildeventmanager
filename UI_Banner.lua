@@ -20,8 +20,9 @@ local function awardDialog(key)
     local amt, note = (txt or ""):match("^%s*(%-?%d+)%s*(.-)%s*$")
     amt = tonumber(amt)
     if not amt or amt == 0 then U.Print(L.AWARD_BAD); return end
-    Pts.Add(key, "event", amt, "manual", nil, note ~= "" and note or nil)
-    U.Print(L.AWARD_DONE:format(amt, G.Display(key)))
+    if Pts.Add(key, "event", amt, "manual", nil, note ~= "" and note or nil) then
+      U.Print(L.AWARD_DONE:format(amt, G.Display(key)))
+    end
   end })
 end
 
@@ -175,13 +176,18 @@ local function build(p)
   p.stats[2]:SetPoint("TOPLEFT", p.stats[1], "TOPRIGHT", 8, 0); p.stats[2]:SetWidth(172)
   p.stats[3]:SetPoint("TOPLEFT", p.stats[2], "TOPRIGHT", 8, 0); p.stats[3]:SetPoint("RIGHT", right, "RIGHT", 0, 0)
 
+  -- trophy wall of the guild achievements (0.9)
+  p.wall = ns.UITrophies.Wall(right)
+  p.wall:SetPoint("TOPLEFT", 0, -66); p.wall:SetPoint("RIGHT", right, "RIGHT", 0, 0)
+  local Y = 120   -- the ranking below the wall
+
   local head = UI.Section(right, L.RANKING)
-  head:SetPoint("TOPLEFT", 0, -66)
+  head:SetPoint("TOPLEFT", 0, -66 - Y)
   p.periods = {}
   local prev
   for _, per in ipairs({ "all", "season", "week" }) do
     local b = W.Button(right, L["PERIOD_" .. per], false, 20)
-    if prev then b:SetPoint("RIGHT", prev, "LEFT", -4, 0) else b:SetPoint("TOPRIGHT", right, "TOPRIGHT", 0, -62) end
+    if prev then b:SetPoint("RIGHT", prev, "LEFT", -4, 0) else b:SetPoint("TOPRIGHT", right, "TOPRIGHT", 0, -62 - Y) end
     b:SetScript("OnClick", function() V.period = per; UI.Refresh() end)
     b.per = per
     p.periods[#p.periods + 1] = b
@@ -190,11 +196,11 @@ local function build(p)
   head.line:SetPoint("RIGHT", prev, "LEFT", -8, 0)
 
   p.colHead = CreateFrame("Frame", nil, right)
-  p.colHead:SetPoint("TOPLEFT", 0, -90); p.colHead:SetPoint("RIGHT", right, "RIGHT", 0, 0); p.colHead:SetHeight(16)
+  p.colHead:SetPoint("TOPLEFT", 0, -90 - Y); p.colHead:SetPoint("RIGHT", right, "RIGHT", 0, 0); p.colHead:SetHeight(16)
   p.colHead.cells = {}
 
   p.scroll = W.Scroll(right)
-  p.scroll:SetPoint("TOPLEFT", 0, -108); p.scroll:SetPoint("BOTTOMRIGHT", 0, 0)
+  p.scroll:SetPoint("TOPLEFT", 0, -108 - Y); p.scroll:SetPoint("BOTTOMRIGHT", 0, 0)
   p.rows = W.Pool(p.scroll.content, function(parent)
     local r = CreateFrame("Button", nil, parent)
     r:SetHeight(ROW_H)
@@ -267,6 +273,7 @@ end
 local function refresh(p)
   local th = T.Current()
   local b = Pts.Banner()
+  if p.wall then p.wall:Refresh() end
   p.card.guild:SetText(G.Name() or "")
   p.card.level:SetText(L.BANNER_LEVEL:format(T.Word("BANNER"), b.level, T.Tier(b.level)))
   -- banner picture: the reached level, or the stage the manager clicked (preview)
@@ -342,10 +349,11 @@ local function refresh(p)
     p.card.next:SetText(L.BANNER_MAX .. "\n" .. L.BANNER_HOW)
   end
 
-  p.stats[1].label:SetText(L.STAT_SEASON); p.stats[1].value:SetText(BreakUpLargeNumbers and BreakUpLargeNumbers(math.floor(Pts.GuildTotal("season"))) or math.floor(Pts.GuildTotal("season")))
-  p.stats[2].label:SetText(L.STAT_WEEK); p.stats[2].value:SetText("+" .. math.floor(Pts.GuildTotal("week")))
+  local coin = " " .. U.Coin(true)
+  p.stats[1].label:SetText(L.STAT_SEASON); p.stats[1].value:SetText((BreakUpLargeNumbers and BreakUpLargeNumbers(math.floor(Pts.GuildTotal("season"))) or math.floor(Pts.GuildTotal("season"))) .. coin)
+  p.stats[2].label:SetText(L.STAT_WEEK); p.stats[2].value:SetText("+" .. math.floor(Pts.GuildTotal("week")) .. coin)
   local me = Pts.Totals("season")[G.MyKey()]
-  p.stats[3].label:SetText(L.STAT_ME); p.stats[3].value:SetText(me and math.floor(me.total) or 0)
+  p.stats[3].label:SetText(L.STAT_ME); p.stats[3].value:SetText((me and math.floor(me.total) or 0) .. coin)
 
   for _, btn in ipairs(p.periods) do
     local active = btn.per == V.period
@@ -381,9 +389,10 @@ local function refresh(p)
         if col.id == "#" then fs:SetText(n .. "."); W.Color(fs, "title")
         elseif col.id == "name" then
           local h = ns.Achievements.HonorName(r.key)
-          fs:SetText(G.Display(r.key) .. (h and U.Color(T.Hex(th.muted), " · " .. h) or ""))
+          local tw = (r.alts and #r.alts > 0) and U.Color(T.Hex(th.muted), "  " .. L.PS_ALTS:format(#r.alts)) or ""
+          fs:SetText(G.Display(r.key) .. (h and U.Color(T.Hex(th.muted), " · " .. h) or "") .. tw)
           W.Color(fs, "text")
-        elseif col.id == "total" then fs:SetText(math.floor(r.total)); W.Color(fs, "title")
+        elseif col.id == "total" then fs:SetText(math.floor(r.total) .. " " .. U.Dot()); W.Color(fs, "title")
         else fs:SetText(r.pots[col.id] and math.floor(r.pots[col.id]) or "–"); W.Color(fs, "text") end
       end
     end

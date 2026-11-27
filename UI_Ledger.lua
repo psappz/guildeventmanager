@@ -28,9 +28,10 @@ local function build(p)
     r:SetHeight(20)
     r:RegisterForClicks("RightButtonUp")
     r.tag = UI.Pill(r); r.tag:SetPoint("LEFT", 0, 0)
-    r.text = W.Text(r, 10, "text"); r.text:SetPoint("LEFT", 84, 0); r.text:SetPoint("RIGHT", -96, 0); r.text:SetWordWrap(false)
-    r.pts = W.Text(r, 11, "title"); r.pts:SetPoint("RIGHT", -52, 0); r.pts:SetJustifyH("RIGHT")
-    r.when = W.Text(r, 9, "muted"); r.when:SetPoint("RIGHT", -2, 0); r.when:SetJustifyH("RIGHT")
+    -- date at the right edge (fixed width), points left of it, text up to the points
+    r.when = W.Text(r, 9, "muted"); r.when:SetPoint("RIGHT", -2, 0); r.when:SetJustifyH("RIGHT"); r.when:SetWidth(76)
+    r.pts = W.Text(r, 11, "title"); r.pts:SetPoint("RIGHT", r.when, "LEFT", -12, 0); r.pts:SetJustifyH("RIGHT"); r.pts:SetWidth(60)
+    r.text = W.Text(r, 10, "text"); r.text:SetPoint("LEFT", 84, 0); r.text:SetPoint("RIGHT", r.pts, "LEFT", -10, 0); r.text:SetWordWrap(false)
     r:SetScript("OnClick", function(self)
       if not G.IsManager() or not self.entry or self.entry.reverted then return end
       W.OpenMenu(self, function(_, root)
@@ -67,7 +68,7 @@ local function refresh(p)
     local txt = G.Display(e.who) .. U.Color(T.Hex(th.muted), " · " .. deed .. ((e.zone and e.zone ~= "") and (" · " .. e.zone) or ""))
     if e.reverted then txt = U.Color("ff808080", G.Display(e.who) .. " · " .. deed .. " · " .. L.LEDGER_REVERTED) end
     row.text:SetText(txt)
-    row.pts:SetText((e.amt > 0 and "+" or "") .. e.amt)
+    row.pts:SetText((e.amt > 0 and "+" or "") .. e.amt .. " " .. U.Dot())
     row.when:SetText(date("%d.%m. %H:%M", e.ts))
   end
   local shown = math.min(n, MAX)

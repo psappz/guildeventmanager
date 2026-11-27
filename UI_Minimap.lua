@@ -5,7 +5,7 @@ local MM = {}
 ns.Minimap = MM
 
 local NAME = "GuildEventManager"
-local ICON = "Interface\\AddOns\\GuildEventManager\\Media\\GuildEventManagerIcon"
+local ICON = "Interface\\AddOns\\GuildEventManager\\Media\\gp_coin"   -- the GP coin
 
 function MM.StatusLines()
   local L = ns.L

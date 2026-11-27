@@ -1102,12 +1102,14 @@ local function refreshBosses(p)
 end
 
 UI.AddSettingsPage("raidsettings", {
+  group = "raids",
   label = function() return L.TAB_RAIDS end,
   build = buildSettings,
   refresh = refreshSettings,
 })
 
 UI.AddSettingsPage("raidbosses", {
+  group = "raids",
   label = function() return L.RAID_BOSSES end,
   build = buildBosses,
   refresh = refreshBosses,

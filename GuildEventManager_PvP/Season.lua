@@ -30,9 +30,20 @@ end
 -- Honor per member in [start, stop), sorted: { { key, honor } }
 function P.SeasonRanking(entries, start, stop)
   local sum = {}
-  for _, e in ipairs(entries) do
+  -- entries are sorted by time: start at the season (binary search), stop after it
+  local lo, hi = 1, #entries
+  while lo <= hi do
+    local mid = math.floor((lo + hi) / 2)
+    if (entries[mid].ts or 0) < start then lo = mid + 1 else hi = mid - 1 end
+  end
+  for i = lo, #entries do
+    local e = entries[i]
     local ts = e.ts or 0
-    if e.pot == "honor" and ts >= start and ts < stop then sum[e.who] = (sum[e.who] or 0) + (e.amt or 0) end
+    if ts >= stop then break end
+    if e.pot == "honor" then
+      local who = e.who and (core.Persons and core.Persons.MainOf(e.who) or e.who)
+      if who then sum[who] = (sum[who] or 0) + (e.amt or 0) end
+    end
   end
   local list = {}
   for key, h in pairs(sum) do if h > 0 then list[#list + 1] = { key = key, honor = h } end end
@@ -102,9 +113,13 @@ function P.AchUnstoppable(entries)
   if goal <= 0 then return {} end
   local out = {}
   local season, sum, reached, got, contributors
+  local seasonStop = -1
   for _, e in ipairs(entries) do
     if e.pot == "honor" then
-      local st = Pts.SeasonStart(e.ts or 0)
+      local ts = e.ts or 0
+      -- the season changes rarely: work out its bounds only then
+      local st = season
+      if ts >= seasonStop or (season and ts < season) then st = Pts.SeasonStart(ts); seasonStop = Pts.SeasonEnd(ts) end
       if st ~= season then season, sum, reached, got, contributors = st, 0, false, {}, {} end
       sum = sum + (e.amt or 0)
       contributors[e.who] = true

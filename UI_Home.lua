@@ -86,7 +86,8 @@ local function refresh(p)
   local b = Pts.Banner()
   local c1 = p.cards[1]
   c1.label:SetText(L.HOME_BANNER)
-  c1.value:SetText(L.HOME_BANNER_VAL:format(b.level, b.value))
+  -- "Stufe 1 · 50 GP" -> "Stufe 1 · 50 (coin) GP"
+  c1.value:SetText((L.HOME_BANNER_VAL:format(b.level, b.value):gsub("(%d+) (%S+)$", "%1 " .. U.Coin(true) .. " %2")))
   c1.info:SetText(b.nextAt and L.HOME_BANNER_NEXT:format(b.nextAt - b.value, b.level + 1) or L.HOME_BANNER_MAX)
 
   local e = nextEvent()
@@ -124,7 +125,7 @@ local function refresh(p)
     local _, tag, tcol = Lg.Tag(x)
     r.tag:Set(tag, false, tcol)
     r.text:SetText(G.Display(x.who) .. U.Color(T.Hex(th.muted), " · " .. Lg.Text(x)))
-    r.pts:SetText((x.amt > 0 and "+" or "") .. x.amt)
+    r.pts:SetText((x.amt > 0 and "+" or "") .. x.amt .. " " .. U.Dot())
   end
   p.ledRows:HideFrom(math.min(n, 10) + 1)
   p.ledEmpty:SetShown(n == 0)

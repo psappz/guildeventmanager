@@ -36,7 +36,9 @@ function A.AllDefaults()
   for _, a in ipairs(A.DEFAULTS) do list[#list + 1] = a end
   for _, id in ipairs(ns.Modules.order or {}) do
     local m = ns.Modules.modules[id]
-    for _, a in ipairs(m and m.achievements or {}) do a.module = id; list[#list + 1] = a end
+    for _, a in ipairs(m and m.achievements or {}) do
+      if not a.guild then a.module = id; list[#list + 1] = a end   -- guild achievements: GuildAch.lua
+    end
   end
   return list
 end
@@ -148,17 +150,39 @@ local function contrib(a, e, events, seen)
 end
 A.Contrib = contrib
 
-function A.Dirty() cache = nil end
+function A.Dirty() cache = nil; if ns.GuildAch then ns.GuildAch.Dirty() end end
 
-local function compute()
+-- onlyWho: work out the achievements of one person only (the plaque check)
+local function compute(onlyWho)
   local s = ns.Store()
   if not s then return {} end
   local seasonStart = ns.Points.SeasonStart()
   local entries = {}
   for _, e in pairs(s.ledger) do
-    if not e.reverted and e.why ~= "revert" and (e.amt or 0) > 0 then entries[#entries + 1] = e end
+    if not e.reverted and e.why ~= "revert" and ((e.amt or 0) > 0 or ns.Points.MARKERS[e.why]) then entries[#entries + 1] = e end
   end
   table.sort(entries, function(a, b) return (a.ts or 0) < (b.ts or 0) end)
+  -- the person of every entry once (0.9: 5,000 entries × all achievements)
+  local whos, pc = {}, {}
+  for i, e in ipairs(entries) do
+    local w = e.who
+    if w then
+      local p = pc[w]
+      if p == nil then p = ns.Persons.MainOf(w) or false; pc[w] = p end
+      if onlyWho and p ~= onlyWho then p = false end
+      whos[i] = p or nil
+    end
+  end
+  -- one person only: keep just the own entries for the counting below
+  local all = entries
+  if onlyWho then
+    local mineE, mineW = {}, {}
+    for i, e in ipairs(entries) do if whos[i] then mineE[#mineE + 1] = e; mineW[#mineW + 1] = whos[i] end end
+    entries, whos = mineE, mineW
+  end
+  -- first entry of the season
+  local seasonFirst = #entries + 1
+  for i, e in ipairs(entries) do if (e.ts or 0) >= seasonStart then seasonFirst = i; break end end
 
   local res = {}
   local metas = {}
@@ -171,21 +195,27 @@ local function compute()
       metas[#metas + 1] = a
     elseif a.on ~= false and a.compute then
       -- computed by the module from all entries: { { who, ts, note } }
-      local ok, awards = pcall(a.compute, entries, s.events, a)
+      local ok, awards = pcall(a.compute, all, s.events, a)
       if ok and type(awards) == "table" then
         table.sort(awards, function(x, y) return (x.ts or 0) < (y.ts or 0) end)
         local got = {}
         for _, w in ipairs(awards) do
-          if w.who and (a.repeatable or not got[w.who]) then got[w.who] = true; award(w.who, a, w.ts, w.note) end
+          local who = w.who and ns.Persons.MainOf(w.who)
+          if onlyWho and who ~= onlyWho then who = nil end
+          if who and (a.repeatable or not got[who]) then got[who] = true; award(who, a, w.ts, w.note) end
         end
       elseif not ok and ns.LogError then ns.LogError("ach " .. tostring(a.id), awards) end
     elseif a.on ~= false then
       local count, typesSeen = {}, {}
-      for _, e in ipairs(entries) do
-        if a.scope ~= "season" or (e.ts or 0) >= seasonStart then
-          local who = e.who
-          typesSeen[who] = typesSeen[who] or {}
-          local add = contrib(a, e, s.events, typesSeen[who])
+      local quick = (a.stat == "participate" and "participate") or (a.stat == "lead" and "lead") or (a.stat == "why" and a.why)
+        or ((a.stat == "evtype" or a.stat == "types") and "participate") or nil
+      for i = (a.scope == "season") and seasonFirst or 1, #entries do
+        local e = entries[i]
+        local who = whos[i]
+        if who and (not quick or e.why == quick) then
+          local seen = typesSeen[who]
+          if not seen then seen = {}; typesSeen[who] = seen end
+          local add = contrib(a, e, s.events, seen)
           if add > 0 then
             local before = count[who] or 0
             count[who] = before + add
@@ -217,7 +247,7 @@ end
 
 -- { [key] = { { id, ts, pts, def } } }
 function A.Earned()
-  if not cache or (GetTime() - (cacheAt or 0)) > 30 then cache = compute(); cacheAt = GetTime() end
+  if not cache or (GetTime() - (cacheAt or 0)) > 30 then cache = ns.Persons.ByPerson(compute()); cacheAt = GetTime() end
   return cache
 end
 
@@ -276,6 +306,7 @@ end
 ---------------------------------------------------------------------------
 function A.Check()
   cache = nil
+  if ns.GuildAch then ns.GuildAch.Check() end
   if ns.demo then return end
   ns.Schedule("gemAchCheck", 1, function()
     local sk = G.StoreKey()
@@ -285,7 +316,9 @@ function A.Check()
     local seen = ns.char.seenAch[sk] or {}
     ns.char.seenAch[sk] = seen
     local fresh = {}
-    for _, e in ipairs(A.Earned()[G.MyKey()] or {}) do
+    -- only the own person (fast; the full table is worked out for the pages)
+    local mine = ns.Persons.ByPerson(compute(ns.Persons.MainOf(G.MyKey())))[G.MyKey()]
+    for _, e in ipairs(mine or {}) do
       local k = e.id .. ":" .. (e.def.repeatable and tostring(e.ts)
         or (e.def.scope == "season" and tostring(ns.Points.SeasonStart()) or "0"))
       if not seen[k] then

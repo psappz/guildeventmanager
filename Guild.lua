@@ -91,13 +91,13 @@ function G.Name()
   return n
 end
 
--- Storage key of the current guild (guild + realm), nil without guild;
+-- Storage key of the current guild: "Name@EU" (see U.Scope), nil without guild;
 -- real = the real guild even while the sample guild is shown
 function G.StoreKey(real)
   local n = real and G.RealName() or G.Name()
-  if not n then return nil end
-  local realm = (GetNormalizedRealmName and GetNormalizedRealmName()) or GetRealmName() or "?"
-  return n .. "@" .. realm
+  if not n or n == "" then return nil end
+  local sc = U.Scope()
+  return sc and (n .. "@" .. sc) or n
 end
 
 function G.RequestRoster()
@@ -113,10 +113,16 @@ function G.ReadRoster()
   for i = 1, n do
     local name, rankName, rankIndex, level, _, _, _, _, online, _, class = GetGuildRosterInfo(i)
     if name then
+      -- days offline (0 = online); used by the inactive rank (0.9)
+      local off = 0
+      if not online and GetGuildRosterLastOnline then
+        local y, mo, d, h = GetGuildRosterLastOnline(i)
+        off = (y or 0) * 365 + (mo or 0) * 30 + (d or 0) + (h or 0) / 24
+      end
       local display = G.StripRealm(name)
       local short = tostring(display):match("^(.+)%-[^%-]+$")
       if short then G.alias[G.Key(short)] = G.Key(display) end
-      G.roster[G.Key(display)] = { name = display, rankName = rankName, rankIndex = rankIndex, level = level, online = online, class = class }
+      G.roster[G.Key(display)] = { name = display, rankName = rankName, rankIndex = rankIndex, level = level, online = online, class = class, idx = i, offDays = off }
     end
   end
   wipe(G.rankNames)
@@ -188,12 +194,30 @@ end
 
 function G.IsLeader()
   if ns.demo then return true end
+  if G.viewRank and G.viewRank ~= 0 then return false end   -- "view as rank" (0.9)
+  return IsGuildLeader and IsGuildLeader() or false
+end
+
+-- The real guild master, also while he looks at the interface as another rank
+function G.IsRealLeader()
   return IsGuildLeader and IsGuildLeader() or false
 end
 
 function G.RankOf(key)
   local r = key and G.roster[key]
+  -- "view as rank": the guild master sees the interface as this rank would
+  if G.viewRank and r and key == G.MyKey() then return G.viewRank end
   return r and r.rankIndex
+end
+
+-- View the interface as another rank (guild master only; nil = own view).
+-- Only the display changes: nothing is sent to the guild meanwhile.
+function G.SetViewRank(idx)
+  if idx ~= nil and not G.IsRealLeader() then return end
+  G.viewRank = idx
+  if ns.Persons then ns.Persons.Dirty() end
+  if ns.UI and ns.UI.Frame and ns.UI.Frame() then ns.UI.Frame().navDirty = true end
+  if ns.UI and ns.UI.Refresh then ns.UI.Refresh() end
 end
 
 -- Guild event manager: the guild master, plus the rank set in the profile
@@ -209,6 +233,24 @@ function G.IsManager(key)
   if mr == nil then return false end
   if rank == mr then return true end
   return p.managerHigher and rank < mr or false
+end
+
+-- Guild leadership (0.9): the guild master and the ranks chosen in the settings
+-- (Settings -> Guild ranks). All features that organise the guild (ranks,
+-- inactive members, purge, twinks of members outside the guild) are theirs.
+function G.IsLeadRank(rank)
+  if rank == nil then return false end
+  if rank == 0 then return true end
+  if ns.Struct then return ns.Struct.HasRank("lead", rank) end
+  local p = ns.Profile and ns.Profile.Get()
+  for _, r in ipairs(p and p.leadRanks or {}) do if r == rank then return true end end
+  return false
+end
+
+function G.IsLead(key)
+  key = key or G.MyKey()
+  if key == G.MyKey() and G.IsLeader() then return true end
+  return G.IsLeadRank(G.RankOf(key))
 end
 
 -- New marker for the guild master to paste (random check value)

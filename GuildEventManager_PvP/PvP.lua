@@ -28,6 +28,14 @@ P.DEFAULTS = {
   bountyMax = 50,       -- largest bounty in honor (at most 50)
   bountyDays = 7,       -- a bounty runs n days, then the poster gets the honor back
   bountyOpen = 3,       -- open bounties per member (0 = no limit)
+  bountyGap = 5,        -- no bounty on enemies more than n levels below the poster
+  bountyPause = 6,      -- hours before a collected enemy can get a new bounty
+  guildBountyWeek = 100, -- GP officers may put on enemies from the guild chest per week (also pays the bonus below)
+  foeMembers = 3,       -- "public enemy": killed this many different members within 7 days
+  foeBounty = 25,       -- guild bounty on a public enemy
+  bonusKills = 3,       -- bonus when the hunters kill their target this often ...
+  bonusMin = 15,        -- ... within n minutes after collecting the bounty
+  bonus = 10,           -- GP of that bonus (shared by the group, from the guild chest)
   makgoraWitnessRank = 9, -- lowest guild rank index a duel witness may have (0 = guild master, 9 = every rank)
   makgoraDays = 3,      -- an accepted duel of honor can be fought within n days
   makgoraPerDay = 5,    -- duels of honor in the whole guild per game day (0 = no limit)
@@ -109,12 +117,71 @@ achs[#achs + 1] = { id = "champion", nameKey = "PVP_ACH_CHAMPION", faction = tru
   descKey = "PVP_STAT_CHAMPION", icon = I .. "INV_Crown_01", compute = function(...) return P.AchChampion(...) end }
 achs[#achs + 1] = { id = "unstoppable", nameKey = "PVP_ACH_UNSTOPPABLE", n = 1, pts = 50, scope = "forever", repeatable = true,
   descKey = "PVP_STAT_UNSTOPPABLE", icon = I .. "Spell_Nature_BloodLust", compute = function(...) return P.AchUnstoppable(...) end }
+-- bounty hunter (0.9): collected bounties (alone or in a group)
+for _, a in ipairs(tiers({ id = "hunter", nameKey = "PVP_ACH_HUNTER", stat = "why", why = "bounty", flag = "won", scope = "forever",
+  descKey = "PVP_STAT_HUNTER", icon = I .. "Ability_Hunter_SniperShot" }, {
+  { n = 1, pts = 10, tier = "BRONZE" }, { n = 5, pts = 25, tier = "SILVER" }, { n = 25, pts = 50, tier = "GOLD" },
+  { n = 100, pts = 50, tier = "GOLD", honorKey = "HONOR_HUNTER", honorScope = "forever" } })) do achs[#achs + 1] = a end
 P.SWORD_META = { "firstblood", "debt1", "drum1", "war1", "makgora1", "oath1", "podium" }
 achs[#achs + 1] = { id = "sword", nameKey = "PVP_ACH_SWORD", faction = true, meta = P.SWORD_META, n = #P.SWORD_META, pts = 50,
   scope = "forever", descKey = "PVP_STAT_SWORD", icon = I .. "INV_Sword_39" }
 
+-- Guild achievements (0.9): only the whole guild earns them, reward: trophies
+local function drumCalls(ctx, def, from, to)
+  -- drum calls answered by at least 5 members (drum id; older entries: zone and 15 minutes)
+  local out, calls, lastByZone = {}, {}, {}
+  for e in core.GuildAch.Range(ctx.byWhy.drum or {}, from, to) do
+    do
+      local id = e.did
+      if not id then
+        local z = tostring(e.note)
+        local c = lastByZone[z]
+        if c and e.ts - calls[c].t0 < 900 then id = c else id = "z" .. z .. e.ts; lastByZone[z] = id end
+      end
+      local c = calls[id] or { t0 = e.ts, zone = e.note, did = e.did, who = {}, n = 0 }
+      calls[id] = c
+      local p = core.Persons.MainOf(e.who)
+      if p and not c.who[p] then
+        c.who[p] = true; c.n = c.n + 1
+        if c.n == 5 then out[#out + 1] = { ts = e.ts, add = 1 } end
+      end
+    end
+  end
+  table.sort(out, function(a, b) return a.ts < b.ts end)
+  return out
+end
+local function seasonGoal(ctx, st, en)
+  local goal = tonumber(P.Rules().seasonGoal) or 5000
+  if goal <= 0 then return nil end
+  local sum = 0
+  for e in core.GuildAch.Range(ctx.entries, st, en) do
+    if e.pot == "honor" then
+      sum = sum + (e.amt or 0)
+      if sum >= goal then return e.ts end
+    end
+  end
+end
+local function group5(e) return (tonumber(e.grp) or 0) >= 5 end
+local function publicEnemy(e) return e.pe ~= nil end
+local gach = {
+  { id = "g_victories", nameKey = "GA_VICTORIES", descKey = "GA_D_VICTORIES", stat = "why", why = "kill", scope = "season", tiers = { 250, 500, 1000 }, icon = I .. "Ability_Rogue_Eviscerate" },
+  { id = "g_eternal", nameKey = "GA_ETERNAL", descKey = "GA_D_ETERNAL", stat = "why", why = "kill", tiers = { 5000, 10000, 50000 }, icon = I .. "INV_Sword_39" },
+  { id = "g_debts", nameKey = "GA_DEBTS", descKey = "GA_D_DEBTS", stat = "why", why = "debt", scope = "season", tiers = { 10, 25, 50 }, icon = I .. "Ability_Warrior_Revenge" },
+  { id = "g_forgotten", nameKey = "GA_FORGOTTEN", descKey = "GA_D_FORGOTTEN", stat = "why", why = "debt", tiers = { 100, 250, 500 }, icon = I .. "Spell_Shadow_DeathScream" },
+  { id = "g_drums", nameKey = "GA_DRUMS", descKey = "GA_D_DRUMS", stat = drumCalls, tiers = { 5, 15, 25 }, icon = I .. "INV_Misc_Drum_01" },
+  { id = "g_pack", nameKey = "GA_PACK", descKey = "GA_D_PACK", stat = "why", why = "bounty", flag = "won", flagPrefix = true, distinct = "bid", tiers = { 10, 25, 50 }, icon = I .. "Ability_Hunter_Pet_Wolf" },
+  { id = "g_enemy", nameKey = "GA_ENEMY", descKey = "GA_D_ENEMY", stat = "why", why = "bounty", flag = "won", flagPrefix = true, distinct = "bid", test = publicEnemy, tiers = { 1, 3, 10 }, icon = I .. "Ability_Hunter_SniperShot" },
+  { id = "g_bloodmoney", nameKey = "GA_BLOODMONEY", descKey = "GA_D_BLOODMONEY", stat = "why", why = "bounty", flag = "won", flagPrefix = true, sum = true, tiers = { 500, 2000, 5000 }, icon = I .. "INV_Misc_Coin_04" },
+  { id = "g_affairs", nameKey = "GA_AFFAIRS", descKey = "GA_D_AFFAIRS", stat = "why", why = "makgora", scope = "season", tiers = { 5, 15, 30 }, icon = I .. "Ability_Warrior_Challange" },
+  { id = "g_code", nameKey = "GA_CODE", descKey = "GA_D_CODE", stat = "why", why = "makgora", tiers = { 50, 150, 300 }, icon = I .. "INV_Shield_05" },
+  { id = "g_seasongoal", nameKey = "GA_SEASONGOAL", descKey = "GA_D_SEASONGOAL", stat = "seasonsWhere", where = seasonGoal, tiers = { 1, 3, 6 }, icon = I .. "INV_BannerPVP_02" },
+  { id = "g_shoulder", nameKey = "GA_SHOULDER", descKey = "GA_D_SHOULDER", stat = "why", why = "kill", test = group5, scope = "season", tiers = { 50, 250, 1000 }, icon = I .. "Ability_Warrior_BattleShout" },
+  { id = "g_brothers", nameKey = "GA_BROTHERS", descKey = "GA_D_BROTHERS", stat = "why", why = "kill", test = group5, tiers = { 500, 2500, 10000 }, icon = I .. "Ability_Warrior_RallyingCry" },
+}
+
 GuildEventManagerAPI.RegisterModule({
-  id = "pvp", nameKey = "MOD_PVP", version = 1,
+  id = "pvp", nameKey = "MOD_PVP", version = 1, addon = "GuildEventManager_PvP",
+  guildAchievements = gach,
   tag = { key = "TAB_PVP" },
   pots = { { id = "honor", nameKey = "POT_HONOR" } },
   eventTypes = {
@@ -169,16 +236,13 @@ function P.Char()
 end
 
 -- placeholders older versions wrote into the ledger instead of a name
+-- (and the "name unknown" text of every language: a member writes it in his own)
 P.OLD_UNKNOWN = { ["an enemy"] = true, ["einen Gegner"] = true, ["un ennemi"] = true, ["un enemigo"] = true,
-  ["un nemico"] = true, ["um inimigo"] = true }
+  ["un nemico"] = true, ["um inimigo"] = true,
+  ["(name unknown)"] = true, ["(Name unbekannt)"] = true, ["(nom inconnu)"] = true, ["(nombre desconocido)"] = true,
+  ["(nome sconosciuto)"] = true, ["(nome desconhecido)"] = true }
 
--- Drum / bell sound per faction; falls back to the raid warning sound
-function P.PlaySignal()
-  if core.db and core.db.pvpMute then return end
-  local file = (T.Faction() == "alliance") and "Sound\\Doodad\\BellTollAlliance.ogg" or "Sound\\Event Sounds\\Event_wardrum_ogre.ogg"
-  local ok, willPlay = pcall(PlaySoundFile, file, "Master")
-  if not (ok and willPlay) then pcall(PlaySound, SOUNDKIT and SOUNDKIT.RAID_WARNING or 8959) end
-end
+-- P.PlaySignal (drums) lives in Wanted.lua with the other sounds
 
 function P.Notice(msg)
   U.Print(U.Color(U.GOLD, msg))

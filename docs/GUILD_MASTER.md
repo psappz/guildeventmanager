@@ -39,6 +39,19 @@ Everything you set here reaches all members automatically – online members at 
 - **Points**, **season length** and **active event types**: the defaults work; change them when you like. Members only see the event types that are active here.
 - **Honor rules** (gear → Honor rules, PvP module): honor per kill, daily limits, bounties and so on.
 
+## 6. Modules and areas
+
+- **Modules** are separate addons (Fishing, Holidays, Management, Marketplace …). When the guild master or an event manager has a module installed, it counts as switched on for the guild – members get one notice with an info card and may say "not interested".
+- **PvP and PvE parts:** some modules (Holidays) have PvP and PvE activities. They stay **locked until the guild master unlocks them**: gear → **Modules**, tick PvP and/or PvE. Nobody else can change this.
+
+## 7. Guild organisation
+
+- **Leadership:** gear → **Guild structure**. The guild master plus the ranks of the function "Leadership". Only the guild master changes who belongs to it.
+- **Twinks:** members link their characters under gear → **My characters**; twinks count for the same person (GP, rankings, achievements). The leadership can link twinks of members without the addon.
+- **Rank care:** gear → **Ranks** lists who should get which rank (twinks, inactive, bank). Addons cannot change ranks – a click opens Blizzard's guild window with the member, you pick the rank there.
+- **Bank characters:** mark them in the guild structure. With the Marketplace module they report bags and bank when they log in.
+- **Management module (optional):** member files (joined, probation, recruited by, notes – leadership only), activity of the last four weeks and promotion suggestions by your rules.
+
 ## Switching it off
 
 Remove the code from the guild information. The addon then stops sending for the whole guild; members who are online notice it after `/reload` or when they log in next. Paste the code again to switch it back on – points and events are kept.
@@ -93,6 +106,19 @@ Alles, was du hier einstellst, kommt automatisch bei allen Mitgliedern an – be
 - **Raids** (Zahnrad → Raids): der niedrigste Rang, der Raids anlegen und leiten darf, zum Beispiel ein Rang „Raidleitung“. Event-Manager dürfen es immer.
 - **Punkte**, **Season-Länge** und **aktive Event-Typen**: Die Vorgaben passen; ändern, wenn du willst. Mitglieder sehen nur die Event-Typen, die hier aktiv sind.
 - **Ehre-Regeln** (Zahnrad → Ehre-Regeln, PvP-Modul): Ehre pro Sieg, Tageslimits, Kopfgelder und mehr.
+
+## 6. Module und Bereiche
+
+- **Module** sind eigene Addons (Angeln, Feiertage, Verwaltung, Gildenmarkt …). Hat der Gildenmeister oder ein Event-Leiter ein Modul installiert, gilt es für die Gilde als eingeschaltet – Mitglieder bekommen einen Hinweis mit Infokarte und können „Interessiert mich nicht“ wählen.
+- **PvP- und PvE-Teile:** Manche Module (Feiertage) haben PvP- und PvE-Aktivitäten. Die bleiben **gesperrt, bis der Gildenmeister sie freischaltet**: Zahnrad → **Module**, PvP und/oder PvE anhaken. Niemand sonst kann das ändern.
+
+## 7. Gildenorganisation
+
+- **Gildenleitung:** Zahnrad → **Gildenstruktur**. Der Gildenmeister plus die Ränge der Funktion „Leitung“. Wer dazugehört, ändert nur der Gildenmeister.
+- **Twinks:** Mitglieder verbinden ihre Charaktere unter Zahnrad → **Meine Charaktere**; Twinks zählen für dieselbe Person (GP, Ranglisten, Erfolge). Die Leitung kann Twinks von Mitgliedern ohne Addon zuordnen.
+- **Rangpflege:** Zahnrad → **Ränge** zeigt, wer welchen Rang bekommen sollte (Twinks, Inaktive, Bank). Addons können Ränge nicht ändern – ein Klick öffnet Blizzards Gildenfenster mit dem Mitglied, dort wählst du den Rang.
+- **Bankcharaktere:** in der Gildenstruktur markieren. Mit dem Modul Gildenmarkt melden sie Taschen und Bank beim Einloggen.
+- **Modul Verwaltung (optional):** Mitgliederakten (Beitritt, Probezeit, geworben von, Notizen – nur Leitung), Aktivität der letzten vier Wochen und Beförderungsvorschläge nach euren Regeln.
 
 ## Ausschalten
 

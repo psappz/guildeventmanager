@@ -16,8 +16,40 @@ E.COMMENT_MAX = 60
 
 -- Who may create / edit / run an event of a type: guild event managers, plus
 -- whatever the type allows (raids: a rank set in the settings)
+-- Officers, the guild leadership and the guild master may lead every event
+-- (0.9): manager rank, lead ranks (incl. GM), officer/council/GM posts in the
+-- org chart – for the person, so his twinks too
+function E.CanLeadAny(key)
+  key = key or G.MyKey()
+  local main = ns.Persons and ns.Persons.MainOf(key) or key
+  local chars = ns.Persons and ns.Persons.Chars and ns.Persons.Chars(main) or { main }
+  local list = { key }
+  for _, k in ipairs(chars) do if k ~= key then list[#list + 1] = k end end
+  for _, k in ipairs(list) do
+    if G.IsManager(k) or G.IsLead(k) then return true end
+  end
+  if ns.Struct and ns.Struct.AllNodes then
+    for _, n in ipairs(ns.Struct.AllNodes()) do
+      if n.who and (n.kind == "off" or n.kind == "gm" or n.kind == "council")
+        and (ns.Persons and ns.Persons.MainOf(n.who) or n.who) == main then return true end
+    end
+  end
+  return false
+end
+
+-- 0.9: may a new event of this type be created here and now? Areas the guild
+-- master has not unlocked and holidays outside their time are closed. Only
+-- for creating: events that arrive from others are not checked against it.
+function E.TypeOpen(typeId)
+  local t = typeId and ns.Modules.Type(typeId)
+  if not t then return true end
+  if ns.Catalog and not ns.Catalog.TypeOpen(t) then return false end
+  if ns.Holidays and not ns.Holidays.TypeOpen(t) then return false end
+  return true
+end
+
 function E.CanCreate(typeId, key)
-  if G.IsManager(key) then return true end
+  if E.CanLeadAny(key) then return true end
   local t = typeId and ns.Modules.Type(typeId)
   if t and type(t.canCreate) == "function" then
     local ok, res = pcall(t.canCreate, key or G.MyKey())
@@ -27,7 +59,33 @@ function E.CanCreate(typeId, key)
 end
 function E.CanManage(e, key)
   if not e then return G.IsManager(key) end
+  if E.IsLeader(e, key) then return true end   -- the event's own leaders
   return E.CanCreate(e.type, key)
+end
+
+-- Event leadership (0.9): one or more leaders; e.leader stays the first one
+function E.Leaders(e)
+  if not e then return {} end
+  if type(e.leaders) == "table" and #e.leaders > 0 then return e.leaders end
+  return e.leader and { e.leader } or {}
+end
+
+function E.IsLeader(e, key)
+  key = key or G.MyKey()
+  for _, k in ipairs(E.Leaders(e)) do if k == key then return true end end
+  return false
+end
+
+-- Raid events (PvE raid types) need at least one raid lead among the leaders
+function E.IsRaid(typeId) return type(typeId) == "string" and typeId:sub(1, 5) == "raid_" end
+
+-- nil = fine, else the error text
+function E.CheckLeaders(typeId, leaders)
+  if type(leaders) ~= "table" or #leaders == 0 then return ns.L.ED_ERR_LEAD end
+  if E.IsRaid(typeId) and ns.Struct then
+    for _, k in ipairs(leaders) do if ns.Struct.IsRaidLead(k) or E.CanLeadAny(k) then return nil end end
+    return ns.L.ED_ERR_RAIDLEAD
+  end
 end
 
 local function events()
@@ -69,6 +127,9 @@ local function send(e) C.Send("EVT", { e = e }) end
 function E.Save(e)
   if not E.CanManage(e) then U.Print(ns.L.NO_RIGHTS); return nil end
   e.fields = E.CleanFields(e.fields)
+  e.set = E.CleanSettings(e.type, e.set, e)
+  if ns.Teams then e.teams = ns.Teams.Clean(e.teams) end
+  if ns.Series then e.rep = ns.Series.Clean(e.rep); if e.rep and not e.series then e.series = e.id end end
   e.upd = math.max(U.Now(), (e.upd or 0) + 1)
   events()[e.id] = e
   send(e)
@@ -79,12 +140,14 @@ end
 -- fields: type, name, desc, kind, start, finish, group, gmin, gmax
 function E.Create(fields)
   if not E.CanCreate(fields.type) then U.Print(ns.L.NO_RIGHTS); return nil end
+  if not E.TypeOpen(fields.type) then U.Print(ns.L.TYPE_CLOSED); return nil end
   local t = ns.Modules.Type(fields.type)
   local e = {
     id = U.NewId(), type = fields.type,
     name = (fields.name and fields.name ~= "") and fields.name or ns.Modules.TypeName(fields.type),
     desc = fields.desc or "",
-    leader = fields.leader or G.MyKey(),
+    leader = (fields.leaders and fields.leaders[1]) or fields.leader or G.MyKey(),
+    leaders = fields.leaders,
     kind = fields.kind or (t and t.kind) or "short",
     start = fields.start or U.Now(),
     finish = fields.finish,
@@ -95,13 +158,17 @@ function E.Create(fields)
     pts = fields.pts,  -- own participation points, nil = profile default
     goals = fields.goals, -- { { text, done } }
     fields = fields.fields, -- own questions of this event { { id, label, kind, options } }
+    set = fields.set,       -- settings of the event leader (type's `settings`)
+    rep = ns.Series and ns.Series.Clean(fields.rep) or nil,  -- repeat (API 7)
     status = "planned", signups = {}, created = U.Now(), by = G.MyKey(),
   }
   if e.kind == "season" then
     e.start = ns.Points.SeasonStart(); e.finish = ns.Points.SeasonEnd()
   end
+  if e.rep then e.series = e.id end
   E.Save(e)
   U.Print(ns.L.EVT_ANNOUNCED:format(e.name))
+  if e.rep and ns.Series then ns.SafeCall("series", ns.Series.Fill) end
   return e
 end
 
@@ -119,7 +186,9 @@ function E.Cancel(e)
 end
 
 -- attended: { key = true }; writes participation and organiser points
-function E.End(e, attended)
+-- res (API 7, results screen of the leader): { rows = { [key] = { pp = place points,
+-- bo = bonus, v = value, pl = place } }, note = text } -> booked and kept as protocol
+function E.End(e, attended, res)
   local p = ns.Profile.Get()
   local per = tonumber(e.pts) or p.pts.participate
   local n = 0
@@ -143,8 +212,23 @@ function E.End(e, attended)
       if book and done > 0 and (p.pts.goal or 0) > 0 then ns.Points.Add(key, "event", done * p.pts.goal, "goal", e.id) end
     end
   end
-  if book and n >= (p.pts.leadMin or 5) and (p.pts.lead or 0) > 0 and e.leader then
-    ns.Points.Add(e.leader, "event", p.pts.lead, "lead", e.id)
+  if book and n >= (p.pts.leadMin or 5) and (p.pts.lead or 0) > 0 then
+    for _, k in ipairs(E.Leaders(e)) do ns.Points.Add(k, "event", p.pts.lead, "lead", e.id) end
+  end
+  -- results of the referee: place points and bonuses, kept as a protocol on the event
+  if type(res) == "table" then
+    local rows = {}
+    for key, r in pairs(type(res.rows) == "table" and res.rows or {}) do
+      local pp, bo = math.floor(tonumber(r.pp) or 0), math.floor(tonumber(r.bo) or 0)
+      if book and pp ~= 0 then ns.Points.Add(key, "event", pp, "place", e.id, nil, r.pl and { place = r.pl } or nil) end
+      if book and bo ~= 0 then ns.Points.Add(key, "event", bo, "bonus", e.id) end
+      rows[#rows + 1] = { k = key, v = tonumber(r.v), pl = tonumber(r.pl), pp = pp, bo = bo, p = e.attended[key] and true or nil }
+    end
+    table.sort(rows, function(a, b)
+      if (a.pl or 999) ~= (b.pl or 999) then return (a.pl or 999) < (b.pl or 999) end
+      return a.k < b.k
+    end)
+    e.result = { at = U.Now(), by = G.MyKey(), note = type(res.note) == "string" and res.note:sub(1, 200) or nil, rows = rows }
   end
   e.status = "done"; e.ended = U.Now()
   E.Save(e)
@@ -182,7 +266,14 @@ function E.Candidates(e)
     local raid = IsInRaid and IsInRaid()
     for i = 1, n do
       local unit = raid and ("raid" .. i) or (i == n and "player" or ("party" .. i))
-      add(G.UnitKey(unit), true)
+      local k = G.UnitKey(unit)
+      if not k and ns.Persons then
+        -- a twink outside the guild counts for its person (0.9; known to the
+        -- leadership when the member shares his characters)
+        local nm, second = UnitName(unit)
+        if nm then k = ns.Persons.ExternalOwner((second and second ~= "") and (nm .. " " .. second) or nm) end
+      end
+      add(k, true)
     end
   else
     add(G.MyKey(), true)
@@ -278,6 +369,127 @@ function E.CleanFields(list)
   return #out > 0 and out or nil
 end
 
+---------------------------------------------------------------------------
+-- Settings of the event leader (API 7): an event type lists them in
+-- `settings`, the editor shows them, the values travel as e.set.
+-- { id, kind = "choice"|"multi"|"number"|"check"|"text"|"time"|"date",
+--   label|labelKey, options = { { value, labelKey|text } } or fn(e), default, min, max, showIf = fn(values) }
+---------------------------------------------------------------------------
+E.SET_KINDS = { choice = true, multi = true, number = true, check = true, text = true, time = true, date = true }
+E.SET_MAX = 20
+
+function E.SettingDefs(typeId)
+  local t = typeId and ns.Modules.Type(typeId)
+  return t and type(t.settings) == "table" and t.settings or {}
+end
+
+function E.SettingOptions(def, e)
+  local o = def.options
+  if type(o) == "function" then local ok, r = pcall(o, e); o = ok and r or nil end
+  local out = {}
+  for _, x in ipairs(type(o) == "table" and o or {}) do
+    local v = type(x) == "table" and x[1] or x
+    local label = type(x) == "table" and x[2] or tostring(x)
+    if v ~= nil then out[#out + 1] = { v, (type(label) == "string" and rawget(ns.L, label)) or ns.L[label] or label } end
+  end
+  return out
+end
+
+local function hasOption(opts, v) for _, o in ipairs(opts) do if o[1] == v then return true end end end
+
+local function validTime(v)
+  local h, m = tostring(v):match("^(%d%d?):(%d%d)$")
+  h, m = tonumber(h), tonumber(m)
+  if h and h < 24 and m < 60 then return string.format("%02d:%02d", h, m) end
+end
+local function validDate(v)
+  local y, mo, d = tostring(v):match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$")
+  mo, d = tonumber(mo), tonumber(d)
+  if y and mo >= 1 and mo <= 12 and d >= 1 and d <= 31 then return v end
+end
+
+-- one value checked against its definition; nil = invalid
+function E.SettingValue(def, v, e)
+  local k = def.kind
+  if v == nil then return nil end
+  if k == "number" then
+    v = tonumber(v); if not v then return nil end
+    if def.min and v < def.min then v = def.min end
+    if def.max and v > def.max then v = def.max end
+    return v
+  elseif k == "check" then return v and true or false
+  elseif k == "text" then return type(v) == "string" and v:sub(1, def.maxLen or 60) or nil
+  elseif k == "time" then return validTime(v)
+  elseif k == "date" then return validDate(v)
+  elseif k == "choice" then
+    local opts = E.SettingOptions(def, e)
+    return (#opts == 0 or hasOption(opts, v)) and v or nil
+  elseif k == "multi" then
+    if type(v) ~= "table" then return nil end
+    local opts, out = E.SettingOptions(def, e), {}
+    for _, x in ipairs(v) do if (#opts == 0 or hasOption(opts, x)) and #out < 12 then out[#out + 1] = x end end
+    return out
+  end
+end
+
+-- Values of the event (defaults filled in). Unknown types (module not
+-- installed here): the raw values, only plain data.
+function E.Settings(e)
+  local defs = E.SettingDefs(e and e.type)
+  local raw = type(e and e.set) == "table" and e.set or {}
+  local out = {}
+  if #defs == 0 then
+    for k, v in pairs(raw) do out[k] = v end
+    return out
+  end
+  for _, d in ipairs(defs) do
+    local v = raw[d.id]
+    if v == nil then v = E.FieldDefault(d, e) end
+    out[d.id] = v
+  end
+  return out
+end
+
+-- cleaned e.set: known type -> only defined ids with valid values;
+-- unknown type -> plain values only (string ids, scalars or short lists)
+function E.CleanSettings(typeId, raw, e)
+  if type(raw) ~= "table" then return nil end
+  local defs = E.SettingDefs(typeId)
+  local out, n = {}, 0
+  if #defs > 0 then
+    for _, d in ipairs(defs) do
+      if type(d.id) == "string" and E.SET_KINDS[d.kind] then
+        local v = E.SettingValue(d, raw[d.id], e)
+        if v ~= nil then out[d.id] = v; n = n + 1 end
+      end
+    end
+  else
+    for k, v in pairs(raw) do
+      if n >= E.SET_MAX then break end
+      if type(k) == "string" and #k <= 24 then
+        local tv = type(v)
+        if tv == "number" or tv == "boolean" then out[k] = v; n = n + 1
+        elseif tv == "string" then out[k] = v:sub(1, 60); n = n + 1
+        elseif tv == "table" then
+          local l = {}
+          for _, x in ipairs(v) do if (type(x) == "string" or type(x) == "number") and #l < 12 then l[#l + 1] = x end end
+          out[k] = l; n = n + 1
+        end
+      end
+    end
+  end
+  return n > 0 and out or nil
+end
+
+-- the type's own check of all values: nil or an error text
+function E.ValidateSettings(typeId, values)
+  local t = typeId and ns.Modules.Type(typeId)
+  if t and type(t.validate) == "function" then
+    local ok, err = pcall(t.validate, values)
+    if ok and err then return err end
+  end
+end
+
 function E.FieldDefault(f, e)
   if type(f.default) == "function" then
     local ok, v = pcall(f.default, e)
@@ -326,13 +538,39 @@ end
 -- the own sign-up: opts = { st, c, f = { [fieldId] = value } }
 -- may the character sign up (declining is always possible)? The event type
 -- can decide (canSignUp(e, key) -> ok, reason), e.g. raids by level
+-- may this character say yes? -> ok, reason (when not), notes (hints when yes; API 7)
 function E.CanSignUp(e, key)
+  local miss = ns.Catalog and ns.Catalog.MissingFor(e)
+  if miss then return false, miss end           -- add-on module not installed: no taking part
   local t = e and ns.Modules.Type(e.type)
   if t and t.canSignUp then
-    local ok, a, b = pcall(t.canSignUp, e, key)
-    if ok then return a ~= false, b end
+    local ok, a, b, c = pcall(t.canSignUp, e, key)
+    if ok then
+      local notes
+      if type(c) == "table" then
+        notes = {}
+        for _, n in ipairs(c) do if type(n) == "string" and n ~= "" and #notes < 4 then notes[#notes + 1] = n end end
+        if #notes == 0 then notes = nil end
+      elseif type(c) == "string" and c ~= "" then notes = { c } end
+      return a ~= false, b, notes
+    end
   end
   return true
+end
+
+-- the type's rules (API 7): { { icon, title, text }, ... } or nil
+function E.Rules(e)
+  local t = e and ns.Modules.Type(e.type)
+  if not (t and type(t.rules) == "function") then return nil end
+  local ok, list = pcall(t.rules, e)
+  if not ok or type(list) ~= "table" then return nil end
+  local out = {}
+  for _, r in ipairs(list) do
+    if type(r) == "table" and (r.title or r.text) and #out < 8 then
+      out[#out + 1] = { icon = r.icon, title = tostring(r.title or ""), text = tostring(r.text or "") }
+    end
+  end
+  return #out > 0 and out or nil
 end
 
 function E.SetSignup(e, opts)
@@ -340,8 +578,9 @@ function E.SetSignup(e, opts)
   opts = opts or {}
   local st = SIGN_OK[opts.st] and opts.st or "in"
   if st ~= "out" then
-    local ok, why = E.CanSignUp(e)
+    local ok, why, notes = E.CanSignUp(e)
     if not ok then U.Print(why or ns.L.SIGN_NOT_ALLOWED); return false, why end
+    if notes and E.Status(e) ~= st then for _, n in ipairs(notes) do U.Print(U.Color(U.WARN, n)) end end
   end
   local f = {}
   for _, fd in ipairs(E.Fields(e)) do
@@ -361,9 +600,11 @@ function E.SetSignup(e, opts)
   local prev = e.signups[G.MyKey()]
   local lv = tonumber(UnitLevel and UnitLevel("player"))
   if prev and tonumber(prev.lv) and (not lv or prev.lv < lv) then lv = prev.lv end
-  local s = { on = st ~= "out", st = st, c = c, f = f, t = U.Now(), lv = lv }
+  -- "for the whole series" (API 7): stays until the member answers again without it
+  local all = opts.all or nil
+  local s = { on = st ~= "out", st = st, c = c, f = f, t = U.Now(), lv = lv, all = all }
   e.signups[G.MyKey()] = s
-  C.Send("SIGN", { ev = e.id, on = s.on, st = st, c = c, f = f, lv = lv })
+  C.Send("SIGN", { ev = e.id, on = s.on, st = st, c = c, f = f, lv = lv, all = all })
   ns.Fire("SIGNUP_CHANGED", e, G.MyKey(), s)
   if ns.UI and ns.UI.Refresh then ns.UI.Refresh() end
   return true
@@ -454,22 +695,35 @@ end
 C.On("EVT", function(data, from)
   local e = data.e
   if type(e) ~= "table" or not e.id then return end
-  if not E.CanCreate(e.type, from) then return end
+  local prev = events()[e.id]
+  -- managers of the type, or a leader of the event as it is known here (0.9)
+  if not E.CanCreate(e.type, from) and not (prev and E.IsLeader(prev, from)) then return end
   e.fields = E.CleanFields(e.fields)
+  if ns.Teams then e.teams = ns.Teams.Clean(e.teams) end
+  e.set = E.CleanSettings(e.type, e.set, e)
+  if ns.Series then e.rep = ns.Series.Clean(e.rep) end
+  if e.series ~= nil and type(e.series) ~= "string" then e.series = nil end
   local list = events()
   local old = list[e.id]
+  if ns.Contest then ns.Contest.Merge(old, e) end
   if old and (tonumber(old.upd) or 0) >= (tonumber(e.upd) or 0) then
     old.signups = mergeSignups(old.signups, e.signups)
+    if ns.Contest then ns.Contest.Merge(e, old) end   -- e holds both by now
     return
   end
   e.signups = mergeSignups(old and old.signups, e.signups)
   list[e.id] = e
   ns.Fire("EVENT_UPDATED", e, old == nil)
-  if not old and E.IsOpen(e) and (U.Now() - (tonumber(e.created) or 0)) < 900 and ns.db.notify ~= false then
+  if e.result and not (old and old.result) and ns.Contest then
+    ns.Fire("EVENT_RESULTS", e, e.result)
+    ns.SafeCall("contestResult", ns.Contest.AnnounceResult, e)
+  end
+  local muted = ns.Catalog and ns.Catalog.Muted(e)
+  if not old and not muted and E.IsOpen(e) and (U.Now() - (tonumber(e.created) or 0)) < 900 and ns.db.notify ~= false then
     U.Print(ns.L.EVT_NEW:format(T.Word("GUILD"), e.name, U.FormatTime(e.start)))
     pcall(PlaySound, SOUNDKIT and SOUNDKIT.RAID_WARNING or 8959)
   end
-  if not old and E.IsOpen(e) and ns.Notices then
+  if not old and not muted and E.IsOpen(e) and ns.Notices then
     ns.Notices.Add({ key = "ev:" .. e.id, group = ns.L.TAB_EVENTS, text = ns.L.NOTICE_NEW_EVENT:format(e.name, U.FormatTime(e.start)), ev = e.id })
   end
   ns.Achievements.Dirty()
@@ -501,7 +755,7 @@ C.On("SIGN", function(data, from)
   if lv and (lv < 1 or lv > 200) then lv = nil end
   local prev = e.signups[from]
   if prev and tonumber(prev.lv) and (not lv or prev.lv < lv) then lv = prev.lv end
-  e.signups[from] = { on = st ~= "out", st = st, c = c, f = f, t = U.Now(), lv = lv }
+  e.signups[from] = { on = st ~= "out", st = st, c = c, f = f, t = U.Now(), lv = lv, all = data.all and true or nil }
   ns.Fire("SIGNUP_CHANGED", e, from, e.signups[from])
   if ns.UI and ns.UI.Refresh then ns.UI.Refresh() end
 end)
@@ -515,6 +769,9 @@ function E.Tick()
   ns.Schedule("gemEventTick", 30, E.Tick)
   if ns.demo or not G.IsActivated() then return end
   ns.SafeCall("invites", E.CheckInvites)
+  if ns.Contest then ns.SafeCall("contest", ns.Contest.Tick) end
+  if ns.Series then ns.SafeCall("series", ns.Series.Tick) end
+  if ns.Reminders then ns.SafeCall("reminders", ns.Reminders.Tick) end
   local now = U.Now()
   for _, e in pairs(events()) do
     if e.status == "planned" and e.kind == "short" and not reminded[e.id] then
@@ -580,6 +837,7 @@ end
 
 -- the member is reminded to say yes or no
 function E.NeedsAnswer(e, key)
+  if ns.Catalog and ns.Catalog.Muted(e) then return false end   -- "not interested"
   return E.Remind(e) and E.Unanswered(e, key)
 end
 -- own open invitations, soonest first

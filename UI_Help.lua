@@ -26,6 +26,8 @@ local function core(key)
   return function() return L["HELP_T_" .. key], L["HELP_X_" .. key] end
 end
 for _, id in ipairs({ "home", "events", "ledger", "ach", "banner", "settings" }) do UI.AddHelp(id, core(id)) end
+-- 0.9
+for _, id in ipairs({ "members", "org", "modules", "struct", "ranks", "persons" }) do UI.AddHelp(id, core(id)) end
 
 -- needs the guild master?
 -- (also without a guild: the preview explains it there too; never during the
@@ -81,7 +83,11 @@ function UI.ToggleHelp()
       title, text = L.HELP_ACT_MEMBER_T, L.HELP_ACT_MEMBER_X
     end
   else
-    title, text = topicFor(win.current)
+    if UI.HelpOverride then
+      local ok, t1, t2 = pcall(UI.HelpOverride, win.current)
+      if ok and t1 then title, text = t1, t2 end
+    end
+    if not title then title, text = topicFor(win.current) end
     if not title then title, text = L.HELP_T_none, L.HELP_X_none end
   end
   box.title:SetText(title or "")

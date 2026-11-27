@@ -7,16 +7,6 @@ local ADDON, ns = ...
 -- Sundays between 13:30 and 17:30 server time while in Stranglethorn Vale.
 -- Stops after four hours. Test tool, not a feature.
 local U = ns.U
--- (0.8.x has no U.UnitTrue / U.UnitVal yet: secret-safe unit queries here)
-local function isSecret(v) return issecretvalue and issecretvalue(v) or false end
-local function uval(fn, ...)
-  if type(fn) ~= "function" then return nil end
-  local ok, v = pcall(fn, ...)
-  if not ok or isSecret(v) then return nil end
-  return v
-end
-local function utrue(fn, ...) local v = uval(fn, ...); return v and true or false end
-U = setmetatable({ UnitTrue = U.UnitTrue or utrue, UnitVal = U.UnitVal or uval }, { __index = U })
 local FP = {}
 ns.FishProbe = FP
 
@@ -232,8 +222,11 @@ ticker:SetScript("OnUpdate", function(_, dt)
   end
   local w, h, m = serverClock()
   local mins = (h or 0) * 60 + (m or 0)
-  local last = ns.db.fishLog and ns.db.fishLog.server or 0
-  if w == 1 and mins >= 13 * 60 + 30 and mins <= 17 * 60 + 30 and inSTV() and serverNow() - last > 6 * 3600 then
+  local log = ns.db.fishLog
+  local last = log and log.server or 0
+  -- a fresh log once per tournament, or go on with today's log after a /reload
+  local goOn = log and not log.stopped and serverNow() - last < 4 * 3600
+  if w == 1 and mins >= 13 * 60 + 30 and mins <= 17 * 60 + 30 and inSTV() and (goOn or serverNow() - last > 6 * 3600) then
     FP.Start(true)
   end
 end)

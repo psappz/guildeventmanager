@@ -30,7 +30,7 @@ function N.Add(n)
   if n.key then
     for i = #list, 1, -1 do if list[i].key == n.key then table.remove(list, i) end end
   end
-  list[#list + 1] = { key = n.key, group = n.group, text = n.text, view = n.view, ev = n.ev, at = n.at or U.Now(), read = false }
+  list[#list + 1] = { key = n.key, group = n.group, text = n.text, view = n.view, ev = n.ev, mod = n.mod, at = n.at or U.Now(), read = false }
   if n.open then N.handlers = N.handlers or {}; N.handlers[n.key or n.text] = n.open end
   prune()
   ns.Fire("NOTICE", n)
@@ -65,6 +65,7 @@ end
 function N.Open(n)
   local fn = N.handlers and N.handlers[n.key or n.text]
   if fn then return ns.SafeCall("notice", fn) end
+  if n.mod and ns.ModuleUI then return ns.ModuleUI.Show(n.mod) end   -- a new module of the guild
   if n.ev and ns.Events.Get(n.ev) and ns.UIEvents then
     ns.UI.Show("events")
     ns.UIEvents.OpenDetail(ns.Events.Get(n.ev))

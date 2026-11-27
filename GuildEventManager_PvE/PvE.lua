@@ -990,6 +990,9 @@ for _, t in ipairs(R.TEMPLATES) do
   types[#types + 1] = {
     id = "raid_" .. t.id, nameKey = t.labelKey, descKey = "RAID_DESC_" .. t.id, kind = "short", group = "raid",
     gmax = t.size, icon = t.icon, raid = t.id,
+    color = { 0.85, 0.47, 0.31 },   -- calendar: raids are orange
+    -- calendar: a click opens the raid in the raid overview
+    open = function(e) if R.V then R.V.sel = e.id end; core.UI.Show("raids") end,
     remind = true,   -- raids remind members to sign up by default
     minLevel = function() return (GetMaxPlayerLevel and GetMaxPlayerLevel()) or 60 end,
     canSignUp = function(e, key) return R.CanSignUp(e, key) end,
@@ -999,8 +1002,25 @@ for _, t in ipairs(R.TEMPLATES) do
   }
 end
 
+-- Guild achievements (0.9): raids until 9.12. counted by the finished raid event
+-- of a template, afterwards by boss kills
+local IC = "Interface\\Icons\\"
+local function isRaid(x) return type(x.type) == "string" and x.type:sub(1, 5) == "raid_" end
+local function ofTpl(id) return function(x) return x.type == "raid_" .. id end end
+local gach = {
+  { id = "g_ony", nameKey = "GA_ONY", descKey = "GA_D_ONY", stat = "events", filter = ofTpl("ony"), tiers = { 1, 5, 15 }, icon = IC .. "INV_Misc_Head_Dragon_01" },
+  { id = "g_barrow", nameKey = "GA_BARROW", descKey = "GA_D_BARROW", stat = "events", filter = ofTpl("barrow"), tiers = { 1, 5, 15 }, icon = IC .. "INV_Misc_Bone_HumanSkull_01" },
+  { id = "g_hyjal", nameKey = "GA_HYJAL", descKey = "GA_D_HYJAL", stat = "events", filter = ofTpl("hyjal"), tiers = { 1, 5, 15 }, icon = IC .. "INV_Misc_Herb_Felblossom" },
+  { id = "g_raiding", nameKey = "GA_RAIDING", descKey = "GA_D_RAIDING", stat = "events", filter = isRaid, tiers = { 10, 25, 50 }, icon = IC .. "INV_Helmet_06" },
+  { id = "g_forty", nameKey = "GA_FORTY", descKey = "GA_D_FORTY", stat = "eventsize", size = 40, filter = isRaid, tiers = { 1, 5, 15 }, icon = IC .. "INV_Misc_GroupLooking" },
+  { id = "g_core", nameKey = "GA_CORE", descKey = "GA_D_CORE", stat = "weekstreak", sameType = true, filter = isRaid, tiers = { 4, 8, 12 }, icon = IC .. "INV_Misc_PocketWatch_02" },
+  { id = "g_schedule", nameKey = "GA_SCHEDULE", descKey = "GA_D_SCHEDULE", stat = "weeksall", types = { "raid_ony", "raid_barrow", "raid_hyjal" }, tiers = { 1, 4, 10 }, icon = IC .. "INV_Misc_Book_11" },
+  { id = "g_raidleads", nameKey = "GA_RAIDLEADS", descKey = "GA_D_RAIDLEADS", stat = "leaders", filter = isRaid, tiers = { 2, 4, 6 }, icon = IC .. "Ability_Warrior_BattleShout" },
+}
+
 API.RegisterModule({
-  id = "pve", nameKey = "MOD_PVE", version = R.version,
+  guildAchievements = gach,
+  id = "pve", nameKey = "MOD_PVE", version = R.version, addon = "GuildEventManager_PvE",
   tag = { key = "TAB_RAIDS" },
   requires = { api = 6 },
   eventTypes = types,
@@ -1077,14 +1097,14 @@ API.AddProbe("pve", function()
       local t = {}
       local specs = R.MySpecs()
       if specs[1] and specs[1].initial then return "one spec for the whole class (" .. tostring(specs[1].name) .. ")" end
-      for _, x in ipairs(specs) do t[#t + 1] = x.index .. " " .. tostring(x.name) .. " → " .. tostring(x.role) .. (x.configured and " *" or "") end
+      for _, x in ipairs(specs) do t[#t + 1] = x.index .. " " .. tostring(x.name) .. " » " .. tostring(x.role) .. (x.configured and " *" or "") end
       return table.concat(t, " · ")
     end)() },
     { "loadouts (third with most points = tree)", (function()
       local t = {}
       for _, l in ipairs(R.Loadouts()) do
         t[#t + 1] = (l.active and "ACTIVE " or "") .. (l.selected and "SELECTED " or "") .. tostring(l.name) .. " #" .. tostring(l.id) ..
-          ": " .. (l.pts and table.concat(l.pts, "/") or "-") .. " → " .. (l.tree and R.SpecName(R.MyClass(), l.tree) or "?") .. " (" .. tostring(l.info) .. ")"
+          ": " .. (l.pts and table.concat(l.pts, "/") or "-") .. " » " .. (l.tree and R.SpecName(R.MyClass(), l.tree) or "?") .. " (" .. tostring(l.info) .. ")"
       end
       return #t > 0 and table.concat(t, " · ") or "none (C_ClassTalents " .. P.Has(C_ClassTalents) .. ", C_Traits " .. P.Has(C_Traits) .. ")"
     end)() },

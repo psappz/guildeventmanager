@@ -1,53 +1,76 @@
 # GuildEventManager
 
-**Guild events, guild honor and guild achievements for WoW Forever – for the whole guild, Horde and Alliance.**
+**Your guild's events, raids, contests and organisation – in one window, for WoW Forever.**
 
-GuildEventManager lets your guild plan and run its own events, rewards everyone who takes part, and adds it all up to one total score for the guild. Achievements appear as plaques in the style of the Wrath of the Lich King achievement toasts.
-
----
-
-## How it works
-
-- **The guild master switches it on.** He pastes an activation code into the guild info. Until then the addon sends nothing, even if members have it installed.
-- **The guild master decides who runs events:** himself and a guild rank of his choice (optionally all higher ranks too).
-- **Everyone follows the guild profile.** Points, rules, achievement thresholds, names and active event types are set once by the guild leadership and reach every member over the guild addon channel.
-- **No server, no website.** Every client keeps the same ledger and adds up the same numbers.
+Plan events and raids, reward everyone who shows up, run contests with live standings, and keep track of who is who in your guild. No website, no Discord bot, no server: everything runs inside the game, for Horde and Alliance.
 
 ---
 
-## Features
+## Why guilds use it
 
-| Area | What you get |
+- 🏆 **Showing up pays off.** Every member collects GP (guild points) for taking part, organising and winning. The guild banner grows with the guild's GP of the last four weeks.
+- ⚔️ **Contests nobody else has.** Live standings, teams up to 40 – and **Anglergeddon**: several 40-player raids hunt together and count as one.
+- 👥 **One person, not five characters.** Main and twinks count together – GP, rankings, achievements.
+- 🔒 **The guild master stays in control.** Nothing is sent until he switches it on. He decides who runs events and which PvP and PvE parts the guild uses.
+
+---
+
+## Start in 3 steps
+
+1. **Install** GuildEventManager (everyone who wants to take part).
+2. **Guild master:** `/gem` → gear → *Activation code* → paste it into the guild information.
+3. **Done.** Members see events, sign up and collect GP. The "?" in the top bar explains every page.
+
+---
+
+## What's inside
+
+### Events
+Sign-ups with yes / tentative / late / bench / no, reminders with checklists, recurring events, calendar, several event leaders, "How it works" cards for every event type.
+
+### Raids (included)
+Templates for Barrow Deeps, Hyjal Summit and Onyxia's Lair · roles and dual spec · lineup by drag & drop · boss setups · buffs, debuffs and utility at a glance · assignments for blessings, curses, totems and fear ward · invite and sort the raid with one click · Raid-Helper import.
+
+### PvP (included)
+GP for honorable kills · blood debt: take revenge within 7 days · war drum / storm bell: call the guild to your position with a waypoint · **WANTED posters** for bounties · duels of honor and oaths with witnesses · season podium and PvP kill statistics.
+
+### Contests and teams
+Live standings, shared places, the event leader as referee · teams drawn, balanced or built by hand · shared goals for whole raids · big announcements when it is over.
+
+### Guild achievements
+36 guild achievements in bronze, silver, gold and legendary – the whole guild works on them together, every step puts a trophy on the trophy wall. Your own achievements appear as plaques in the style of the classic achievement toasts.
+
+### Guild organisation
+Members list with mains and twinks · organisation chart · ranks and functions (leadership, raid lead, bank …) · rank care for twinks and inactive members – the addon suggests, you click it through in Blizzard's guild window.
+
+---
+
+## Modules – install only what your guild wants
+
+| Module | What it adds |
 |---|---|
-| **Events** | RP evening, guild meeting, ritual (core) plus module types. Short, multi-day, multi-week or whole-season events, group requirement, sign-ups, reminders 10 minutes before the start, goals to tick off |
-| **Points** | Event points for taking part, organising and reaching goals. Pots are weighted and add up to one guild score |
-| **Clan / order banner** | Four banner levels from the guild's points of the last four weeks, member ranking by week, season or all time |
-| **Achievements** | Guild achievements with thresholds, points, honor names and their duration (season or forever) – all adjustable. Hidden and bronze/silver/gold achievements |
-| **Languages** | English, Deutsch, Français, Español, Italiano, Português – the addon language can differ from the client language |
-| **Faction look** | Horde: clan, Orgrimmar colours, war drum. Alliance: order, Stormwind colours, storm bell. Same mechanics for both |
+| **GuildEventManager Fishing** | Guild scoring at the Sunday fishing tournament, your own fishing contests, fishing PvP and Anglergeddon |
+| **GuildEventManager Holidays** | Winter Veil (gift giving, Secret Santa, snowball fights and duels, Greench hunt), Lunar Festival, Love is in the Air |
+| **GuildEventManager Management** | Member files for the leadership, activity of the last four weeks, promotion suggestions |
+| **GuildEventManager Marketplace** | "Who can make it?" with materials, gaps of the guild, guild stock from guild bank and bank characters |
 
-## PvP module (included)
-
-- **Guild honor** for honorable kills in the open world, with daily limits
-- **Blood debt / debt of honor:** whoever kills you becomes your debt – take revenge within 7 days
-- **War drums / storm bells:** call the guild to your position (help, rally, attack) with a map waypoint; whoever arrives in time gets honor
-- **Warband and defense** event types with goals
-- **Honor roll** of the guild; event managers can strike a deed
-- **Duel of honor:** challenge a guild member with a stake; a witness confirms the winner, once a week per pair. A normal duel – nobody dies
-- **Oaths:** swear a small, great or mighty oath – two witnesses confirm it was kept
-- **Season results:** podium of guild honor, the season champion carries the honor name "Champion", and the whole guild earns *Unstoppable* when it reaches the season goal
-- **PvP Kills tab:** honorable kills of every member (season and total, open world and battlegrounds), PvP rank and the game's own statistics
-
-All values are defaults and can be changed in the settings.
+When the guild master installs a module, it is switched on for the whole guild. PvP and PvE parts of a module stay locked until he unlocks them.
 
 ---
+
+## Good to know
+
+- **Do all members need it?** Everyone who wants to sign up and collect GP. Members without the addon can still join events in the game.
+- **Is anything sent outside the game?** No. The addon talks only over the guild's addon channel.
+- **Built for WoW Forever.** It uses no combat log (closed for addons on Forever) and stays out of the way in combat.
+- **Languages:** English, Deutsch, Français, Español, Italiano, Português – choose the addon language in the settings.
+- **Horde and Alliance:** clan and Orgrimmar colours for the Horde, order and Stormwind colours for the Alliance.
 
 ## Commands
 
-- `/gem` – main window
-- `/gem drum help|rally|attack [text]` – war drum / storm bell
-- `/gem duel <name> [stake]`, `/gem witness <winner>` – duel of honor
-- `/gem oath [1|2|3] <text>` – swear an oath
-- `/gem status`, `/gem minimap`, `/gem errors`
+`/gem` main window · `/gem drum help|rally|attack` war drum / storm bell · `/gem status` · `/gem errors` · `/gem minimap`
 
-Part of the Manager family with ConfigManager, LegacyManager, RecipeManager and DungeonManager.
+---
+
+Part of the **Manager family** with ConfigManager, LegacyManager, RecipeManager and DungeonManager.
+Questions and bugs: GitHub (link "Source" on this page).

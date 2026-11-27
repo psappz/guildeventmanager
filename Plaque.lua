@@ -68,21 +68,41 @@ local function build()
 end
 
 -- name: achievement name, sub: honor name or description, pts: points, icon: texture
-function PL.Show(name, sub, pts, icon, faction)
+-- opts.guild: guild achievement (gold, "GUILD ACHIEVEMENT", the tier on the shield)
+function PL.Show(name, sub, pts, icon, faction, opts)
   frame = frame or build()
   local th = T.THEMES[faction or T.Faction()]
-  frame.bg:SetVertexColor(unpack(th.tint))
-  frame.glow:SetVertexColor(unpack(th.glow))
+  local guild = opts and opts.guild
+  if guild then
+    frame.bg:SetVertexColor(1, 0.86, 0.45)
+    frame.glow:SetVertexColor(1, 0.8, 0.3)
+  else
+    frame.bg:SetVertexColor(unpack(th.tint))
+    frame.glow:SetVertexColor(unpack(th.glow))
+  end
   frame.crest:SetTexture(th.crest)
   frame.icon:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark")
-  frame.unlocked:SetText((T.THEMES[faction or T.Faction()].key == "alliance" and ns.L.A_ACH_KIND or ns.L.H_ACH_KIND):upper())
+  if guild then frame.unlocked:SetText(ns.L.GA_KIND:upper())
+  else frame.unlocked:SetText((T.THEMES[faction or T.Faction()].key == "alliance" and ns.L.A_ACH_KIND or ns.L.H_ACH_KIND):upper()) end
   frame.name:SetText(name or "")
   frame.sub:SetText(sub or "")
-  frame.points:SetText(tostring(pts or 0))
+  if guild then
+    local c = ns.GuildAch and ns.GuildAch.COLORS[opts.tier or 3] or { 1, 0.82, 0 }
+    frame.shield:SetVertexColor(c[1], c[2], c[3])
+    frame.points:SetText(({ "I", "II", "III", "IV" })[opts.tier or 3] or "")
+  else
+    frame.shield:SetVertexColor(1, 1, 1)
+    frame.points:SetText(tostring(pts or 0))
+  end
   frame.anim:Stop(); frame.glowAnim:Stop()
   frame:SetAlpha(1); frame:Show()
   frame.anim:Play(); frame.glowAnim:Play()
   pcall(PlaySound, SOUNDKIT and SOUNDKIT.UI_PERSONAL_LOOT_BANNER or 888)
+end
+
+function PL.TestGuild()
+  local d = ns.GuildAch and ns.GuildAch.DEFAULTS[3]
+  if d then PL.Show(ns.GuildAch.Name(d) .. " · " .. ns.GuildAch.TierName(2), ns.GuildAch.Desc(d), nil, d.icon, nil, { guild = true, tier = 2 }) end
 end
 
 function PL.Test(faction)

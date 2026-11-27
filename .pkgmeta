@@ -5,10 +5,12 @@ move-folders:
   GuildEventManager/GuildEventManager_PvE: GuildEventManager_PvE
 
 manual-changelog:
-  filename: CHANGELOG.md
+  filename: RELEASE_NOTES.md
   markup-type: markdown
 
 ignore:
+  - RELEASE_NOTES.md
+  - tools
   - art-src
   - README.md
   - .github

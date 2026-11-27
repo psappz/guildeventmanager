@@ -168,6 +168,11 @@ local function build()
   w.sub:SetWordWrap(false)
   w.close = W.Close(w, function() w:Hide() end)
   w.close:SetPoint("TOPRIGHT", -6, -6)
+  -- no bounty on him yet: put one (0.9)
+  w.bnty = W.Button(w, L.WNT_AL_BTN, false, 18)
+  w.bnty:SetWidth(78); w.bnty:SetPoint("RIGHT", w.close, "LEFT", -6, 0)
+  w.bnty:SetScript("OnClick", function() if w.info and P.OpenBountyCreate then P.OpenBountyCreate({ name = w.info.name }) end end)
+  w.title:SetPoint("RIGHT", w.bnty, "LEFT", -6, 0)
   w.reasons = W.Text(w, 11, "text"); w.reasons:SetPoint("TOPLEFT", 10, -54); w.reasons:SetPoint("RIGHT", -10, 0)
   w.reasons:SetJustifyH("LEFT"); w.reasons:SetSpacing(2)
   -- placeholder in the window; the protected button lies on top of it
@@ -219,6 +224,7 @@ function P.ShowAlarm(info)
   local hasBounty = false
   for _, r in ipairs(info.reasons) do if r.kind == "bounty" then hasBounty = true end end
   win:SetHeight(110 + #lines * 14)
+  win.bnty:SetShown(not hasBounty)
   if InCombatLockdown and InCombatLockdown() then
     win.slot.label:SetText(L.PVP_AL_TARGET_COMBAT)
     win.hint:SetText(L.PVP_AL_HINT_COMBAT)
@@ -287,6 +293,7 @@ end)
 ---------------------------------------------------------------------------
 local OPTS = { "bounty", "debt", "oath", "watch", "sound", "city", "bg" }
 core.UI.AddSettingsPage("pvpalarm", {
+  group = "pvp",
   label = function() return L.PVP_AL_SETTINGS end,
   build = function(p)
     p.head = core.UI.Section(p, L.PVP_AL_SETTINGS); p.head:SetPoint("TOPLEFT", 0, 0)

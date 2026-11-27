@@ -108,7 +108,7 @@ function P.Tick()
       if map == d.map and math.sqrt((x - d.x) ^ 2 + (y - d.y) ^ 2) <= radius then
         d.arrived = true
         local first = (d.arrivals or 0) == 0
-        Pts.AddSelf("honor", r.drum, "drum", { flag = first and "first" or nil, note = d.zone })
+        Pts.AddSelf("honor", r.drum, "drum", { flag = first and "first" or nil, note = d.zone, did = d.id })
         C.Send("DRUMARR", { id = d.id })
         core.Fire("PVP_DRUM_ARRIVED", d, first)
         U.Print(L.PVP_DRUM_ARRIVED:format(r.drum) .. (first and (" " .. L.PVP_DRUM_FIRST) or ""))

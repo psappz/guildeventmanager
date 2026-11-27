@@ -142,8 +142,15 @@ end
 function C.Send(kind, data, dist, target)
   dist = dist or "GUILD"
   if ns.demo then return false end
-  if dist == "GUILD" and not C.CanSend() then return false end
+  if G.viewRank then   -- "view as rank": only a look, nothing goes out
+    if not C.viewWarned then C.viewWarned = true; U.Print(ns.L.VIEW_NOSEND) end
+    return false
+  end
+  if (dist == "GUILD" or dist == "OFFICER") and not C.CanSend() then return false end
   data = data or {}
+  -- local test events (/gem testteams) never leave this client
+  if type(data.e) == "table" and data.e.test then return false end
+  if data.ev and ns.Events and ns.Events.Get(data.ev) and ns.Events.Get(data.ev).test then return false end
   data._id = data._id or U.NewId()
   seen[data._id] = true
   local body = kind .. "\t" .. ser(data)
@@ -161,6 +168,10 @@ function C.Send(kind, data, dist, target)
   end
   return true
 end
+
+-- Officer channel: reaches only the ranks that may read the officer chat
+-- (guild rank setting). For internal things, e.g. requests to the guild master.
+function C.SendOfficer(kind, data) return C.Send(kind, data, "OFFICER") end
 
 -- Several handlers per kind (core and modules may both listen, e.g. to HELLO)
 function C.On(kind, fn)
@@ -194,7 +205,7 @@ function C.OnMessage(prefix, text, dist, senderName)
   if prefix ~= C.PREFIX or not text then return end
   if not G.IsActivated() then return end     -- guild master has not activated the addon
   if ns.demo then return end                 -- demo data must not mix with real messages
-  if (G.Resolve(senderName) or G.Key(senderName)) == G.MyKey() and dist == "GUILD" then return end -- own echo
+  if (G.Resolve(senderName) or G.Key(senderName)) == G.MyKey() and (dist == "GUILD" or dist == "OFFICER") then return end -- own echo
   local t = text:sub(1, 1)
   if t == "S" then
     dispatch(text:sub(2), senderName, dist)

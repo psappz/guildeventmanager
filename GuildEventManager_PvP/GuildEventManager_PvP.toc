@@ -8,9 +8,9 @@
 ## Notes-itIT: Modulo PvP per GuildEventManager: onore di gilda per le uccisioni nel mondo aperto, debiti di sangue, tamburi di guerra, spedizioni, duelli d'onore, giuramenti e classifica di stagione.
 ## Notes-ptBR: Módulo JxJ para o GuildEventManager: honra da guilda por vitórias no mundo aberto, dívidas de sangue, tambores de guerra, expedições, duelos de honra, juramentos e classificação da temporada.
 ## Author: psappz
-## Version: 0.8.4
+## Version: 0.9.0
 ## Dependencies: GuildEventManager
-## IconTexture: Interface\AddOns\GuildEventManager\Media\GuildEventManagerIcon
+## IconTexture: Interface\AddOns\GuildEventManager\Media\gp_coin
 ## X-License: MIT
 ## X-Curse-Project-ID: 1790411
 
@@ -20,12 +20,14 @@ Locales\esES.lua
 Locales\itIT.lua
 Locales\ptBR.lua
 Locales\Alarm07.lua
+Locales\Bounty09.lua
 PvP.lua
 Detect.lua
 Stats.lua
 Drums.lua
 Honor.lua
 Bounty.lua
+Wanted.lua
 Alarm.lua
 Season.lua
 UI_PvP.lua

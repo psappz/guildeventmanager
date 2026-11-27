@@ -86,8 +86,12 @@ function UI.AddTab(id, def)
 end
 
 -- One more page in the settings (rules of a module and the like)
+-- def.group: "guild" | "personal" | the id of a module's sidebar entry ("raids", "pvp");
+-- without one the page goes to "more". The settings menu groups by it (0.9).
+local SETTINGS_GROUP = { settings = "guild", modules = "guild", struct = "guild", ranks = "guild", persons = "personal" }
 function UI.AddSettingsPage(id, def)
   local e = addEntry("settings", { group = "guild", hidden = true, order = 99 })
+  def.group = def.group or SETTINGS_GROUP[id]
   addView(e, id, def)
 end
 
@@ -159,6 +163,133 @@ local function buildNav()
       y = y - 8
     end
   end
+  win.navCount, win.headCount = nb, nh
+  -- (0.9: no "Settings" entry at the foot any more – the gear in the header opens them)
+  win.navBottom = y   -- the calendar below the navigation uses the rest
+end
+
+---------------------------------------------------------------------------
+-- Settings menu (0.9): in the settings the side bar lists their pages,
+-- grouped (Guild, Personal, one group per module). Groups fold in when the
+-- list is taller than the side bar; a click on a group folds it out.
+---------------------------------------------------------------------------
+local function settingsGroups()
+  local e = UI.entries.settings
+  local groups, order = {}, {}
+  local function add(g, vid)
+    if not groups[g] then groups[g] = {}; order[#order + 1] = g end
+    table.insert(groups[g], vid)
+  end
+  for _, vid in ipairs(e and e.tabs or {}) do
+    local v = UI.views[vid]
+    local ok, on = true, true
+    if v and v.shown then ok, on = pcall(v.shown) end
+    if v and (not ok or on) then
+      local g = v.group or SETTINGS_GROUP[vid] or "more"
+      if g ~= "guild" and g ~= "personal" and not UI.entries[g] then g = "more" end
+      add(g, vid)
+    end
+  end
+  local rank = function(g)
+    if g == "guild" then return 0 elseif g == "personal" then return 1 elseif g == "more" then return 999 end
+    return 10 + ((UI.entries[g] and UI.entries[g].order) or 100)
+  end
+  table.sort(order, function(a, b) return rank(a) < rank(b) end)
+  local PRIO = { settings = 1, modules = 2, struct = 3, ranks = 4 }
+  for _, list in pairs(groups) do
+    local pos = {}
+    for i, v in ipairs(list) do pos[v] = i end
+    table.sort(list, function(a, b) return (PRIO[a] or 10 + pos[a]) < (PRIO[b] or 10 + pos[b]) end)
+  end
+  return order, groups
+end
+
+local function groupName(g)
+  if g == "guild" then return ns.L.SET_G_GUILD end
+  if g == "personal" then return ns.L.SET_G_PERSONAL end
+  if g == "more" then return ns.L.SET_G_MORE end
+  local e = UI.entries[g]
+  return e and e.label and e.label() or g
+end
+
+local function buildSettingsNav()
+  local side = win.side
+  local th = T.Current()
+  local f = win.setNav
+  if not f then
+    f = CreateFrame("Frame", nil, side)
+    f:SetAllPoints()
+    f.back = navButton(f)
+    f.back:SetPoint("TOPLEFT", 6, -8); f.back:SetPoint("RIGHT", f, "RIGHT", -6, 0)
+    f.back.icon:SetTexture(W.Icon("back")); f.back.ownIcon = true
+    f.back:SetScript("OnClick", function() UI.Show(win.lastMain or "home") end)
+    f.heads, f.items = {}, {}
+    f.open = {}
+    win.setNav = f
+  end
+  f.back.text:SetText(ns.L.SET_BACK)
+  f.back.icon:SetVertexColor(th.title[1], th.title[2], th.title[3])
+  f.back.text:SetTextColor(th.title[1], th.title[2], th.title[3])
+  local order, groups = settingsGroups()
+  -- does everything fit?
+  local need = 40
+  for _, g in ipairs(order) do need = need + 22 + #groups[g] * 26 + 6 end
+  local avail = (side:GetHeight() or 500) - 10
+  local fold = need > avail
+  local curGroup
+  for _, g in ipairs(order) do for _, vid in ipairs(groups[g]) do if vid == win.current then curGroup = g end end end
+  if fold and f.open[curGroup] == nil and curGroup then f.open[curGroup] = true end
+  local y, nh, ni = -42, 0, 0
+  for _, g in ipairs(order) do
+    nh = nh + 1
+    local h = f.heads[nh]
+    if not h then
+      h = CreateFrame("Button", nil, f)
+      h:SetHeight(20)
+      h.t = W.Text(h, 10, "muted"); h.t:SetPoint("LEFT", 8, 0)
+      h.pm = W.Text(h, 11, "title"); h.pm:SetPoint("RIGHT", -8, 0)
+      h:SetScript("OnClick", function(self) if self.fold then f.open[self.g] = not f.open[self.g]; UI.Refresh() end end)
+      f.heads[nh] = h
+    end
+    h.g, h.fold = g, fold
+    h:ClearAllPoints(); h:SetPoint("TOPLEFT", 6, y); h:SetPoint("RIGHT", f, "RIGHT", -6, 0)
+    h.t:SetText(groupName(g))
+    local open = not fold or f.open[g]
+    h.pm:SetText(fold and (open and "-" or "+") or "")
+    h:Show()
+    y = y - 22
+    if open then
+      for _, vid in ipairs(groups[g]) do
+        ni = ni + 1
+        local b = f.items[ni]
+        if not b then
+          b = navButton(f)
+          b.icon:Hide()
+          b.text:ClearAllPoints(); b.text:SetPoint("LEFT", 16, 0); b.text:SetPoint("RIGHT", -6, 0)
+          b:SetScript("OnClick", function(self) UI.Show(self.view) end)
+          f.items[ni] = b
+        end
+        b.view = vid
+        b:SetHeight(24)
+        b:ClearAllPoints(); b:SetPoint("TOPLEFT", 6, y); b:SetPoint("RIGHT", f, "RIGHT", -6, 0)
+        local v = UI.views[vid]
+        b.text:SetText(v and v.label and v.label() or vid)
+        b.badgeBg:Hide()
+        local active = vid == win.current
+        if active then
+          b:SetBackdropColor(th.accent[1], th.accent[2], th.accent[3], 1); b.text:SetTextColor(1, 0.95, 0.85)
+        else
+          b:SetBackdropColor(0, 0, 0, 0); b.text:SetTextColor(th.text[1], th.text[2], th.text[3])
+        end
+        b:Show()
+        y = y - 26
+      end
+    end
+    y = y - 6
+  end
+  for i = nh + 1, #f.heads do f.heads[i]:Hide() end
+  for i = ni + 1, #f.items do f.items[i]:Hide() end
+  f:Show()
 end
 
 local function buildWindow()
@@ -226,6 +357,19 @@ local function buildWindow()
   f.title:SetText("GuildEventManager")
   f.sub = W.Text(head, 11, { 0.85, 0.80, 0.72 })
   f.sub:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", 0, -4)
+  -- trophies of the guild (0.9): small count next to the guild name, opens the banner page
+  f.trophies = CreateFrame("Button", nil, head, "BackdropTemplate")
+  f.trophies:SetHeight(18)
+  W.Paint(f.trophies, { 0.16, 0.12, 0.06, 0.9 }, { 0.54, 0.43, 0.13, 1 })
+  f.trophies.t = W.Text(f.trophies, 10, { 0.96, 0.89, 0.66 }); f.trophies.t:SetPoint("CENTER")
+  f.trophies:SetPoint("LEFT", f.title, "RIGHT", 10, 0)
+  f.trophies:SetScript("OnClick", function() UI.Show("banner") end)
+  f.trophies:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM"); GameTooltip:SetText(ns.L.GA_TROPHIES, 1, 0.82, 0)
+    GameTooltip:AddLine(ns.L.GA_TROPHIES_TIP, 1, 1, 1, true); GameTooltip:Show()
+  end)
+  f.trophies:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  f.trophies:Hide()
   local line = head:CreateTexture(nil, "ARTWORK")
   line:SetColorTexture(th.border[1], th.border[2], th.border[3], 1)
   line:SetHeight(1); line:SetPoint("BOTTOMLEFT"); line:SetPoint("BOTTOMRIGHT")
@@ -233,12 +377,24 @@ local function buildWindow()
   close:ClearAllPoints(); close:SetPoint("RIGHT", head, "RIGHT", -12, 0)
   f.gear = W.IconButton(head, "settings", 30, ns.L.TAB_SETTINGS)
   f.gear:SetPoint("RIGHT", close, "LEFT", -8, 0)
-  f.gear:SetScript("OnClick", function() UI.Show("settings") end)
+  f.gear:SetScript("OnClick", function()
+    if UI.entryOf[win.current] == "settings" then UI.Show(win.lastMain or "home") else UI.Show("settings") end
+  end)
   f.bell = W.IconButton(head, "bell", 30, ns.L.NOTICES)
   f.bell:SetPoint("RIGHT", f.gear, "LEFT", -4, 0)
   f.bell:SetScript("OnClick", function() UI.ToggleNotices() end)
   f.help = W.IconButton(head, "help", 30, ns.L.HELP)
   f.help:SetPoint("RIGHT", f.bell, "LEFT", -4, 0)
+  -- "view as rank" (guild master): how the interface looks for a rank
+  f.viewAs = W.Dropdown(head, 170, function()
+    local o = { { -1, ns.L.VIEW_OWN } }
+    for i = 0, 20 do local n = G.rankNames[i]; if n then o[#o + 1] = { i, ns.L.VIEW_AS:format(n) } end end
+    return o
+  end, function() return G.viewRank or -1 end, function(v)
+    ns.Comm.viewWarned = nil
+    G.SetViewRank(v >= 0 and v or nil)
+  end)
+  f.viewAs:SetPoint("RIGHT", f.help, "LEFT", -10, 0)
   f.help:SetScript("OnClick", function() UI.ToggleHelp() end)
 
   -- sidebar
@@ -409,6 +565,18 @@ local function refreshChrome()
   local th = T.Current()
   if win.navDirty then buildNav() end
   local cur = UI.entryOf[win.current]
+  local inSet = cur == "settings"
+  if not inSet then win.lastMain = win.current end
+  for i, b in ipairs(win.navBtns or {}) do b:SetShown(not inSet and i <= (win.navCount or 0)) end
+  for i, h in ipairs(win.navHeads or {}) do h:SetShown(not inSet and i <= (win.headCount or 0)) end
+  if win.setBtn then
+    win.setBtn:SetShown(not inSet)
+    win.setBtn.text:SetText(ns.L.TAB_SETTINGS)
+    win.setBtn.text:SetTextColor(th.text[1], th.text[2], th.text[3])
+    win.setBtn.icon:SetVertexColor(th.muted[1], th.muted[2], th.muted[3])
+    win.setBtn.badgeBg:Hide()
+  end
+  if inSet then buildSettingsNav() elseif win.setNav then win.setNav:Hide() end
   for _, b in ipairs(win.navBtns or {}) do
     if b:IsShown() then
       local e = UI.entries[b.entry]
@@ -432,7 +600,15 @@ local function refreshChrome()
   end
   -- sub-tabs of the open entry
   local e = cur and UI.entries[cur]
-  local tabs = (e and #e.tabs > 1) and e.tabs or {}
+  -- a view may hide its tab (def.shown = function() -> bool), e.g. for rights
+  local vis = {}
+  for _, vid in ipairs(e and e.tabs or {}) do
+    local v = UI.views[vid]
+    local ok, on = true, true
+    if v and v.shown then ok, on = pcall(v.shown) end
+    if not ok or on then vis[#vis + 1] = vid end
+  end
+  local tabs = (#vis > 1 and not inSet) and vis or {}
   local prev
   for i, vid in ipairs(tabs) do
     local b = win.subtabs[i]
@@ -457,6 +633,7 @@ local function refreshChrome()
   -- bell: unread count
   local unread = ns.Notices and ns.Notices.Unread() or 0
   win.bell:SetCount(unread)
+  if ns.Calendar then ns.SafeCall("calendar", ns.Calendar.Refresh) end
   -- help: a red 1 while the guild master still has to switch the addon on
   win.help:SetCount((ns.UIHelp and ns.UIHelp.NeedsActivation()) and 1 or 0)
 end
@@ -469,9 +646,18 @@ function UI.Refresh()
     applyPreview()
     win.title:SetText(G.InGuild() and ((G.Name() or "?") .. (ns.preview and ("  " .. U.Color(U.WARN, ns.L.PREVIEW_TAG)) or "")) or "GuildEventManager")
     if win.crestBtn then win.crestBtn:Update() end
-    win.sub:SetText(ns.preview and ns.L.PREVIEW_SUB or G.InGuild()
+    if win.trophies then
+      local n = (G.InGuild() and ns.GuildAch) and ns.GuildAch.Count() or 0
+      win.trophies.t:SetText("|TInterface\\Icons\\INV_Misc_Ribbon_01:12:12:0:0:64:64:6:58:6:58|t " .. n)
+      win.trophies:SetWidth(win.trophies.t:GetStringWidth() + 14)
+      win.trophies:SetShown(n > 0)
+    end
+    win.sub:SetText((ns.preview and ns.L.PREVIEW_SUB or G.InGuild()
       and ns.L.HEADER_SUB2:format(T.Word("GUILD"), season)
       or ns.L.NO_GUILD_SHORT)
+      .. (G.viewRank and ("  " .. U.Color("ffff805c", ns.L.VIEW_ACTIVE:format(G.rankNames[G.viewRank] or "?"))) or ""))
+    win.viewAs:SetShown(G.IsRealLeader() and not ns.demo)
+    win.viewAs:Refresh()
     win.family:Refresh()
     refreshChrome()
     local id = win.current

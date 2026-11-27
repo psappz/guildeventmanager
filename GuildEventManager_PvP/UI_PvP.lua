@@ -8,7 +8,7 @@ local L = P.L
 local V = {}
 
 local RULES = { "kill", "perVictim", "dailyCap", "debt", "debtDays", "coldMin", "drum", "drumWindow", "drumRadius", "revengeChat", "revengeChatMin",
-  "makgora", "makgoraWitnessRank", "makgoraDays", "makgoraPerDay", "makgoraPerMember", "oath1", "oath2", "oath3", "oathDays", "oathWitnesses", "bountyMin", "bountyMax", "bountyDays", "bountyOpen", "seasonGoal" }
+  "makgora", "makgoraWitnessRank", "makgoraDays", "makgoraPerDay", "makgoraPerMember", "oath1", "oath2", "oath3", "oathDays", "oathWitnesses", "bountyMin", "bountyMax", "bountyDays", "bountyOpen", "bountyGap", "bountyPause", "guildBountyWeek", "foeMembers", "foeBounty", "bonusKills", "bonusMin", "bonus", "seasonGoal" }
 
 local function build(p)
   local th = T.Current()
@@ -101,9 +101,9 @@ local function build(p)
     local r = CreateFrame("Button", nil, parent)
     r:SetHeight(18)
     r:RegisterForClicks("RightButtonUp")
-    r.text = W.Text(r, 10, "text"); r.text:SetPoint("LEFT", 2, 0); r.text:SetPoint("RIGHT", -70, 0); r.text:SetWordWrap(false)
-    r.pts = W.Text(r, 11, "title"); r.pts:SetPoint("RIGHT", -36, 0); r.pts:SetJustifyH("RIGHT")
     r.when = W.Text(r, 9, "muted"); r.when:SetPoint("RIGHT", -2, 0); r.when:SetJustifyH("RIGHT")
+    r.pts = W.Text(r, 11, "title"); r.pts:SetPoint("RIGHT", r.when, "LEFT", -10, 0); r.pts:SetJustifyH("RIGHT"); r.pts:SetWidth(56)
+    r.text = W.Text(r, 10, "text"); r.text:SetPoint("LEFT", 2, 0); r.text:SetPoint("RIGHT", r.pts, "LEFT", -8, 0); r.text:SetWordWrap(false)
     r:SetScript("OnClick", function(self)
       if not G.IsManager() or not self.entry or self.entry.reverted then return end
       W.OpenMenu(self, function(_, root)
@@ -213,8 +213,11 @@ function P.DeedText(e)
   end
   if e.why == "debt" then deed = deed .. " (" .. T.Word("DEBT") .. ")" end
   if e.why == "bounty" then
-    local key = ({ set = "PVP_DEED_BNT_SET", won = "PVP_DEED_BNT_WON", back = "PVP_DEED_BNT_BACK", exp = "PVP_DEED_BNT_BACK" })[e.flag or ""] or "PVP_DEED_BNT_FIX"
+    local flag = tostring(e.flag or ""):gsub("%+$", "")
+    local key = ({ set = "PVP_DEED_BNT_SET", won = "PVP_DEED_BNT_WON", back = "PVP_DEED_BNT_BACK", exp = "PVP_DEED_BNT_BACK",
+      addback = "PVP_DEED_BNT_BACK", add = "PVP_DEED_BNT_ADD", triple = "PVP_DEED_BNT_TRIPLE" })[flag] or "PVP_DEED_BNT_FIX"
     deed = L[key]:format(e.note or "?")
+    if flag == "won" and (tonumber(e.n) or 1) > 1 then deed = deed .. " " .. L.PVP_DEED_BNT_GROUP:format(e.n) end
   end
   return deed
 end
@@ -276,7 +279,7 @@ local function refresh(p)
     local txt = G.Display(e.who) .. U.Color(T.Hex(th.muted), " · " .. deed .. ((e.zone and e.zone ~= "") and (" · " .. e.zone) or ""))
     if e.reverted then txt = U.Color("ff808080", G.Display(e.who) .. " · " .. deed .. " · " .. L.PVP_REVERTED) end
     row.text:SetText(txt)
-    row.pts:SetText((e.amt > 0 and "+" or "") .. e.amt)
+    row.pts:SetText((e.amt > 0 and "+" or "") .. e.amt .. " " .. U.Dot())
     row.when:SetText(date("%d.%m.", e.ts))
   end
   p.rollRows:HideFrom(math.min(n, 60) + 1)
@@ -301,6 +304,7 @@ UI.AddModule("pvp", {
 if UI.AddHelp then UI.AddHelp("pvp", function() return core.L.HELP_T_pvp, core.L.HELP_X_pvp end) end
 
 UI.AddSettingsPage("pvprules", {
+  group = "pvp",
   label = function() return L.PVP_RULES end,
   build = buildRules,
   refresh = refreshRules,

@@ -2,6 +2,7 @@ local ADDON, ns = ...
 -- Events tab: overview, detail page, editor, attendance at the end.
 local U, G, T, W, E, UI = ns.U, ns.Guild, ns.Theme, ns.W, ns.Events, ns.UI
 local V = {}
+ns.EventsUI = V
 local L = ns.L
 
 local ROW_H = 44
@@ -38,7 +39,7 @@ end
 function V.AnyCreate()
   if G.IsManager() then return true end
   for _, t in ipairs(ns.Modules.AllTypes()) do
-    if not t.missing and E.CanCreate(t.id) then return true end
+    if not t.missing and E.CanCreate(t.id) and E.TypeOpen(t.id) then return true end
   end
   return false
 end
@@ -90,6 +91,9 @@ local function buildList(p)
     h.text:SetPoint("LEFT", 0, -2)
     return h
   end)
+  -- events of modules the player is not interested in: folded away
+  list.mutedBtn = W.Button(list.scroll.content, "", false, 20)
+  list.mutedBtn:SetScript("OnClick", function() list.showMuted = not list.showMuted; UI.Refresh() end)
   list.empty = W.Text(list.scroll.content, 12, "muted")
   list.empty:SetPoint("TOPLEFT", 4, -8); list.empty:SetPoint("RIGHT", list.scroll.content, "RIGHT", -4, 0)
 end
@@ -106,8 +110,14 @@ local function refreshList(p)
   }
   local y, nr, nh = 0, 0, 0
   local content = list.scroll.content
+  local hidden = 0
+  local function visible(e)
+    if list.showMuted or not ns.Catalog.Muted(e) or E.Status(e) then return true end
+    if E.IsOpen(e) then hidden = hidden + 1 end
+    return false
+  end
   for _, g in ipairs(groups) do
-    local items = E.List(function(e) return g[2](e) and ns.Profile.IsTypeActive(e.type) end)
+    local items = E.List(function(e) return g[2](e) and ns.Profile.IsTypeActive(e.type) and visible(e) end)
     if #items > 0 then
       nh = nh + 1
       local h = list.heads:Get(nh)
@@ -122,7 +132,7 @@ local function refreshList(p)
         r:ClearAllPoints(); r:SetPoint("TOPLEFT", 0, -y); r:SetPoint("RIGHT", content, "RIGHT", -2, 0)
         r.icon:Set(e.start)
         r.name:SetText(e.name .. (E.TypeMissing(e) and ("  " .. U.Color(U.WARN, L.MODULE_MISSING)) or ""))
-        r.meta:SetText(table.concat({ ns.Modules.TypeName(e.type), kindText(e.kind), groupText(e), whenText(e) }, " · "))
+        r.meta:SetText(table.concat({ ns.Modules.TypeName(e.type), kindText(e.kind), groupText(e), whenText(e) }, " · ") .. (e.series and (" · " .. L.SERIES_TAG) or ""))
         r.count:SetText(L.SIGNED_N:format(E.SignCount(e)))
         local st = E.Status(e)
         if E.IsOpen(e) and e.status == "running" then
@@ -143,7 +153,14 @@ local function refreshList(p)
   end
   list.rows:HideFrom(nr + 1)
   list.heads:HideFrom(nh + 1)
-  list.empty:SetShown(nr == 0)
+  list.mutedBtn:SetShown(hidden > 0 or list.showMuted)
+  if list.mutedBtn:IsShown() then
+    W.SetLabel(list.mutedBtn, list.showMuted and L.MUTED_HIDE or L.MUTED_SHOW:format(hidden))
+    list.mutedBtn:SetWidth(list.mutedBtn.label:GetStringWidth() + 24)
+    list.mutedBtn:ClearAllPoints(); list.mutedBtn:SetPoint("TOPLEFT", 0, -(y + 2))
+    y = y + 28
+  end
+  list.empty:SetShown(nr == 0 and not list.mutedBtn:IsShown())
   list.empty:SetText(manager and L.NO_EVENTS_MANAGER or L.NO_EVENTS)
   list.scroll:SetContentHeight(y)
 end
@@ -177,6 +194,11 @@ local function buildDetail(p)
   d.left:SetPoint("TOPLEFT", 0, -54); d.left:SetPoint("BOTTOMLEFT", 0, 34)
   d.left:SetPoint("RIGHT", d, "CENTER", -8, 0)
   local s1 = UI.Section(d.left, L.ABOUT); s1:SetPoint("TOPLEFT", 0, 0)
+  -- "How it works": the type's rules (API 7) in a small window
+  d.rulesBtn = W.Button(d.left, L.RULES_BTN, true, 20)
+  d.rulesBtn:SetWidth(140); d.rulesBtn:SetPoint("TOPRIGHT", d.left, "TOPRIGHT", 0, 2)
+  d.rulesBtn:SetFrameLevel(d.left:GetFrameLevel() + 5)
+  d.rulesBtn:SetScript("OnClick", function() if d.ev then V.ShowRules(d.ev) end end)
   d.desc = W.Text(d.left, 11, "text")
   d.desc:SetPoint("TOPLEFT", 0, -22); d.desc:SetPoint("RIGHT", 0, 0)
   d.desc:SetSpacing(3)
@@ -189,6 +211,19 @@ local function buildDetail(p)
 
   d.right = CreateFrame("Frame", nil, d)
   d.right:SetPoint("TOPLEFT", d, "TOP", 8, -54); d.right:SetPoint("BOTTOMRIGHT", 0, 34)
+  -- tabs "Sign-ups" / "Teams" (0.9, events with group "teams")
+  d.tabs = {}
+  for i, id in ipairs({ "info", "teams" }) do
+    local b = W.Button(d, "", false, 22)
+    b.tab = id
+    b:SetScript("OnClick", function(self) d.tab = self.tab; V.RefreshDetail() end)
+    if i == 1 then b:SetPoint("TOPLEFT", 0, -54) else b:SetPoint("LEFT", d.tabs[i - 1], "RIGHT", 4, 0) end
+    d.tabs[i] = b
+  end
+  d.teams = CreateFrame("Frame", nil, d)
+  d.teams:SetPoint("TOPLEFT", 0, -84); d.teams:SetPoint("BOTTOMRIGHT", 0, 34)
+  d.teams:Hide()
+  if ns.UITeams then ns.UITeams.Build(d.teams) end
   -- own sign-up: state, comment, the event's own fields
   d.myHead = UI.Section(d.right, L.MY_SIGNUP); d.myHead:SetPoint("TOPLEFT", 0, 0)
   d.my = W.Box(d.right, 10, 10, "panel2")
@@ -219,11 +254,14 @@ local function buildDetail(p)
   end)
   d.why = W.Text(d.my, 10, "text")
   d.why:SetSpacing(2)
+  d.allDates = W.Check(d.my, L.SERIES_SIGN_ALL, function(_, on) d.signAll = on end)
   d.save = W.Button(d.my, L.SIGN_ON, true, 22)
   d.save:SetScript("OnClick", function()
     local e = d.ev
     if not e or not d.draft then return end
-    local ok = E.SetSignup(e, d.draft)
+    local ok
+    if e.series and d.signAll then ok = ns.Series.SignAll(e, d.draft) > 0
+    else ok = E.SetSignup(e, d.draft) end
     if ok then d.saved = U.Now() end
     V.RefreshDetail()
   end)
@@ -232,6 +270,7 @@ local function buildDetail(p)
   d.savedText:SetWordWrap(false)
 
   d.signHead = UI.Section(d.right, L.SIGNUPS)
+  d.endB = V.EndButtons(d.right)
   d.signBox = W.Box(d.right, 10, 10, "panel2")
   d.signBox:SetPoint("TOPLEFT", d.signHead, "BOTTOMLEFT", 0, -8); d.signBox:SetPoint("BOTTOMRIGHT", 0, 0)
   d.signScroll = W.Scroll(d.signBox)
@@ -254,7 +293,12 @@ local function buildDetail(p)
   d.bCopy = act("ACT_COPY", function(e) V.OpenEditor(nil, e) end)
   d.bInvite = act("ACT_INVITE", function(e) E.InviteAll(e) end)
   d.bCancel = act("ACT_CANCEL", function(e)
-    W.Dialog({ text = L.CONFIRM_CANCEL:format(e.name), onAccept = function() E.Cancel(e) end })
+    if e.series then
+      W.Dialog({ text = L.CONFIRM_CANCEL:format(e.name) .. "\n\n" .. L.SERIES_CANCEL_Q, accept = L.SERIES_ONLY_THIS, alt = L.SERIES_ALL_LATER,
+        onAccept = function() E.Cancel(e) end, onAlt = function() ns.Series.CancelFollowing(e) end })
+    else
+      W.Dialog({ text = L.CONFIRM_CANCEL:format(e.name), onAccept = function() E.Cancel(e) end })
+    end
   end)
 end
 
@@ -272,12 +316,34 @@ local function refreshDetail(p)
     { ns.Modules.TypeName(e.type) },
     { tag or (mod and (mod.name or L[mod.nameKey])) or L.MODULE_MISSING, false, tcol },
     { groupText(e) },
-    { L.LEADER:format(G.Display(e.leader)) },
+    { L.LEADER:format((function() local t = {}; for _, k in ipairs(E.Leaders(e)) do t[#t + 1] = G.Display(k) end; return table.concat(t, ", ") end)()) },
     { statusText(e), e.status == "running" },
     { kindText(e.kind) },
   }
   for i, pl in ipairs(d.pills) do pl:Set(vals[i][1], vals[i][2], vals[i][3]) end
   d.desc:SetText((e.desc and e.desc ~= "") and e.desc or (t and t.descKey and L[t.descKey]) or "")
+  d.rulesBtn:SetShown(E.Rules(e) ~= nil)
+  -- tabs: only events with teams
+  local hasTeams = e.group == "teams" and ns.UITeams ~= nil
+  if not hasTeams then d.tab = "info" end
+  local th = T.Current()
+  local nSign = 0
+  for _, s in ipairs(E.SignupList(e)) do if s.st == "in" or s.st == "late" then nSign = nSign + 1 end end
+  local tm = ns.Teams and ns.Teams.Get(e)
+  local labels = { info = L.TM_TAB_SIGN:format(nSign), teams = L.TM_TAB_TEAMS:format(tm and #tm.list or 0) }
+  for _, b in ipairs(d.tabs) do
+    b:SetShown(hasTeams)
+    W.SetLabel(b, labels[b.tab])
+    local on = (d.tab or "info") == b.tab
+    b:SetBackdropColor(unpack(on and th.accent or th.panel2))
+    b.label:SetTextColor(unpack(on and { 1, 0.95, 0.85 } or th.text))
+  end
+  local top = hasTeams and -84 or -54
+  d.left:ClearAllPoints(); d.left:SetPoint("TOPLEFT", 0, top); d.left:SetPoint("BOTTOMLEFT", 0, 34); d.left:SetPoint("RIGHT", d, "CENTER", -8, 0)
+  d.right:ClearAllPoints(); d.right:SetPoint("TOPLEFT", d, "TOP", 8, top); d.right:SetPoint("BOTTOMRIGHT", 0, 34)
+  local teamsTab = hasTeams and d.tab == "teams"
+  d.left:SetShown(not teamsTab); d.right:SetShown(not teamsTab); d.teams:SetShown(teamsTab)
+  if teamsTab then ns.UITeams.Attach(d.teams, e) end
   local facts = {
     L.FACT_START:format(U.FormatTime(e.start)),
   }
@@ -285,6 +351,10 @@ local function refreshDetail(p)
   local pr = ns.Profile.Get().pts
   facts[#facts + 1] = L.FACT_POINTS:format(tonumber(e.pts) or pr.participate, pr.lead, pr.leadMin)
   if E.MinLevel(e) then facts[#facts + 1] = L.FACT_LEVEL:format(E.MinLevel(e)) end
+  if e.rep then
+    local id = (e.rep.every == "week" and e.rep.n == 2) and "week2" or e.rep.every
+    facts[#facts + 1] = L.FACT_REPEAT:format(L["ED_REP_" .. id] or id) .. (e.rep.untilTs and (" · " .. L.FACT_UNTIL:format(date("%d.%m.%Y", e.rep.untilTs))) or "")
+  end
   if e.status == "done" then
     local n = 0
     for _ in pairs(e.attended or {}) do n = n + 1 end
@@ -384,12 +454,28 @@ local function refreshDetail(p)
     end
     d.fieldRows:HideFrom(#fields + 1)
     -- not allowed (e.g. level): say why; declining still works
-    local can, why = E.CanSignUp(e)
-    d.why:SetShown(not can)
-    if not can then
+    -- hints when allowed (yellow, API 7)
+    local can, why, notes = E.CanSignUp(e)
+    local warnText
+    if not can then warnText = U.Color(U.WARN, why or L.SIGN_NOT_ALLOWED)
+    elseif notes then
+      local l = {}
+      for _, n in ipairs(notes) do l[#l + 1] = U.Color("ffe6c34d", "! " .. n) end
+      warnText = table.concat(l, "\n")
+    end
+    d.why:SetShown(warnText ~= nil)
+    if warnText then
       d.why:ClearAllPoints(); d.why:SetPoint("TOPLEFT", 8, y - 2); d.why:SetPoint("RIGHT", d.my, "RIGHT", -8, 0)
-      d.why:SetText(U.Color(U.WARN, why or L.SIGN_NOT_ALLOWED))
+      d.why:SetText(warnText)
       y = y - d.why:GetStringHeight() - 8
+    end
+    d.allDates:SetShown(e.series ~= nil)
+    if e.series then
+      local mine = e.signups and e.signups[G.MyKey()]
+      if d.signAllFor ~= e.id then d.signAllFor = e.id; d.signAll = mine and mine.all or false end
+      d.allDates:SetChecked(d.signAll)
+      d.allDates:ClearAllPoints(); d.allDates:SetPoint("TOPLEFT", 10, y - 4)
+      y = y - 22
     end
     d.save:ClearAllPoints(); d.save:SetPoint("TOPLEFT", 8, y - 4)
     W.SetLabel(d.save, E.Status(e) and L.SIGN_SAVE or L.SIGN_ON)
@@ -439,7 +525,19 @@ local function refreshDetail(p)
       for _, x in ipairs(l) do lines[#lines + 1] = "  " .. x end
     end
   end
+  -- contest (API 7): standings or the referee's result above the sign-ups
+  local top = V.ContestLines(e)
+  if top then
+    if #lines > 0 then top[#top + 1] = "" end
+    for _, l in ipairs(lines) do top[#top + 1] = l end
+    lines = top
+  end
   d.signHead:SetText(L.SIGNUPS .. " (" .. E.SignCount(e) .. ")")
+  -- report end / confirm (contests)
+  V.RefreshEndButtons(d.endB, e)
+  d.endB.report:ClearAllPoints(); d.endB.report:SetPoint("BOTTOMRIGHT", d.signBox, "TOPRIGHT", 0, 4)
+  d.endB.resume:ClearAllPoints(); d.endB.resume:SetPoint("BOTTOMRIGHT", d.signBox, "TOPRIGHT", 0, 4)
+  d.endB.confirm:ClearAllPoints(); d.endB.confirm:SetPoint("RIGHT", d.endB.resume, "LEFT", -4, 0)
   d.signText:SetText(#lines > 0 and table.concat(lines, "\n") or L.NO_SIGNUPS)
   d.signScroll:SetContentHeight(d.signText:GetStringHeight() + 4)
   d.sign:Hide()
@@ -605,6 +703,34 @@ local function buildEditor(p)
   ed.name = W.Edit(col, LEFT_W, 22)
   ed.name:SetMaxLetters(60)
   ed.name:SetScript("OnTextChanged", function() if ed.f then V.EditorPreview() end end)
+  -- leadership (0.9): one or more leaders, raids need a raid lead
+  ed.lLead = W.Text(col, 10, "muted")
+  ed.leadRows = W.Pool(col, function(parent)
+    local b = W.Button(parent, "", false, 20)
+    b:SetScript("OnClick", function(self)
+      local k = self.key
+      local list = ed.f and ed.f.leaders or {}
+      for i = #list, 1, -1 do if list[i] == k then table.remove(list, i) end end
+      V.EditorRefresh()
+    end)
+    return b
+  end)
+  ed.leadEdit = W.Edit(col, 150, 20)
+  ed.leadAdd = W.Button(col, L.ED_LEAD_ADD, false, 20); ed.leadAdd:SetWidth(90)
+  local function addLeader(text)
+    local k = G.Resolve(((text or ed.leadEdit:GetText()) or ""):match("^%s*(.-)%s*$"))
+    if not k or not ed.f then return end
+    k = ns.Persons and ns.Persons.MainOf(k) or k
+    ed.f.leaders = ed.f.leaders or {}
+    for _, x in ipairs(ed.f.leaders) do if x == k then return end end
+    ed.f.leaders[#ed.f.leaders + 1] = k
+    ed.leadEdit:SetText("")
+    V.EditorRefresh()
+  end
+  ed.leadAdd:SetScript("OnClick", function() addLeader() end)
+  ed.leadEdit:SetScript("OnEnterPressed", function(self) addLeader(); self:ClearFocus() end)
+  W.NameComplete(ed.leadEdit, W.MemberNames, addLeader)
+  ed.leadHint = W.Text(col, 10, "muted")
 
   -- 2 · when
   ed.s2 = UI.Section(col, L.ED_WHEN); ed.s2:SetWidth(LEFT_W)
@@ -684,6 +810,16 @@ local function buildEditor(p)
     end
     return o
   end, function() return ed.st and ed.st.n end, function(v) ed.st.n = v; V.EditorRefresh() end)
+  -- repeat (API 7): the next four weeks are kept as events
+  ed.lRep = W.Text(col, 10, "muted"); ed.lRep:SetText(L.ED_REPEAT)
+  ed.rep = W.Dropdown(col, 170, function()
+    local o = {}
+    for _, id in ipairs({ "none", "day", "week", "week2", "month" }) do o[#o + 1] = { id, L["ED_REP_" .. id] } end
+    return o
+  end, function() return ed.repSel or "none" end, function(v) ed.repSel = v; V.EditorRefresh() end)
+  ed.lUntil = W.Text(col, 10, "muted"); ed.lUntil:SetText(L.ED_REP_UNTIL)
+  ed.until_ = W.Edit(col, 100, 22); ed.until_:SetMaxLetters(10)
+  ed.untilHint = W.Text(col, 10, "muted"); ed.untilHint:SetText(L.ED_DATE_HINT)
   ed.whenLine = W.Text(col, 11, "title")
   ed.whenLine:SetWidth(LEFT_W)
 
@@ -742,6 +878,35 @@ local function buildEditor(p)
     V.EditorRefresh()
     local r = ed.goalRows.items[#ed.goals]
     if r then r.edit:SetFocus() end
+  end)
+
+  -- 1b · settings of the event type (API 7): one row per setting
+  ed.sSet = UI.Section(col, L.ED_SETTINGS); ed.sSet:SetWidth(LEFT_W)
+  ed.setRows = W.Pool(col, function(parent)
+    local r = CreateFrame("Frame", nil, parent)
+    r:SetSize(LEFT_W, 24)
+    r.label = W.Text(r, 11, "text"); r.label:SetPoint("LEFT", 0, 0); r.label:SetWidth(200); r.label:SetWordWrap(false)
+    r.hint = W.Text(r, 10, "muted")
+    local function set(v) if ed.set and r.def then ed.set[r.def.id] = v; V.EditorRefresh() end end
+    r.drop = W.Dropdown(r, 220, function() return r.def and E.SettingOptions(r.def, ed.f) or {} end,
+      function() return ed.set and r.def and ed.set[r.def.id] end, set)
+    r.drop:SetPoint("LEFT", 206, 0)
+    r.edit = W.Edit(r, 90, 22); r.edit:SetPoint("LEFT", 206, 0)
+    r.edit:SetScript("OnTextChanged", function(self, user)
+      if not (user and ed.set and r.def) then return end
+      local k = r.def.kind
+      local txt = self:GetText()
+      if k == "number" then ed.set[r.def.id] = tonumber(txt)
+      elseif k == "date" then
+        local d, m, y = txt:match("^(%d%d?)%.(%d%d?)%.(%d%d%d%d)$")
+        ed.set[r.def.id] = d and string.format("%04d-%02d-%02d", y, m, d) or nil
+      else ed.set[r.def.id] = txt end
+    end)
+    r.edit:SetScript("OnEditFocusLost", function() V.EditorRefresh() end)
+    r.check = W.Check(r, "", function(_, on) if ed.set and r.def then ed.set[r.def.id] = on; V.EditorRefresh() end end)
+    r.check:SetPoint("LEFT", 206, 0)
+    r.multi = {}
+    return r
   end)
 
   -- 5 · own questions for the sign-up
@@ -833,7 +998,7 @@ function V.EditorRefresh()
   at(ed.s1); y = y + 24
   local types = {}
   for _, t in ipairs(ns.Modules.AllTypes()) do
-    if not t.missing and ns.Profile.IsTypeActive(t.id) and E.CanCreate(t.id) then types[#types + 1] = t end
+    if not t.missing and ns.Profile.IsTypeActive(t.id) and E.CanCreate(t.id) and E.TypeOpen(t.id) then types[#types + 1] = t end
   end
   for i, t in ipairs(types) do
     local b = ed.tiles:Get(i)
@@ -852,7 +1017,96 @@ function V.EditorRefresh()
   at(ed.typeDesc); y = y + ed.typeDesc:GetStringHeight() + 10
   ed.lName:SetText(L.ED_NAME:format(ns.Modules.TypeName(f.type)))
   at(ed.lName); y = y + 14
-  at(ed.name); y = y + 22 + 16
+  at(ed.name); y = y + 22 + 12
+  -- leadership
+  f.leaders = f.leaders or {}
+  local raid = E.IsRaid(f.type)
+  ed.lLead:SetText(raid and L.ED_LEAD_RAID or L.ED_LEAD)
+  at(ed.lLead); y = y + 14
+  local lx = 0
+  for i, k in ipairs(f.leaders) do
+    local b = ed.leadRows:Get(i)
+    b.key = k
+    local rl = raid and ns.Struct and ns.Struct.IsRaidLead(k)
+    W.SetLabel(b, G.Display(k) .. (rl and (" |cffc9a8ef[" .. (L.ED_LEAD_RL or "RL") .. "]|r") or "") .. "  |cff9a8a7ax|r")
+    b:SetWidth(b.label:GetStringWidth() + 18)
+    if lx + b:GetWidth() > (col:GetWidth() or 500) - 260 and lx > 0 then lx = 0; y = y + 24 end
+    at(b, lx); b:Show()
+    lx = lx + b:GetWidth() + 4
+  end
+  ed.leadRows:HideFrom(#f.leaders + 1)
+  at(ed.leadEdit, lx); ed.leadAdd:ClearAllPoints(); ed.leadAdd:SetPoint("LEFT", ed.leadEdit, "RIGHT", 4, 0)
+  y = y + 24
+  local lerr = E.CheckLeaders(f.type, f.leaders)
+  ed.leadHint:SetText(lerr and ("|cffff805c" .. lerr .. "|r") or "")
+  ed.leadHint:SetShown(lerr ~= nil)
+  if lerr then at(ed.leadHint); y = y + 14 end
+  y = y + 8
+
+  -- 1b · settings of the type
+  local defs = E.SettingDefs(f.type)
+  ed.set = ed.set or {}
+  local shown = 0
+  if #defs > 0 then
+    ed.sSet:SetText(L.ED_SETTINGS_OF:format(ns.Modules.TypeName(f.type)))
+    at(ed.sSet); y = y + 24
+    local values = E.Settings({ type = f.type, set = ed.set })
+    for _, d in ipairs(defs) do
+      local visible = true
+      if type(d.showIf) == "function" then local ok, v = pcall(d.showIf, values); visible = ok and v and true or false end
+      if visible and E.SET_KINDS[d.kind] then
+        shown = shown + 1
+        local r = ed.setRows:Get(shown)
+        r.def = d
+        r.label:SetText(E.FieldLabel(d))
+        r.drop:Hide(); r.edit:Hide(); r.check:Hide(); r.hint:SetText("")
+        for _, c in ipairs(r.multi) do c:Hide() end
+        local v = values[d.id]
+        local h = 24
+        if d.kind == "choice" then
+          r.drop:Show(); r.drop:Refresh()
+        elseif d.kind == "check" then
+          r.check:Show(); r.check:SetChecked(v)
+        elseif d.kind == "multi" then
+          local opts = E.SettingOptions(d, f)
+          local on = {}
+          for _, x in ipairs(type(v) == "table" and v or {}) do on[x] = true end
+          for i, o in ipairs(opts) do
+            local c = r.multi[i]
+            if not c then
+              c = W.Check(r, "", function(self, checked)
+                local list = {}
+                for j, cc in ipairs(r.multi) do if cc:IsShown() and cc:GetChecked() then list[#list + 1] = cc.value end end
+                ed.set[r.def.id] = list
+              end)
+              r.multi[i] = c
+            end
+            c.value = o[1]; c.text:SetText(o[2]); c:SetChecked(on[o[1]])
+            c:ClearAllPoints(); c:SetPoint("TOPLEFT", r, "TOPLEFT", 206 + ((i - 1) % 2) * 130, -4 - math.floor((i - 1) / 2) * 20)
+            c:Show()
+          end
+          h = math.max(24, math.ceil(#opts / 2) * 20 + 6)
+        else
+          r.edit:Show()
+          r.edit:SetNumeric(d.kind == "number")
+          r.edit:SetWidth(d.kind == "text" and 220 or 90)
+          if not r.edit:HasFocus() then
+            local txt = v
+            if d.kind == "date" and type(v) == "string" then local y4, m, dd = v:match("^(%d+)%-(%d+)%-(%d+)$"); txt = y4 and (dd .. "." .. m .. "." .. y4) or v end
+            r.edit:SetText(txt ~= nil and tostring(txt) or "")
+          end
+          local hint = d.kind == "time" and "HH:MM" or d.kind == "date" and L.ED_DATE_HINT
+            or (d.kind == "number" and (d.min or d.max)) and ((d.min or 0) .. "–" .. (d.max or "")) or ""
+          r.hint:SetText(hint); r.hint:ClearAllPoints(); r.hint:SetPoint("LEFT", r.edit, "RIGHT", 8, 0)
+        end
+        r:SetHeight(h)
+        at(r); y = y + h + 4
+      end
+    end
+    y = y + 12
+  end
+  ed.sSet:SetShown(#defs > 0); ed.sSet.line:SetShown(#defs > 0)
+  ed.setRows:HideFrom(shown + 1)
 
   -- 2 · when
   at(ed.s2); y = y + 24
@@ -905,6 +1159,20 @@ function V.EditorRefresh()
   local multi = st.dur == "days" or st.dur == "weeks"
   ed.count:SetShown(multi)
   if multi then at(ed.count); ed.count:Refresh(); y = y + 28 end
+  local canRepeat = not season
+  ed.lRep:SetShown(canRepeat); ed.rep:SetShown(canRepeat)
+  local hasRep = canRepeat and (ed.repSel or "none") ~= "none"
+  ed.lUntil:SetShown(hasRep); ed.until_:SetShown(hasRep); ed.untilHint:SetShown(hasRep)
+  if canRepeat then
+    at(ed.lRep); y = y + 14
+    at(ed.rep); ed.rep:Refresh()
+    if hasRep then
+      ed.lUntil:ClearAllPoints(); ed.lUntil:SetPoint("LEFT", ed.rep, "RIGHT", 14, 0)
+      ed.until_:ClearAllPoints(); ed.until_:SetPoint("LEFT", ed.lUntil, "RIGHT", 6, 0)
+      ed.untilHint:ClearAllPoints(); ed.untilHint:SetPoint("LEFT", ed.until_, "RIGHT", 6, 0)
+    end
+    y = y + 30
+  end
   applyState(f, st)
   local when
   if season then
@@ -980,6 +1248,7 @@ function V.EditorPickType(id)
   local ed = V.panel.editor
   local f = ed.f
   local old = ns.Modules.TypeName(f.type)
+  if f.type ~= id then ed.set = {} end
   f.type = id
   local t = ns.Modules.Type(id)
   if t and not ed.ev then
@@ -1052,6 +1321,8 @@ function V.SaveEditor()
   f.gmin = tonumber(ed.gmin:GetText())
   f.gmax = tonumber(ed.gmax:GetText())
   if f.gmin and f.gmax and f.gmin > f.gmax then ed.err:SetText(L.ED_ERR_SIZE); return end
+  local lerr = E.CheckLeaders(f.type, f.leaders)
+  if lerr then ed.err:SetText(lerr); return end
   f.pts = tonumber(ed.pts:GetText())
   f.lvl = tonumber(ed.lvl:GetText())
   if f.lvl and f.lvl <= 1 then f.lvl = nil end
@@ -1092,13 +1363,54 @@ function V.SaveEditor()
     end
   end
   f.fields = E.CleanFields(qs)
+  -- settings of the type: only valid values, then the type's own check
+  local defs = E.SettingDefs(f.type)
+  f.set = E.CleanSettings(f.type, ed.set, f)
+  if #defs > 0 then
+    for _, d in ipairs(defs) do
+      local raw = ed.set and ed.set[d.id]
+      if raw ~= nil and raw ~= "" and E.SettingValue(d, raw, f) == nil then
+        ed.err:SetText(L.ED_ERR_SETTING:format(E.FieldLabel(d))); return
+      end
+    end
+    local err = E.ValidateSettings(f.type, E.Settings({ type = f.type, set = f.set }))
+    if err then ed.err:SetText(err); return end
+  end
+  -- repeat
+  local sel = (f.kind ~= "season") and ed.repSel or "none"
+  if sel and sel ~= "none" then
+    local untilTs
+    local txt = ed.until_:GetText():gsub("%s", "")
+    if txt ~= "" then
+      local dd, mm, yy = txt:match("^(%d%d?)%.(%d%d?)%.(%d%d%d%d)$")
+      if not dd then ed.err:SetText(L.ED_ERR_SETTING:format(L.ED_REP_UNTIL)); return end
+      untilTs = time({ year = tonumber(yy), month = tonumber(mm), day = tonumber(dd), hour = 23, min = 59 })
+    end
+    f.rep = { every = (sel == "week2") and "week" or sel, n = (sel == "week2") and 2 or 1, untilTs = untilTs }
+  else
+    f.rep = nil
+  end
   local e
   if ed.ev then
     e = E.Get(ed.ev.id)
     if not e then V.ShowList(); return end
-    for _, k in ipairs({ "type", "name", "desc", "kind", "start", "finish", "group", "gmin", "gmax", "lvl", "remind", "pts", "goals", "fields" }) do e[k] = f[k] end
+    for _, k in ipairs({ "type", "name", "desc", "kind", "start", "finish", "group", "gmin", "gmax", "lvl", "remind", "pts", "goals", "fields", "set", "rep", "leaders" }) do e[k] = f[k] end
+    e.leader = f.leaders[1] or e.leader
     if e.kind == "season" then e.start = ns.Points.SeasonStart(); e.finish = ns.Points.SeasonEnd() end
     E.Save(e)
+    -- a date of a series: only this one, or all later ones too
+    local later = 0
+    if e.series then
+      for _, x in ipairs(ns.Series.Members(e.series)) do if (x.start or 0) > (e.start or 0) and x.status == "planned" then later = later + 1 end end
+    end
+    if later > 0 then
+      local saved = e
+      W.Dialog({ text = L.SERIES_EDIT_Q:format(later), accept = L.SERIES_ONLY_THIS, alt = L.SERIES_ALL_LATER,
+        onAccept = function() end,
+        onAlt = function() ns.Series.ApplyFollowing(saved); ns.Series.Fill() end })
+    elseif e.rep then
+      ns.Series.Fill()
+    end
   else
     e = E.Create(f)
   end
@@ -1109,12 +1421,17 @@ end
 -- preset: fields for a new event, e.g. { type = "raid_hyjal" }
 function V.OpenEditor(e, template, preset)
   local p = V.panel
+  -- opened before the events page was ever shown (help, a module button)
+  if not p and ns.UI and ns.UI.Show then ns.UI.Show("events"); p = V.panel end
+  if not p then return end
   if e and not E.CanManage(e) then return end
   if not e and not V.AnyCreate() then return end
   local ed = p.editor
   ed.ev = e
   local src = e or template
   ed.f = src and U.Copy(src) or { kind = "short", group = "none" }
+  ed.f.leaders = src and U.Copy(E.Leaders(src)) or {}
+  if #ed.f.leaders == 0 and G.MyKey() then ed.f.leaders = { ns.Persons and ns.Persons.MainOf(G.MyKey()) or G.MyKey() } end
   if preset and not src then
     for k, v in pairs(preset) do ed.f[k] = v end
     local t = ed.f.type and ns.Modules.Type(ed.f.type)
@@ -1122,6 +1439,7 @@ function V.OpenEditor(e, template, preset)
   end
   if template then
     for _, k in ipairs({ "id", "status", "signups", "attended", "leader", "by", "ts", "v", "started", "ended", "created" }) do ed.f[k] = nil end
+    ed.f.leaders = U.Copy(E.Leaders(src))
     for _, g in ipairs(ed.f.goals or {}) do g.done = false end
     local start = ed.f.start or U.Now()
     while start < U.Now() + 600 do start = start + 7 * DAY end
@@ -1140,7 +1458,7 @@ function V.OpenEditor(e, template, preset)
   end
   if not ed.f.type then
     for _, t in ipairs(ns.Modules.AllTypes()) do
-      if not t.missing and ns.Profile.IsTypeActive(t.id) and E.CanCreate(t.id) then
+      if not t.missing and ns.Profile.IsTypeActive(t.id) and E.CanCreate(t.id) and E.TypeOpen(t.id) then
         ed.f.type = t.id; ed.f.kind = t.kind or ed.f.kind; ed.f.group = t.group or ed.f.group
         ed.f.gmin, ed.f.gmax = t.gmin, t.gmax
         break
@@ -1175,6 +1493,10 @@ function V.OpenEditor(e, template, preset)
     local t = ns.Modules.Type(ed.f.type)
     for _, k in ipairs(t and t.goalKeys or {}) do ed.goals[#ed.goals + 1] = L[k] end
   end
+  ed.set = U.Copy(type(src and src.set) == "table" and src.set or {})
+  local r = src and src.rep
+  ed.repSel = r and ((r.every == "week" and r.n == 2) and "week2" or r.every) or "none"
+  ed.until_:SetText(r and r.untilTs and date("%d.%m.%Y", r.untilTs) or "")
   ed.err:SetText("")
   ed.scroll:SetVerticalScroll(0)
   V.Mode("editor")
@@ -1193,17 +1515,33 @@ local function buildAttendance(p)
   a.title:SetPoint("TOPLEFT", 0, 0)
   a.hint = W.Text(a, 11, "muted")
   a.hint:SetPoint("TOPLEFT", a.title, "BOTTOMLEFT", 0, -6); a.hint:SetPoint("RIGHT", 0, 0)
+  a.hint:SetSpacing(2)
   a.cancel = W.Button(a, CANCEL or "Cancel", false, 22)
   a.cancel:SetPoint("TOPRIGHT", 0, 0)
   a.cancel:SetScript("OnClick", function() V.OpenDetail(a.ev) end)
   a.ok = W.Button(a, L.END_AND_AWARD, true, 22)
   a.ok:SetPoint("RIGHT", a.cancel, "LEFT", -6, 0)
   a.ok:SetScript("OnClick", function()
-    local sel = {}
-    for _, c in ipairs(a.checks.items) do if c:IsShown() and c:GetChecked() then sel[c.key] = true end end
-    E.End(a.ev, sel)
+    -- sending the result confirms a reported end
+    if a.ev and ns.Contest.Pending(a.ev) then ns.Contest.ConfirmEnd(a.ev) end
+    local sel, rows = {}, {}
+    for _, r in ipairs(a.rows.items) do
+      if r:IsShown() and r.key then
+        if r.check:GetChecked() then sel[r.key] = true end
+        local pp, bo = tonumber(r.pp:GetText()) or 0, tonumber(r.bo:GetText()) or 0
+        if a.contest or pp ~= 0 or bo ~= 0 then
+          rows[r.key] = { pp = pp, bo = bo, v = r.value, pl = r.place }
+        end
+      end
+    end
+    local note = a.note:GetText()
+    E.End(a.ev, sel, { rows = rows, note = note ~= "" and note or nil })
     V.OpenDetail(a.ev)
   end)
+  -- counting of a contest still runs: end it first
+  a.stop = W.Button(a, L.CONTEST_STOP, false, 22)
+  a.stop:SetPoint("RIGHT", a.ok, "LEFT", -6, 0)
+  a.stop:SetScript("OnClick", function() ns.Contest.EndContest(a.ev, "leader"); V.RefreshAttendance() end)
   a.add = W.Button(a, L.ADD_MEMBER, false, 22)
   a.add:SetPoint("BOTTOMLEFT", 0, 0)
   a.add:SetScript("OnClick", function()
@@ -1214,44 +1552,309 @@ local function buildAttendance(p)
       V.RefreshAttendance()
     end })
   end)
+  a.noteL = W.Text(a, 10, "muted"); a.noteL:SetText(L.RESULT_NOTE)
+  a.noteL:SetPoint("LEFT", a.add, "RIGHT", 14, 0)
+  a.note = W.Edit(a, 10, 22); a.note:SetMaxLetters(200)
+  a.note:SetPoint("LEFT", a.noteL, "RIGHT", 6, 0); a.note:SetPoint("RIGHT", 0, 0)
+  -- column heads
+  local COLS = { name = 4, value = 300, place = 380, pp = 450, bo = 540 }
+  a.COLS = COLS
+  a.head = CreateFrame("Frame", nil, a)
+  a.head:SetPoint("TOPLEFT", 0, -58); a.head:SetPoint("RIGHT", 0, 0); a.head:SetHeight(16)
+  local function head(key, text)
+    local fs = W.Text(a.head, 10, "muted"); fs:SetPoint("LEFT", COLS[key], 0); fs:SetText(text)
+    a.head[key] = fs
+  end
+  head("name", L.RESULT_COL_NAME); head("value", L.RESULT_COL_VALUE); head("place", L.RESULT_COL_PLACE)
+  head("pp", L.RESULT_COL_PLACEPTS); head("bo", L.RESULT_COL_BONUS)
   a.scroll = W.Scroll(a)
-  a.scroll:SetPoint("TOPLEFT", 0, -50); a.scroll:SetPoint("BOTTOMRIGHT", 0, 30)
-  a.checks = W.Pool(a.scroll.content, function(parent) return W.Check(parent, "") end)
+  a.scroll:SetPoint("TOPLEFT", 0, -78); a.scroll:SetPoint("BOTTOMRIGHT", 0, 30)
+  a.rows = W.Pool(a.scroll.content, function(parent)
+    local r = CreateFrame("Frame", nil, parent)
+    r:SetHeight(24)
+    r.check = W.Check(r, "", function(self, on) a.defaults[r.key] = on end)
+    r.check:SetPoint("LEFT", COLS.name, 0)
+    r.value = nil
+    r.valueT = W.Text(r, 11, "text"); r.valueT:SetPoint("LEFT", COLS.value, 0)
+    r.placeT = W.Text(r, 11, "title"); r.placeT:SetPoint("LEFT", COLS.place, 0)
+    r.pp = W.Edit(r, 60, 20); r.pp:SetPoint("LEFT", COLS.pp, 0)
+    r.bo = W.Edit(r, 60, 20); r.bo:SetPoint("LEFT", COLS.bo, 0)
+    r.boWhy = W.Text(r, 9, "muted"); r.boWhy:SetPoint("LEFT", r.bo, "RIGHT", 6, 0); r.boWhy:SetPoint("RIGHT", 0, 0)
+    r.boWhy:SetWordWrap(false)
+    for _, ed in ipairs({ r.pp, r.bo }) do
+      ed:SetScript("OnTextChanged", function(self, user)
+        if not (user and r.key) then return end
+        a.edits[r.key] = a.edits[r.key] or {}
+        a.edits[r.key][self == r.pp and "pp" or "bo"] = self:GetText()
+      end)
+    end
+    return r
+  end)
 end
 
 function V.RefreshAttendance()
   local a = V.panel.att
-  local cands = E.Candidates(a.ev)
+  local e = a.ev
+  local CT = ns.Contest
+  a.contest = CT.Is(e)
+  local cands = E.Candidates(e)
   local have = {}
   for _, c in ipairs(cands) do have[c.key] = true end
+  -- everyone with a score of the contest
+  local standings = a.contest and CT.Standings(e) or {}
+  local byKey = {}
+  for _, x in ipairs(standings) do
+    byKey[x.key] = x
+    if not have[x.key] then cands[#cands + 1] = { key = x.key, inGroup = false, signed = E.IsSigned(e, x.key), scored = true }; have[x.key] = true end
+  end
   for key in pairs(a.extra) do
     if not have[key] then cands[#cands + 1] = { key = key, inGroup = false, signed = false, extra = true } end
   end
-  local per = tonumber(a.ev.pts) or ns.Profile.Get().pts.participate
-  a.hint:SetText(L.ATTEND_HINT:format(per))
-  for i, c in ipairs(cands) do
-    local cb = a.checks:Get(i)
-    cb.key = c.key
-    local col, row = (i - 1) % 3, math.floor((i - 1) / 3)
-    cb:ClearAllPoints()
-    cb:SetPoint("TOPLEFT", 4 + col * 270, -4 - row * 22)
-    local tag = c.inGroup and L.IN_GROUP or (c.signed and L.SIGNED or L.ADDED)
-    cb.text:SetText(G.Display(c.key) .. "  " .. U.Color(T.Hex(T.Current().muted), tag))
-    if a.defaults[c.key] == nil then a.defaults[c.key] = c.inGroup or c.extra or false end
-    cb:SetChecked(a.defaults[c.key])
-    cb:SetScript("OnClick", function(self) self:SetChecked(not self.checked); a.defaults[self.key] = self.checked end)
+  -- contest: best first; otherwise by name
+  if a.contest then
+    table.sort(cands, function(x, y)
+      local px, py = byKey[x.key] and byKey[x.key].place or 999, byKey[y.key] and byKey[y.key].place or 999
+      if px ~= py then return px < py end
+      return G.Display(x.key) < G.Display(y.key)
+    end)
   end
-  a.checks:HideFrom(#cands + 1)
-  a.scroll:SetContentHeight(math.ceil(#cands / 3) * 22 + 8)
+  local per = tonumber(e.pts) or ns.Profile.Get().pts.participate
+  local hint = L.ATTEND_HINT:format(per)
+  local running = a.contest and not CT.Ended(e)
+  if a.contest then hint = hint .. "\n" .. (running and U.Color(U.WARN, L.CONTEST_STILL_RUNS) or L.RESULT_HINT) end
+  if a.contest and CT.Pending(e) then hint = hint .. "\n" .. U.Color(U.WARN, L.END_PENDING_RESULT:format(G.Display(e.cendBy or "?"), date("%H:%M", e.cend or 0))) end
+  a.hint:SetText(hint)
+  a.stop:SetShown(running)
+  a.ok:SetEnabled(not running)
+  for _, k in ipairs({ "value", "place", "pp" }) do a.head[k]:SetShown(a.contest) end
+  local places = a.contest and CT.Places(e) or {}
+  -- shared goal: reward for everyone when reached, bonus for the best group
+  local goal = a.contest and CT.Goal(e)
+  local reward = (goal and CT.GoalReached(e)) and goal.reward or 0
+  local best = goal and CT.BestMembers(e) or {}
+  if goal then
+    local total = CT.Total(e)
+    hint = hint .. "\n" .. (CT.GoalReached(e) and L.GOAL_HINT_OK:format(total, goal.target or 0, goal.reward, goal.bonus)
+      or L.GOAL_HINT_MISSED:format(total, goal.target or 0))
+    a.hint:SetText(hint)
+  end
+  for i, c in ipairs(cands) do
+    local r = a.rows:Get(i)
+    r.key = c.key
+    r:ClearAllPoints(); r:SetPoint("TOPLEFT", 0, -(i - 1) * 26); r:SetPoint("RIGHT", a.scroll.content, "RIGHT", 0, 0)
+    local tag = c.inGroup and L.IN_GROUP or (c.signed and L.SIGNED or (c.scored and L.RESULT_SCORED or L.ADDED))
+    r.check.text:SetText(G.Display(c.key) .. "  " .. U.Color(T.Hex(T.Current().muted), tag))
+    if a.defaults[c.key] == nil then a.defaults[c.key] = c.inGroup or c.extra or c.scored or (byKey[c.key] ~= nil) or false end
+    r.check:SetChecked(a.defaults[c.key])
+    local x = byKey[c.key]
+    r.value, r.place = x and x.value or nil, x and x.place or nil
+    r.valueT:SetShown(a.contest); r.placeT:SetShown(a.contest); r.pp:SetShown(a.contest)
+    r.valueT:SetText(x and CT.Format(e, x.value) or "–")
+    r.placeT:SetText(x and (x.place .. ".") or "")
+    local ed = a.edits[c.key] or {}
+    local ppDef = ((x and x.place and places[x.place]) or 0) + reward
+    local boDef = (x and x.bonus and tonumber(x.bonus.p) or 0) + ((goal and best[c.key] and reward > 0) and goal.bonus or 0)
+    if not r.pp:HasFocus() then r.pp:SetText(ed.pp or tostring(ppDef)) end
+    if not r.bo:HasFocus() then r.bo:SetText(ed.bo or tostring(boDef)) end
+    r.boWhy:SetText(x and x.bonus and x.bonus.r and L[x.bonus.r] or "")
+  end
+  a.rows:HideFrom(#cands + 1)
+  a.scroll:SetContentHeight(#cands * 26 + 8)
 end
-
 function V.OpenAttendance(e)
   local a = V.panel.att
   a.ev = e
-  a.extra, a.defaults = {}, {}
-  a.title:SetText(L.END_TITLE:format(e.name))
+  a.extra, a.defaults, a.edits = {}, {}, {}
+  a.note:SetText("")
+  a.title:SetText((ns.Contest.Is(e) and L.RESULT_TITLE or L.END_TITLE):format(e.name))
   V.RefreshAttendance()
   V.Mode("att")
+end
+
+---------------------------------------------------------------------------
+-- "Report end" buttons (0.9): participants report, the referee confirms or
+-- lets counting go on. Used in the detail page and the live window.
+---------------------------------------------------------------------------
+function V.EndButtons(parent)
+  local b = {}
+  b.report = W.Button(parent, L.END_REPORT, false, 20)
+  b.confirm = W.Button(parent, L.END_CONFIRM, true, 20)
+  b.resume = W.Button(parent, L.END_RESUME, false, 20)
+  for _, x in ipairs({ b.report, b.confirm, b.resume }) do W.SetLabel(x, x.label:GetText()); x:Hide() end
+  b.report:SetScript("OnClick", function()
+    local e = b.ev
+    if not e then return end
+    W.Dialog({ text = L.END_REPORT_Q:format(e.name), accept = L.END_REPORT, onAccept = function() ns.Contest.ReportEnd(e, "report"); V.RefreshEndButtons(b) end })
+  end)
+  b.report:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(L.END_REPORT, 1, 0.82, 0)
+    GameTooltip:AddLine(L.END_REPORT_TIP, 1, 1, 1, true); GameTooltip:Show()
+  end)
+  b.report:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  b.confirm:SetScript("OnClick", function() if b.ev then ns.Contest.ConfirmEnd(b.ev); V.RefreshEndButtons(b) end end)
+  b.resume:SetScript("OnClick", function() if b.ev then ns.Contest.Resume(b.ev); V.RefreshEndButtons(b) end end)
+  return b
+end
+
+-- shows the fitting buttons; returns how many are shown
+function V.RefreshEndButtons(b, e)
+  e = e or b.ev
+  b.ev = e
+  local CT = ns.Contest
+  local pending = e and CT.Pending(e)
+  local lead = e and E.CanManage(e)
+  b.report:SetShown(e and not pending and CT.CanReport(e) or false)
+  b.confirm:SetShown(pending and lead or false)
+  b.resume:SetShown(pending and lead or false)
+  local n = 0
+  for _, x in ipairs({ b.report, b.confirm, b.resume }) do if x:IsShown() then n = n + 1 end end
+  return n
+end
+
+---------------------------------------------------------------------------
+-- Contest standings / result as text lines (detail page, standings window)
+---------------------------------------------------------------------------
+function V.ContestLines(e, max)
+  local CT = ns.Contest
+  if not CT.Is(e) then return nil end
+  local th = T.Current()
+  local out = {}
+  local me = G.MyKey()
+  if e.result and e.result.rows then
+    out[#out + 1] = U.Color(T.Hex(th.title), L.RESULT_FINAL)
+    for _, r in ipairs(e.result.rows) do
+      local pts = (r.pp or 0) + (r.bo or 0)
+      local line = (r.pl and (r.pl .. ". ") or "   ") .. G.Display(r.k) .. (r.v and ("  " .. CT.Format(e, r.v)) or "") .. (pts ~= 0 and U.Color(T.Hex(th.muted), "  +" .. pts) or "")
+      out[#out + 1] = "  " .. (r.k == me and U.Color(U.GOLD, line) or line)
+    end
+    if e.result.note then out[#out + 1] = U.Color(T.Hex(th.muted), "  »" .. e.result.note .. "« – " .. G.Display(e.result.by)) end
+    return out
+  end
+  local list = CT.Standings(e)
+  local ended = CT.Ended(e)
+  local goal = CT.Goal(e)
+  if CT.Pending(e) then
+    out[#out + 1] = U.Color(U.WARN, L.END_PENDING:format(G.Display(e.cendBy or "?"), date("%H:%M", e.cend or 0)))
+  end
+  if goal then
+    local total = CT.Total(e)
+    local tgt = goal.target or 0
+    local filled = tgt > 0 and math.min(20, math.floor(total / tgt * 20)) or 0
+    local bar = U.Color(U.GOLD, string.rep("|", filled)) .. U.Color(T.Hex(th.muted), string.rep("|", 20 - filled))
+    out[#out + 1] = U.Color(T.Hex(th.title), L.GOAL_HEAD) .. "  " .. total .. " / " .. tgt .. (CT.GoalReached(e) and ("  " .. U.Color(U.GOLD, L.GOAL_DONE)) or "")
+    out[#out + 1] = "  " .. bar
+    local groups = CT.Groups(e)
+    if #groups > 1 or (groups[1] and groups[1].id ~= "x") then
+      out[#out + 1] = U.Color(T.Hex(th.title), L.GOAL_GROUPS)
+      local myKey = G.MyKey()
+      for _, g in ipairs(groups) do
+        local mine = false
+        for _, k in ipairs(g.members or {}) do if k == myKey then mine = true end end
+        local line = g.name .. "  " .. g.value .. (g.best and ("  " .. L.GOAL_BONUS_TAG:format(goal.bonus)) or "")
+        out[#out + 1] = "  " .. (mine and U.Color(U.GOLD, line) or line)
+      end
+    end
+  end
+  local head = ended and L.STANDINGS_WAIT or (CT.Running(e) and L.STANDINGS_LIVE or L.STANDINGS)
+  out[#out + 1] = U.Color(T.Hex(th.title), head)
+  if #list == 0 then out[#out + 1] = "  " .. L.STANDINGS_NONE; return out end
+  for i, x in ipairs(list) do
+    -- the first ones, and the own line also further down
+    if i <= (max or 10) or x.key == me then
+      local line = x.place .. ". " .. G.Display(x.key) .. "  " .. CT.Format(e, x.value)
+      if x.key == me then line = U.Color(U.GOLD, line) end
+      out[#out + 1] = "  " .. line
+    end
+  end
+  return out
+end
+
+-- a small live window with the standings (API.ShowStandings)
+function V.ShowStandings(e)
+  if not e then return end
+  local win = ns.Float.Get("standings", { title = "", width = 240, height = 220, point = { "RIGHT", -60, 60 } })
+  if not win.text then
+    win.text = W.Text(win.content, 11, "text"); win.text:SetPoint("TOPLEFT", 0, 0); win.text:SetPoint("RIGHT", 0, 0)
+    win.text:SetSpacing(2)
+    ns.On("CONTEST_SCORE", function(ev) if win:IsShown() and win.ev and ev.id == win.ev.id then V.ShowStandings(win.ev) end end)
+    ns.On("CONTEST_END", function(ev) if win:IsShown() and win.ev and ev.id == win.ev.id then V.ShowStandings(win.ev) end end)
+  end
+  if not win.endB then
+    win.endB = V.EndButtons(win.content)
+    win.endB.report:SetPoint("BOTTOMLEFT", 0, 0)
+    win.endB.confirm:SetPoint("BOTTOMLEFT", 0, 0)
+    win.endB.resume:SetPoint("LEFT", win.endB.confirm, "RIGHT", 4, 0)
+    for _, ev in ipairs({ "CONTEST_REPORT", "CONTEST_RESUME" }) do
+      ns.On(ev, function(x) if win:IsShown() and win.ev and x.id == win.ev.id then V.ShowStandings(win.ev) end end)
+    end
+  end
+  win.ev = e
+  win:SetTitle(e.name)
+  local lines = V.ContestLines(e, 8) or {}
+  win.text:SetText(table.concat(lines, "\n"))
+  local nb = V.RefreshEndButtons(win.endB, e)
+  win:Resize(240, math.max(80, 36 + win.text:GetStringHeight() + (nb > 0 and 28 or 0)))
+  win:Open()
+end
+
+---------------------------------------------------------------------------
+-- Rules of an event type (API 7): cards with symbol, title and text
+---------------------------------------------------------------------------
+V.RULE_ICONS = {
+  fish = "Interface\\Icons\\INV_Misc_Fish_02", trophy = W.ICONS .. "ach", clock = W.ICONS .. "events",
+  warning = "Interface\\DialogFrame\\UI-Dialog-Icon-AlertNew", map = "Interface\\Icons\\INV_Misc_Map_01",
+  sword = W.ICONS .. "pvp", info = W.ICONS .. "help", check = W.ICONS .. "check", coin = "Interface\\Icons\\INV_Misc_Coin_01",
+  group = W.ICONS .. "home", star = "Interface\\Icons\\INV_Misc_Gem_Pearl_04",
+}
+
+function V.RulesText(e)
+  local list = E.Rules(e)
+  if not list then return nil end
+  local parts = {}
+  for _, r in ipairs(list) do parts[#parts + 1] = (r.title ~= "" and (U.Color(T.Hex(T.Current().title), r.title) .. "\n") or "") .. r.text end
+  return table.concat(parts, "\n\n")
+end
+
+function V.ShowRules(e)
+  local list = E.Rules(e)
+  if not list then return end
+  local win = ns.Float.Get("rules", { title = "", width = 380, height = 420, strata = "DIALOG", point = { "CENTER", 0, 40 } })
+  win:SetFrameStrata("DIALOG"); win:Raise()
+  win:SetTitle(L.RULES_TITLE:format(e.name))
+  if not win.scroll then
+    win.scroll = W.Scroll(win.content)
+    win.scroll:SetAllPoints()
+    win.cards = W.Pool(win.scroll.content, function(parent)
+      local c = W.Box(parent, 10, 10, "panel2")
+      c.icon = c:CreateTexture(nil, "ARTWORK"); c.icon:SetSize(26, 26); c.icon:SetPoint("TOPLEFT", 8, -8)
+      c.title = W.Text(c, 12, "title"); c.title:SetPoint("TOPLEFT", c.icon, "TOPRIGHT", 8, 0); c.title:SetPoint("RIGHT", -8, 0)
+      c.text = W.Text(c, 11, "text"); c.text:SetPoint("TOPLEFT", c.title, "BOTTOMLEFT", 0, -4); c.text:SetPoint("RIGHT", -8, 0)
+      c.text:SetSpacing(2)
+      return c
+    end)
+  end
+  local y, w = 0, win.content:GetWidth() - 18
+  for i, r in ipairs(list) do
+    local c = win.cards:Get(i)
+    c:ClearAllPoints(); c:SetPoint("TOPLEFT", 0, -y); c:SetWidth(w)
+    local tex = r.icon and (V.RULE_ICONS[r.icon] or (tostring(r.icon):find("\\") and r.icon)) or V.RULE_ICONS.info
+    c.icon:SetTexture(tex)
+    c.title:SetText(r.title); c.text:SetText(r.text)
+    local h = math.max(42, 8 + c.title:GetStringHeight() + 4 + c.text:GetStringHeight() + 10)
+    c:SetHeight(h)
+    y = y + h + 6
+  end
+  win.cards:HideFrom(#list + 1)
+  win.scroll:SetContentHeight(y)
+  win:Open()
+end
+
+-- the "?" in the header shows the rules while an event of such a type is open
+UI.HelpOverride = function(view)
+  if view ~= "events" or not V.panel or not V.panel.detail or not V.panel.detail:IsShown() then return nil end
+  local e = V.panel.detail.ev
+  local text = e and V.RulesText(e)
+  if text then return L.RULES_TITLE:format(e.name), text end
 end
 
 ---------------------------------------------------------------------------
@@ -1270,12 +1873,14 @@ end
 function V.ShowList() V.Mode("list") end
 function V.RefreshDetail() if V.panel and V.panel.mode == "detail" then refreshDetail(V.panel) end end
 
-function V.OpenDetail(e)
+function V.OpenDetail(e, tab)
   -- first opening: the page is built with the next refresh, show the event then
-  if not V.panel then V.pending = e; UI.Show("events"); return end
+  if not V.panel then V.pending = e; V.pendingTab = tab; UI.Show("events"); return end
   if not e then return V.ShowList() end
   if UI.Frame() == nil or not UI.Frame():IsShown() or UI.Frame().current ~= "events" then UI.Show("events") end
-  V.panel.detail.ev = e
+  local d = V.panel.detail
+  if tab or not (d.ev and d.ev.id == e.id) then d.tab = tab or "info" end
+  d.ev = e
   V.Mode("detail")
 end
 
@@ -1318,7 +1923,7 @@ UI.RegisterView("events", {
     V.panel = p
     buildList(p); buildDetail(p); buildEditor(p); buildAttendance(p)
     p.mode = "list"
-    if V.pending then p.detail.ev = V.pending; p.mode = "detail"; p.list:Hide(); p.detail:Show(); p.editor:Hide(); p.att:Hide(); V.pending = nil end
+    if V.pending then p.detail.ev = V.pending; p.detail.tab = V.pendingTab or "info"; V.pendingTab = nil; p.mode = "detail"; p.list:Hide(); p.detail:Show(); p.editor:Hide(); p.att:Hide(); V.pending = nil end
   end,
   refresh = function(p)
     if p.mode == "list" then refreshList(p)

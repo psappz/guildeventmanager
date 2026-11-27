@@ -5,7 +5,7 @@ if not core then return end
 core.AddLocale("enUS", {
   PVP_AL_TITLE = "Wanted: %s",
   PVP_AL_LEVEL = "level %d",
-  PVP_AL_BOUNTY = "Bounty: %d honor (%d)",
+  PVP_AL_BOUNTY = "Bounty: %d GP (%d)",
   PVP_AL_DEBT = "%s: he killed you",
   PVP_AL_OATH = "Oath of %s: %s",
   PVP_AL_WATCH = "On your watch list",
@@ -41,7 +41,7 @@ core.AddLocale("enUS", {
 core.AddLocale("deDE", {
   PVP_AL_TITLE = "Gesucht: %s",
   PVP_AL_LEVEL = "Stufe %d",
-  PVP_AL_BOUNTY = "Kopfgeld: %d Ehre (%d)",
+  PVP_AL_BOUNTY = "Kopfgeld: %d GP (%d)",
   PVP_AL_DEBT = "%s: er hat dich getötet",
   PVP_AL_OATH = "Schwur von %s: %s",
   PVP_AL_WATCH = "Auf deiner Beobachtungsliste",
@@ -77,7 +77,7 @@ core.AddLocale("deDE", {
 core.AddLocale("frFR", {
   PVP_AL_TITLE = "Recherché : %s",
   PVP_AL_LEVEL = "niveau %d",
-  PVP_AL_BOUNTY = "Prime : %d honneur (%d)",
+  PVP_AL_BOUNTY = "Prime : %d PG (%d)",
   PVP_AL_DEBT = "%s : il vous a tué",
   PVP_AL_OATH = "Serment de %s : %s",
   PVP_AL_WATCH = "Sur votre liste de surveillance",
@@ -113,7 +113,7 @@ core.AddLocale("frFR", {
 core.AddLocale("esES", {
   PVP_AL_TITLE = "Buscado: %s",
   PVP_AL_LEVEL = "nivel %d",
-  PVP_AL_BOUNTY = "Recompensa: %d de honor (%d)",
+  PVP_AL_BOUNTY = "Recompensa: %d PH (%d)",
   PVP_AL_DEBT = "%s: te mató",
   PVP_AL_OATH = "Juramento de %s: %s",
   PVP_AL_WATCH = "En tu lista de vigilancia",
@@ -149,7 +149,7 @@ core.AddLocale("esES", {
 core.AddLocale("itIT", {
   PVP_AL_TITLE = "Ricercato: %s",
   PVP_AL_LEVEL = "livello %d",
-  PVP_AL_BOUNTY = "Taglia: %d onore (%d)",
+  PVP_AL_BOUNTY = "Taglia: %d PG (%d)",
   PVP_AL_DEBT = "%s: ti ha ucciso",
   PVP_AL_OATH = "Giuramento di %s: %s",
   PVP_AL_WATCH = "Nella tua lista di osservazione",
@@ -185,7 +185,7 @@ core.AddLocale("itIT", {
 core.AddLocale("ptBR", {
   PVP_AL_TITLE = "Procurado: %s",
   PVP_AL_LEVEL = "nível %d",
-  PVP_AL_BOUNTY = "Recompensa: %d de honra (%d)",
+  PVP_AL_BOUNTY = "Recompensa: %d PG (%d)",
   PVP_AL_DEBT = "%s: ele matou você",
   PVP_AL_OATH = "Juramento de %s: %s",
   PVP_AL_WATCH = "Na sua lista de observação",

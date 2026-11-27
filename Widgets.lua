@@ -566,3 +566,151 @@ function W.OpenMenu(owner, build)
   showLevel(root, 1, owner)
   levels[1].owner = owner
 end
+
+-- Name completion for an edit box (0.9): suggests guild members while typing.
+-- The rest of the first match is filled in and highlighted (Tab or Enter takes
+-- it), a list below shows up to 6 matches to click. getNames() -> { display names }.
+function W.NameComplete(edit, getNames, onPick)
+  local th = W.C()
+  local list = CreateFrame("Frame", nil, edit, "BackdropTemplate")
+  paint(list, th.panel, th.line)
+  list:SetFrameStrata("DIALOG")
+  list:SetPoint("TOPLEFT", edit, "BOTTOMLEFT", 0, -2)
+  list:SetWidth(math.max(edit:GetWidth() or 140, 160))
+  list:Hide()
+  list.rows = {}
+  local function pick(name)
+    edit:SetText(name)
+    edit:SetCursorPosition(#name)
+    edit:HighlightText(0, 0)
+    list:Hide()
+    if onPick then onPick(name) end
+  end
+  local function matches(text)
+    local out, q = {}, tostring(text or ""):lower()
+    if q == "" then return out end
+    local names = getNames() or {}
+    for _, n in ipairs(names) do if n:lower():sub(1, #q) == q then out[#out + 1] = n end end
+    if #out < 6 then
+      for _, n in ipairs(names) do
+        if n:lower():sub(1, #q) ~= q and n:lower():find(q, 1, true) then out[#out + 1] = n end
+        if #out >= 6 then break end
+      end
+    end
+    return out
+  end
+  edit:HookScript("OnTextChanged", function(self, user)
+    if not user then return end
+    local text = self:GetText() or ""
+    local m = matches(text)
+    -- inline completion: only when the typed text is a prefix
+    local first = m[1]
+    if first and first:lower():sub(1, #text) == text:lower() and #first > #text then
+      self:SetText(text .. first:sub(#text + 1))
+      self:HighlightText(#text, #first)
+      self:SetCursorPosition(#text)
+    end
+    for i = 1, 6 do
+      local r = list.rows[i]
+      if not r then
+        r = CreateFrame("Button", nil, list)
+        r:SetHeight(16)
+        r:SetPoint("TOPLEFT", 4, -3 - (i - 1) * 16); r:SetPoint("RIGHT", -4, 0)
+        r.t = W.Text(r, 11, "text"); r.t:SetPoint("LEFT", 2, 0)
+        r.hl = r:CreateTexture(nil, "HIGHLIGHT"); r.hl:SetAllPoints(); r.hl:SetColorTexture(1, 1, 1, 0.08)
+        r:SetScript("OnClick", function(b) pick(b.name) end)
+        list.rows[i] = r
+      end
+      r.name = m[i]
+      r.t:SetText(m[i] or "")
+      r:SetShown(m[i] ~= nil)
+    end
+    list:SetHeight(math.min(#m, 6) * 16 + 6)
+    list:SetShown(#m > 1 or (#m == 1 and m[1]:lower() ~= text:lower() and not (first and first:lower():sub(1, #text) == text:lower())))
+  end)
+  edit:HookScript("OnTabPressed", function(self)
+    local t = self:GetText() or ""
+    self:HighlightText(0, 0); self:SetCursorPosition(#t)
+    list:Hide()
+  end)
+  edit:HookScript("OnEnterPressed", function() list:Hide() end)
+  edit:HookScript("OnEditFocusLost", function() ns.Schedule("gemCompleteHide", 0.2, function() list:Hide() end) end)
+  return list
+end
+
+-- Display names of all guild members (for W.NameComplete)
+function W.MemberNames()
+  local out = {}
+  for k in pairs(ns.Guild.roster) do out[#out + 1] = ns.Guild.Display(k) end
+  table.sort(out)
+  return out
+end
+
+-- Badges (0.9): a row of small tags – round capsules (ranks) and square boxes
+-- (functions), tinted in their colour. When they do not fit, the font and the
+-- padding shrink; at the smallest size they wrap into further lines.
+-- bar = W.Badges(parent); h = bar:Set({ { text, col = "rrggbb", round = true }, ... }, width)
+local function hexrgb(c)
+  c = c or "bdad9c"
+  return tonumber(c:sub(1, 2), 16) / 255, tonumber(c:sub(3, 4), 16) / 255, tonumber(c:sub(5, 6), 16) / 255
+end
+
+function W.Badges(parent)
+  local bar = CreateFrame("Frame", nil, parent)
+  bar:SetSize(10, 16)
+  bar.items = {}
+  local function get(i)
+    local b = bar.items[i]
+    if b then return b end
+    b = CreateFrame("Frame", nil, bar, "BackdropTemplate")
+    capsule(b)
+    b.t = b:CreateFontString(nil, "OVERLAY")
+    b.t:SetPoint("CENTER", 0, 0)
+    b.t:SetWordWrap(false)
+    bar.items[i] = b
+    return b
+  end
+  local SIZES = { { 10, 16, 6 }, { 9, 14, 5 }, { 8, 13, 4 } }
+  function bar:Set(list, width)
+    width = width or self:GetWidth() or 200
+    local n = #list
+    local function measure(sz)
+      local total = 0
+      for i, it in ipairs(list) do
+        local b = get(i)
+        b.t:SetFont("Fonts\\FRIZQT__.TTF", sz[1], "")
+        b.t:SetText(it.text or "")
+        b.w = b.t:GetStringWidth() + sz[3] * 2 + (it.round and 4 or 0)
+        total = total + b.w + (i > 1 and 3 or 0)
+      end
+      return total
+    end
+    local sz = SIZES[1]
+    for _, s in ipairs(SIZES) do sz = s; if measure(s) <= width then break end end
+    local x, y, lineH = 0, 0, sz[2]
+    for i, it in ipairs(list) do
+      local b = get(i)
+      if x > 0 and x + b.w > width then x = 0; y = y + lineH + 2 end
+      b:ClearAllPoints(); b:SetPoint("TOPLEFT", self, "TOPLEFT", x, -y)
+      b:SetSize(b.w, lineH)
+      local r, g, bl = hexrgb(it.col)
+      if it.round then
+        b:SetBackdrop(nil)
+        b:SetCapsuleColors({ r * 0.30, g * 0.30, bl * 0.30, 1 }, { r * 0.75, g * 0.75, bl * 0.75, 1 })
+      else
+        b:SetCapsuleColors({ 0, 0, 0, 0 }, { 0, 0, 0, 0 })
+        b:SetBackdrop(BACKDROP)
+        b:SetBackdropColor(r * 0.22, g * 0.22, bl * 0.22, 1)
+        b:SetBackdropBorderColor(r * 0.65, g * 0.65, bl * 0.65, 1)
+      end
+      b.t:SetTextColor(math.min(1, r * 1.05), math.min(1, g * 1.05), math.min(1, bl * 1.05))
+      b:Show()
+      x = x + b.w + 3
+    end
+    for i = n + 1, #self.items do self.items[i]:Hide() end
+    local h = (n > 0) and (y + lineH) or 0
+    self:SetHeight(math.max(1, h))
+    return h
+  end
+  return bar
+end
